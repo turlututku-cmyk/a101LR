@@ -100,7 +100,7 @@ export default {
                     </template>
                     <h3>Level Requirements</h3>
                     <p>
-                        Your level must be a101 themed. A good example of a a101 challenge is FINAL ROBOT by CdukingGD, and a bad example is true Artificial Artifact by CdukingGD (again). a101 is a list thats inspired by the Walmart List which both of them is a store.
+                        Your level must be a101 themed. Main colors should be Blue and White A good example of a a101 challenge is FINAL ROBOT by CdukingGD, and a bad example is true Artificial Artifact by CdukingGD (again). a101 is a list thats inspired by the Walmart List which both of them is a store.
                     </p>
                     <p>
                         Your level must 𝗻𝗼𝘁 have any spam parts, but you can use consistency like a101 Wave by ick567.
