@@ -7,5 +7,11 @@
     "verification": "https://www.youtube.com/watch?v=4pat3e3ESQE&feature=youtu.be",
     "percentToQualify": "100",
     "records": [
+        {
+            "user": "LozZac",
+            "link": "https://youtu.be/_R2T5i7fD2l",
+            "percent": 100,
+            "hz": 240
+        }
     ]
 }
