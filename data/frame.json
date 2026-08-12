@@ -18,6 +18,12 @@
             "link": "http://youtube.com/watch?v=GBwlmUpH71E",
             "percent": 100,
             "hz": 75
+        },
+        {
+            "user": "theMatias",
+            "link": "http://youtu.be/lz9xRZ9z8EY",
+            "percent": 100,
+            "hz": 75
         }
     ]
 }
