@@ -24,6 +24,12 @@
             "link": "https://www.youtube.com/watch?v=IgwPreEzWqU",
             "percent": 100,
             "hz": 120
+        };
+        {
+            "user": "GRAC333",
+            "link": "https://youtu.be/qEa_iihNSRQ",
+            "percent": 100,
+            "hz": 240
         }
     ]
 }
