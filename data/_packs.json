@@ -18,5 +18,13 @@
 			"a101eot"
 			
         ]
+    },
+    {
+        "name": "Freeze Pack",
+        "color": "#cfe1ff",
+        "levels": [
+            "cata",
+            "freezenightmare"
+        ]
     }
 ]
