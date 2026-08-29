@@ -17,6 +17,12 @@
             "user": "GRAC333",
             "link": "https://youtu.be/KZFpuAnfR7M",
             "percent": 100,
+            "hz": 240
+        },
+        {
+            "user": "theMatias",
+            "link": "https://youtu.be/HBzYNCOvFPs",
+            "percent": 100,
             "hz": 0
         }
     ]
