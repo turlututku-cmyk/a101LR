@@ -91,3 +91,16 @@
 .page-leaderboard .player .table a:hover {
     text-decoration: underline;
 }
+.page-leaderboard .player-packs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.page-leaderboard .player-pack-chip {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--pack-color, var(--color-primary));
+    color: #fff;
+    font-weight: 700;
+}

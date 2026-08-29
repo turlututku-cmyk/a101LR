@@ -1,4 +1,4 @@
-import { fetchLeaderboard } from '../content.js';
+import { fetchLeaderboard, fetchPacks } from '../content.js';
 import { localize } from '../util.js';
 
 import Spinner from '../components/Spinner.js';
@@ -9,6 +9,7 @@ export default {
     },
     data: () => ({
         leaderboard: [],
+        packs: [],
         loading: true,
         selected: 0,
         err: [],
@@ -44,7 +45,7 @@ export default {
                 <div class="player-container">
                     <div class="player">
                         <h1>#{{ selected + 1 }} {{ entry.user }}</h1>
-                        <h3>{{ entry.total }}</h3>
+                        <h3>{{ localize(entry.total) }}</h3>
                         <h2 v-if="entry.verified.length > 0">Verified ({{ entry.verified.length}})</h2>
                         <table class="table">
                             <tr v-for="score in entry.verified">
@@ -87,6 +88,15 @@ export default {
                                 </td>
                             </tr>
                         </table>
+                        <h2 v-if="beatenPacks.length > 0">Packs ({{ beatenPacks.length }})</h2>
+                        <div class="player-packs" v-if="beatenPacks.length > 0">
+                            <span
+                                v-for="pack in beatenPacks"
+                                :key="pack.name"
+                                class="player-pack-chip type-label-lg"
+                                :style="{ '--pack-color': pack.color || 'var(--color-primary)' }"
+                            >{{ pack.name }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -96,11 +106,22 @@ export default {
         entry() {
             return this.leaderboard[this.selected];
         },
+        beatenPacks() {
+            if (!this.entry) return [];
+            const done = new Set(
+                [...this.entry.verified, ...this.entry.completed].map((s) => s.path),
+            );
+            return this.packs.filter((pack) => pack.levels.every((path) => done.has(path)));
+        },
     },
     async mounted() {
-        const [leaderboard, err] = await fetchLeaderboard();
+        const [[leaderboard, err], packs] = await Promise.all([
+            fetchLeaderboard(),
+            fetchPacks(),
+        ]);
         this.leaderboard = leaderboard;
         this.err = err;
+        this.packs = packs || [];
         // Hide loading spinner
         this.loading = false;
     },

@@ -46,3 +46,23 @@ What are some common reasons for the website not loading?
 
 - Prometheus
 - Emonadeo
+
+
+## Packs
+
+Packs are configured in `data/_packs.json`. This makes pack management quick without editing the JavaScript.
+
+Each pack uses this format:
+
+```json
+{
+    "name": "My Pack",
+    "color": "#2491df",
+    "levels": [
+        "level_file_name",
+        "another_level_file_name"
+    ]
+}
+```
+
+The names in `levels` are the JSON file names in `data/`, without `.json`. Add, remove, or reorder those names to change a pack. The new **Packs** tab updates automatically after the site is rebuilt/refreshed. Clicking a level in a pack opens that level in the normal List page.
