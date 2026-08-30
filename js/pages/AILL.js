@@ -1,18 +1,9 @@
 import { store } from "../main.js";
 import { embed } from "../util.js";
-import { score } from "../score.js";
-import { fetchEditors, fetchList } from "../content.js";
+import { fetchList } from "../content.js";
 
 import Spinner from "../components/Spinner.js";
 import LevelAuthors from "../components/List/LevelAuthors.js";
-
-const roleIconMap = {
-    owner: "crown",
-    admin: "user-gear",
-    helper: "user-shield",
-    dev: "code",
-    trial: "user-lock",
-};
 
 export default {
     components: { Spinner, LevelAuthors },
@@ -32,8 +23,7 @@ export default {
                 <table class="list" v-if="filteredList.length > 0">
                     <tr v-for="[level, err, i] in filteredList">
                         <td class="rank">
-                            <p v-if="i + 1 <= 50" class="type-label-lg">#{{ i + 1 }}</p>
-                            <p v-else class="type-label-lg">Legacy</p>
+                            <p class="type-label-lg">#{{ i + 1 }}</p>
                         </td>
                         <td class="level" :class="{ 'active': selected == i, 'error': !level }">
                             <button @click="selected = i">
@@ -51,10 +41,6 @@ export default {
                     <iframe class="video" id="videoframe" :src="video" frameborder="0"></iframe>
                     <ul class="stats">
                         <li>
-                            <div class="type-title-sm">Points when completed</div>
-                            <p>{{ score(selected + 1, 100, level.percentToQualify) }}</p>
-                        </li>
-                        <li>
                             <div class="type-title-sm">ID</div>
                             <p>{{ level.id }}</p>
                         </li>
@@ -64,9 +50,7 @@ export default {
                         </li>
                     </ul>
                     <h2>Records</h2>
-                    <p v-if="selected + 1 <= 75"><strong>{{ level.percentToQualify }}%</strong> or better to qualify</p>
-                    <p v-else-if="selected +1 <= 150"><strong>100%</strong> or better to qualify</p>
-                    <p v-else>This level does not accept new records.</p>
+                    <p><strong>{{ level.percentToQualify }}%</strong> or better to qualify</p>
                     <table class="records">
                         <tr v-for="record in level.records" class="record">
                             <td class="percent">
@@ -94,68 +78,18 @@ export default {
                         <p class="error" v-for="error of errors">{{ error }}</p>
                     </div>
                     <div class="og">
-                        <p class="type-label-md">Welcome to <a href="https://tsl.pages.dev/" target="_blank">the a101 list Reborn!</a> (Website layout made by TheShittyList)</p>
+                        <p class="type-label-md">AILL is where there is impossible a101 list levels.</p>
                     </div>
-                    <template v-if="editors">
-                        <h3>List Editors</h3>
-                        <ol class="editors">
-                            <li v-for="editor in editors">
-                                <img :src="\`/assets/\${roleIconMap[editor.role]}\${store.dark ? '-dark' : ''}.svg\`" :alt="editor.role">
-                                <a v-if="editor.link" class="type-label-lg link" target="_blank" :href="editor.link">{{ editor.name }}</a>
-                                <p v-else>{{ editor.name }}</p>
-                            </li>
-                        </ol>
-                    </template>
-                    <h3>Level Requirements</h3>
-                    <p>
-                        Your level must be a101 themed. Main colors should be Blue and White A good example of a a101 challenge is FINAL ROBOT by CdukingGD, and a bad example is true Artificial Artifact by CdukingGD (again). a101 is a list thats inspired by the Walmart List which both of them is a store.
-                    </p>
-                    <p>
-                        Your level must 𝗻𝗼𝘁 have any spam parts, but you can use consistency like a101 Wave by ick567.
-                    </p>
-                    <p>
-                        Youre allowed to make level sequels/copies but only up to 2. for example as a extreme demon. Sonic Circles has Sonic Wave Infinity and Sonic Wave Rebirth.
-                    </p>
-                    <h3>Submission Requirements</h3>
-                    <p>
-                        Achieved the record without using hacks (however, FPS bypass is allowed, up to 360fps)
-                    </p>
-                    <p>
-                        Achieved the record on the level that is listed on the site - please check the level ID before you submit a record
-                    </p>
-                    <p>
-                        Have either source audio or clicks/taps in the video. Edited audio only does not count
-                    </p>
-                    <p>
-                        The recording must have a previous attempt and entire death animation shown before the completion, unless the completion is on the first attempt. Everyplay records are exempt from this
-                    </p>
-                    <p>
-                        The recording must also show the player hit the endwall, or the completion will be invalidated.
-                    </p>
-                    <p>
-                        Do not use secret routes or bug routes
-                    </p>
-                    <p>
-                        Do not use easy modes, only a record of the unmodified level qualifies
-                    </p>
-                    <p>
-                        Please show the attempt count to make sure its not botted.
-                    </p>
-                    <p>
-                        Once a level falls onto the Legacy List, we accept records for it for 24 hours after it falls off, then afterwards we never accept records for said level
-                    </p>
                 </div>
             </div>
         </main>
     `,
     data: () => ({
         list: [],
-        editors: [],
         loading: true,
         selected: 0,
         errors: [],
         search: '',
-        roleIconMap,
         store
     }),
     computed: {
@@ -181,24 +115,13 @@ export default {
         },
     },
     async mounted() {
-        // Hide loading spinner
-        this.list = await fetchList();
-        this.editors = await fetchEditors();
+        this.list = await fetchList('_aill');
 
-        // Error handling
         if (!this.list) {
             this.errors = [
-                "Failed to load list. Retry in a few minutes or notify list staff.",
+                "Failed to load AILL. Retry in a few minutes or notify list staff.",
             ];
         } else {
-            const requestedLevel = this.$route.query.level;
-            if (requestedLevel) {
-                const requestedIndex = this.list.findIndex(
-                    ([level]) => level?.path === requestedLevel,
-                );
-                if (requestedIndex >= 0) this.selected = requestedIndex;
-            }
-
             this.errors.push(
                 ...this.list
                     .filter(([_, err]) => err)
@@ -206,15 +129,11 @@ export default {
                         return `Failed to load level. (${err}.json)`;
                     })
             );
-            if (!this.editors) {
-                this.errors.push("Failed to load list editors.");
-            }
         }
 
         this.loading = false;
     },
     methods: {
         embed,
-        score,
     },
 };
