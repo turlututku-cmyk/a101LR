@@ -24,6 +24,12 @@
             "link": "https://www.youtube.com/watch?v=AZSsHIR_P_0",
             "percent": 100,
             "hz": 120
-        }  
+        }  ,
+        {
+            "user": "NotTCO",
+            "link": "https://youtu.be/bJ4QaZ_KKfg?si=ex_lg-U1UDK18Znd",
+            "percent": 100,
+            "hz": 240
+        }
     ]
 }
