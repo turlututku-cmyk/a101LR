@@ -1,12 +1,19 @@
 ﻿{
     "id": 148151963,
-    "name": "a101 VOID",
+    "name": "a101VOID",
     "author": "GDkegrem",
     "creators": ["GDkegrem"],
     "verifier": "GDkegrem",
     "verification": "https://www.youtube.com/watch?v=fYVZ9M1CZgY",
-    "percentToQualify": "100",
+    "percentToQualify": "25",
     "device": "mobile",
     "records": [
+        {
+            "user": "CdukingGD",
+            "link": "https://www.youtube.com/watch?v=XiuDJ72O6ww",
+            "percent": 34,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
