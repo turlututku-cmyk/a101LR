@@ -16,10 +16,17 @@
             "device": "pc"
         },
         {
-                "user": "CdukingGD",
+            "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=LqXiw8k159M",
             "percent": 100,
             "hz": 240,
+            "device": "pc"
+        },
+        {
+            "user": "ick567",
+            "link": "https://youtu.be/Fh-eCM-Bh0E?is=i_pq18e8XJssp28a",
+            "percent": 100,
+            "hz": 60,
             "device": "pc"
         }
     ]
