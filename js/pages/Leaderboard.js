@@ -1,5 +1,6 @@
 import { fetchLeaderboard, fetchPacks } from '../content.js';
-import { localize } from '../util.js';
+import { localize, deviceIcon, deviceLabel } from '../util.js';
+import { store } from '../main.js';
 
 import Spinner from '../components/Spinner.js';
 
@@ -55,6 +56,9 @@ export default {
                                 <td class="level">
                                     <a class="type-label-lg" target="_blank" :href="score.link">{{ score.level }}</a>
                                 </td>
+                                <td class="device">
+                                    <img :src="deviceIcon(score.device)" :alt="deviceLabel(score.device)" :title="deviceLabel(score.device)">
+                                </td>
                                 <td class="score">
                                     <p>+{{ localize(score.score) }}</p>
                                 </td>
@@ -69,6 +73,9 @@ export default {
                                 <td class="level">
                                     <a class="type-label-lg" target="_blank" :href="score.link">{{ score.level }}</a>
                                 </td>
+                                <td class="device">
+                                    <img :src="deviceIcon(score.device)" :alt="deviceLabel(score.device)" :title="deviceLabel(score.device)">
+                                </td>
                                 <td class="score">
                                     <p>+{{ localize(score.score) }}</p>
                                 </td>
@@ -82,6 +89,9 @@ export default {
                                 </td>
                                 <td class="level">
                                     <a class="type-label-lg" target="_blank" :href="score.link">{{ score.percent }}% {{ score.level }}</a>
+                                </td>
+                                <td class="device">
+                                    <img :src="deviceIcon(score.device)" :alt="deviceLabel(score.device)" :title="deviceLabel(score.device)">
                                 </td>
                                 <td class="score">
                                     <p>+{{ localize(score.score) }}</p>
@@ -127,5 +137,7 @@ export default {
     },
     methods: {
         localize,
+        deviceIcon: (device) => deviceIcon(device, store.dark),
+        deviceLabel,
     },
 };

@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 148002954,
     "name": "silent 101 CORRIDOR",
     "author": "CdukingGD",
@@ -6,6 +6,7 @@
     "verifier": "None",
     "verification": "https://www.youtube.com/watch?v=cZlQ51iSRLE",
     "percentToQualify": "20",
+    "device": "pc",
     "records": [
     ]
 }

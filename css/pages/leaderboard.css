@@ -88,6 +88,15 @@
 .page-leaderboard .player .table .level {
     width: 100%;
 }
+.page-leaderboard .player .table .device {
+    width: 1.5rem;
+    text-align: center;
+}
+.page-leaderboard .player .table .device img {
+    height: 1.25rem;
+    vertical-align: middle;
+    opacity: 0.75;
+}
 .page-leaderboard .player .table a:hover {
     text-decoration: underline;
 }

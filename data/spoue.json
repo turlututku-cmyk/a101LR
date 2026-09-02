@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 146780452,
     "name": "Spamouement",
     "author": "CdukingGD",
@@ -6,12 +6,14 @@
     "verifier": "CdukingGD",
     "verification": "https://www.youtube.com/watch?v=hjFgU9SVSoI",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "GRAC333",
             "link": "https://youtu.be/nfakHIUEUKI",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

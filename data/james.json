@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 148003068,
     "name": "a101 James",
     "author": "CdukingGD",
@@ -6,18 +6,21 @@
     "verifier": "CdukingGD",
     "verification": "https://www.youtube.com/watch?v=nbwKLnXmX70",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "ick567",
             "link": "https://youtu.be/MjWZ59QiV0k",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/WfkhZMCFdEs?si=vDF0-JHab9J_OeHx",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 135341362,
     "name": "FINAL ROBOT",
     "author": "CdukingGD",
@@ -6,30 +6,35 @@
     "verifier": "RetccatGD",
     "verification": "https://www.youtube.com/watch?v=gHs5gZK5OO4",
     "percentToQualify": "49",
+    "device": "pc",
     "records": [
         {
             "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=Le10aP8xXcQ",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "GRAC333",
             "link": "https://youtu.be/hOlQiKmwunY",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "theMatias",
             "link": "https://youtu.be/iZh6gU-hObo",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/p3shdzimQAE?si=9bmIt62iTbovHCZq",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

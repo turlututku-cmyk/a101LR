@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 147951447,
     "name": "FREEZENIGHTMARE",
     "author": "CdukingGD",
@@ -6,6 +6,7 @@
     "verifier": "CdukingGD",
     "verification": "https://youtu.be/jJI0Rjjz6G0",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
     ]
 }

@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 148062706,
     "name": "Brea101ing Bad",
     "author": "RetccatGD",
@@ -6,18 +6,21 @@
     "verifier": "RetccatGD",
     "verification": "https://www.youtube.com/watch?v=qvNW03HMvr8&list=LL&index=1",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "must13must",
             "link": "http://youtube.com/watch?v=WHOdbSqKepM",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
                 "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=LqXiw8k159M",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

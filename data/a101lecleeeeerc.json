@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 136612342,
     "name": "a101lecleeeeerc",
     "author": "LecleercGD",
@@ -6,24 +6,28 @@
     "verifier": "LecleercGD",
     "verification": "https://www.youtube.com/watch?v=pn638uhrzQQ",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=FE5V1SJV63Y",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "theMatias",
             "link": "https://www.youtu.be/Q2Nlvj38RaU",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         },
         {
             "user": "Xigot",
             "link": "https://youtu.be/WkCAbmAlBKQ?is=JspSWsscDQdS7rfZ",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         }
     ]
 }

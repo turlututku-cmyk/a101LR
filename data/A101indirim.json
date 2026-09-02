@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 147250736,
     "name": "A101indirim",
     "author": "GDkegrem",
@@ -6,6 +6,7 @@
     "verifier": "GDkegrem",
     "verification": "https://youtu.be/u48BMdPmv4Q?is=IFlQyIuZTPJatPn8",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
     ]
 }

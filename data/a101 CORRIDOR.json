@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 147987371,
     "name": "101 CORRIDOR",
     "author": "KodOdins",
@@ -6,36 +6,42 @@
     "verifier": "KodOdins",
     "verification": "https://www.youtube.com/watch?v=7SNil6xeI_Q",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "GRAC333",
             "link": "https://youtu.be/MjWZ59QiV0k",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "theMatias",
             "link": "https://youtu.be/qoq52n_ui3U",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         },
         {
             "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=mMVAwgFLTGo",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "RetccatGD",
             "link": "https://www.youtube.com/watch?v=bD4bYUQepL8",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/QcT3xPqUUFY?si=Jo7CRW5iBDfSTUx9",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

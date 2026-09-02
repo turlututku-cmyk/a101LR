@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 148024444,
     "name": "a101 of it",
     "author": "CdukingGD",
@@ -6,6 +6,7 @@
     "verifier": "CdukingGD",
     "verification": "https://www.youtube.com/watch?v=VHe_SL3NlYA",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
     ]
 }

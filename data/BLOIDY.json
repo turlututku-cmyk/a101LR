@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 148060096,
     "name": "BLOIDY",
     "author": "NotTCO",
@@ -6,12 +6,14 @@
     "verifier": "NotTCO",
     "verification": "https://youtu.be/bxCjN2_GCvo?si=8E5gNb5Pw9j1-Mo7",
     "percentToQualify": "80",
+    "device": "pc",
     "records": [
         {
             "user": "W1ntr4der",
             "link": "https://youtu.be/xaFXlN6ZIO4",
             "percent": 100,
-            "hz": 75
+            "hz": 75,
+            "device": "pc"
         }
     ]
 }

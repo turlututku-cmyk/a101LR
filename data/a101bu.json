@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 146799567,
     "name": "a101 bu ne sacma bis",
     "author": "CdukingGD",
@@ -6,30 +6,35 @@
     "verifier": "CdukingGD",
     "verification": "https://youtu.be/WZcaj6iJTRs",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "GDkegrem",
             "link": "https://www.youtube.com/watch?v=tovoViJBc5c",
             "percent": 100,
-            "hz": 120
+            "hz": 120,
+            "device": "pc"
         },
         {
             "user": "GRAC333",
             "link": "https://youtu.be/KZFpuAnfR7M",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "theMatias",
             "link": "https://youtu.be/HBzYNCOvFPs",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/T4TEkTBgGx8?si=LUJejPq45RpZ6Sl3",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

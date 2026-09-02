@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 137360844,
     "name": "c101",
     "author": "CdukingGD",
@@ -6,30 +6,35 @@
     "verifier": "CdukingGD",
     "verification": "https://www.youtube.com/watch?v=EadeBLkSZkk",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "ick567",
             "link": "https://www.youtube.com/watch?v=Y7p82g6f9Fk",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "theMatias",
             "link": "https://youtu.be/Y0olaeE_tTs",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         },
         {
             "user": "GDkegrem",
             "link": "https://www.youtube.com/watch?v=AZSsHIR_P_0",
             "percent": 100,
-            "hz": 120
+            "hz": 120,
+            "device": "pc"
         }  ,
         {
             "user": "NotTCO",
             "link": "https://youtu.be/bJ4QaZ_KKfg?si=ex_lg-U1UDK18Znd",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

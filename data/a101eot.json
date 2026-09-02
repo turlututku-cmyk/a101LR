@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 135651698,
     "name": "a101 eot",
     "author": "RetccatGD",
@@ -6,18 +6,21 @@
     "verifier": "RetccatGD",
     "verification": "https://youtube.com/watch?v=5VcczEahBA4",
     "percentToQualify": "38",
+    "device": "pc",
     "records": [
         {
             "user": "ick567",
             "link": "https://youtu.be/Ywy_BNmZjCY?si=PVBlciROkjf2GPkf",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=uo7ywD-L0Ks",
             "percent": 67,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

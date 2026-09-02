@@ -1,4 +1,4 @@
-{ 
+﻿{ 
     "id": 135457863,
     "name": "a101xo",
     "author": "CdukingGD",
@@ -6,42 +6,49 @@
     "verifier": "CdukingGD",
     "verification": "https://www.youtube.com/watch?v=tgvUz6G8n6w",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "RetccatGD",
             "link": "https://www.youtube.com/watch?v=qeOn82fGFnw",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "must13must",
             "link": "https://www.youtube.com/watch?v=aEA3GBa3XhI",
             "percent": 100,
-            "hz": 120
+            "hz": 120,
+            "device": "pc"
         },
         {
             "user": "ick567",
             "link": "https://youtu.be/zPBw2aHbSnc?si=etkmZfh4Rz8fvqI8",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "GDkegrem",
             "link": "https://www.youtube.com/watch?v=TsVa-Gxetkk",
             "percent": 100,
-            "hz": 120
+            "hz": 120,
+            "device": "pc"
         },
         {
             "user": "GRAC333",
             "link": "https://youtu.be/7ThrxeU9LeU",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/HtpQPI38qdY?si=WPzbgCknINzHi5VC",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

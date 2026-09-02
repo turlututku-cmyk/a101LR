@@ -1,5 +1,5 @@
 import { store } from "../main.js";
-import { embed } from "../util.js";
+import { embed, deviceIcon, deviceLabel } from "../util.js";
 import { fetchList } from "../content.js";
 
 import Spinner from "../components/Spinner.js";
@@ -48,6 +48,10 @@ export default {
                             <div class="type-title-sm">Password</div>
                             <p>{{ level.password || 'Free to Copy' }}</p>
                         </li>
+                        <li>
+                            <div class="type-title-sm">Device</div>
+                            <p><img class="device-icon" :src="deviceIcon(level.device)" :alt="deviceLabel(level.device)" :title="deviceLabel(level.device)"></p>
+                        </li>
                     </ul>
                     <h2>Records</h2>
                     <p><strong>{{ level.percentToQualify }}%</strong> or better to qualify</p>
@@ -59,8 +63,8 @@ export default {
                             <td class="user">
                                 <a :href="record.link" target="_blank" class="type-label-lg">{{ record.user }}</a>
                             </td>
-                            <td class="mobile">
-                                <img v-if="record.mobile" :src="\`/assets/phone-landscape\${store.dark ? '-dark' : ''}.svg\`" alt="Mobile">
+                            <td class="device">
+                                <img :src="deviceIcon(record.device)" :alt="deviceLabel(record.device)" :title="deviceLabel(record.device)">
                             </td>
                             <td class="hz">
                                 <p>{{ record.hz }}Hz</p>
@@ -135,5 +139,7 @@ export default {
     },
     methods: {
         embed,
+        deviceIcon: (device) => deviceIcon(device, store.dark),
+        deviceLabel,
     },
 };

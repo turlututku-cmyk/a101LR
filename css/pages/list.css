@@ -88,6 +88,10 @@
     align-items: center;
     gap: 1rem;
 }
+.page-list .level-container .level .stats .device-icon {
+    height: 1.5rem;
+    vertical-align: middle;
+}
 .page-list .level-container .level .records {
     table-layout: fixed;
 }
@@ -96,8 +100,18 @@
 }
 .page-list .level-container .level .records .percent,
 .page-list .level-container .level .records .user,
+.page-list .level-container .level .records .device,
 .page-list .level-container .level .records .hz {
     padding-block: 1rem;
+}
+.page-list .level-container .level .records .device {
+    width: 1.5rem;
+    text-align: center;
+}
+.page-list .level-container .level .records .device img {
+    height: 1.25rem;
+    vertical-align: middle;
+    opacity: 0.75;
 }
 .page-list .level-container .level .records .user {
     width: 100%;

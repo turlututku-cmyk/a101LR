@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 146791286,
     "name": "FREEZECLYSM",
     "author": "theMatias",
@@ -6,6 +6,7 @@
     "verifier": "theMatias",
     "verification": "https://youtu.be/SzM_sLXxvHY",
     "percentToQualify": "36",
+    "device": "pc",
     "records": [
     ]
 }

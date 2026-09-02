@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 126759937,
     "name": "a101 Wave",
     "author": "ick567",
@@ -6,24 +6,28 @@
     "verifier": "ick567",
     "verification": "https://youtu.be/Cy6wsH73TnA",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "RetccatGD",
             "link": "https://www.youtube.com/watch?v=y922O_0Rlv8",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "CdukingGD",
             "link": "https://www.youtube.com/watch?v=4LfPUZsvH5I",
             "percent": 100,
-            "hz": 344
+            "hz": 344,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/J_gIYtGVAoE?si=G5a0fC4f6tNurm_m",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

@@ -82,6 +82,7 @@ export async function fetchLeaderboard() {
             rank: rank + 1,
             level: level.name,
             path: level.path,
+            device: level.device,
             score: score(rank + 1, 100, level.percentToQualify),
             link: level.verification,
         });
@@ -102,6 +103,7 @@ export async function fetchLeaderboard() {
                     rank: rank + 1,
                     level: level.name,
                     path: level.path,
+                    device: record.device,
                     score: score(rank + 1, 100, level.percentToQualify),
                     link: record.link,
                 });
@@ -112,6 +114,7 @@ export async function fetchLeaderboard() {
                 rank: rank + 1,
                 level: level.name,
                 path: level.path,
+                device: record.device,
                 percent: record.percent,
                 score: score(rank + 1, record.percent, level.percentToQualify),
                 link: record.link,

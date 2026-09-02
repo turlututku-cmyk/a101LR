@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 125969892,
     "name": "Fairytale",
     "author": "CdukingGD",
@@ -6,6 +6,7 @@
     "verifier": "None",
     "verification": "https://www.youtube.com/watch?v=8vO2_ygwhSk&t=20s",
     "percentToQualify": "17",
+    "device": "pc",
     "records": [
     ]
 }

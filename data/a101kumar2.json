@@ -1,4 +1,4 @@
-{
+﻿{
     "id": 147938077,
     "name": "a101kumar II",
     "author": "GRAC333",
@@ -6,36 +6,42 @@
     "verifier": "GRAC333",
     "verification": "https://www.youtube.com/watch?v=gxweFNAtRMo",
     "percentToQualify": "100",
+    "device": "pc",
     "records": [
         {
             "user": "theMatias",
             "link": "https://youtu.be/c7EZLsuDNUg",
             "percent": 100,
-            "hz": 144
+            "hz": 144,
+            "device": "pc"
         },
         {
             "user": "RetccatGD",
             "link": "https://www.youtube.com/watch?v=uKkfPC2W1vY",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "ick567",
             "link": "https://youtu.be/0asbhtKI3T4?is=S6C5KMZg-fkJz8Uf",
             "percent": 100,
-            "hz": 60
+            "hz": 60,
+            "device": "pc"
         },
         {
             "user": "NotTCO",
             "link": "https://youtu.be/EnclOYSJDZU?si=hSryJvts_QbplZ8y",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         },
         {
             "user": "GDkegrem",
             "link": "https://youtu.be/E0uE0xcGLVs?is=eksbguit3T-uWyhy",
             "percent": 100,
-            "hz": 240
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
