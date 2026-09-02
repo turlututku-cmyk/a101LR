@@ -8,5 +8,19 @@
     "percentToQualify": "100",
     "device": "mobile",
     "records": [
+        {
+            "user": "NotTCO",
+            "link": "https://youtu.be/koEk08PaCh4?si=8K4MdeE9IDYXK_l1",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        },
+        {
+            "user": "CdukingGD",
+            "link": "https://www.youtube.com/watch?v=MxbPk7ix2Iw",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
