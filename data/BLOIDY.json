@@ -14,6 +14,13 @@
             "percent": 100,
             "hz": 75,
             "device": "pc"
+        },
+        {
+            "user": "PnGD",
+            "link": "https://medal.tv/games/geometry-dash/clips/ns3R72tyBBg6OHwmT?invite=cr-MSxzM04sMzI4ODQ0OTMw",
+            "percent": 100,
+            "hz": 360,
+            "device": "pc"
         }
     ]
 }
