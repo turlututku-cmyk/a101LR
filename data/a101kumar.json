@@ -28,6 +28,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "KodOdins",
+            "link": "https://youtu.be/x6BW5MRPte4",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
