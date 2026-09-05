@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "KodOdins",
+            "link": "https://www.youtube.com/watch?v=mmEd0FqjxAs",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
