@@ -21,6 +21,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "ick567",
+            "link": "https://youtu.be/aRpQlvDH5PY?is=TNxC-1tmkoFkMYHv",
+            "percent": 100,
+            "hz": 60,
+            "device": "pc"
         }
     ]
 }

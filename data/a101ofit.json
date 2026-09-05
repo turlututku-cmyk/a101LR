@@ -14,6 +14,20 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "ligwor",
+            "link": "https://www.youtube.com/watch?v=B5LrSClj5ts",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        },
+        {
+            "user": "ick567",
+            "link": "https://youtu.be/ZtBySAlHakI",
+            "percent": 100,
+            "hz": 60,
+            "device": "pc"
         }
     ]
 }

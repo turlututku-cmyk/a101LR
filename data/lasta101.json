@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "RetccatGD",
+            "link": "https://www.youtube.com/watch?v=d1G4_-Eay1E",
+            "percent": 100,
+            "hz": 60,
+            "device": "pc"
+        }
     ]
 }

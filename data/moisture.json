@@ -8,5 +8,19 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "PnGD",
+            "link": "https://youtu.be/iW1bF8LINs0",
+            "percent": 100,
+            "hz": 360,
+            "device": "pc"
+        },
+        {
+            "user": "ligwor",
+            "link": "https://youtu.be/S-lQpvMHzT8",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
