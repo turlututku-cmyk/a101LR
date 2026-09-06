@@ -26,5 +26,31 @@
             "cata",
             "freezenightmare"
         ]
+    },
+    {
+        "name": "Wave Only Pack",
+        "color": "#00FFFF",
+        "levels": [
+            "a101kumar",
+            "a101kumar2",
+			"moisture",
+			"cata",
+			"freezenightmare",
+			"a101fp",
+			"A101indirim",
+			"unnamed3",
+			"frame"
+        ]
+    },
+    {
+        "name": "Long Levels Pack",
+        "color": "#8c621f",
+        "levels": [
+            "a101bath",
+            "Fairynerf",
+			"a101eot",
+			"cata",
+			"freezenightmare"
+        ]
     }
 ]
