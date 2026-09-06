@@ -27,7 +27,7 @@ export default {
                         </td>
                         <td class="level" :class="{ 'active': selected == i, 'error': !level }">
                             <button @click="selected = i">
-                                <span class="type-label-lg" :class="{ featured: level?.featured }">{{ level?.name || \`Error (\${err}.json)\` }}</span>
+                                <span class="type-label-lg" :class="{ featured: level?.featured, epic: level?.epic }">{{ level?.name || \`Error (\${err}.json)\` }}</span>
                             </button>
                         </td>
                     </tr>
@@ -36,7 +36,7 @@ export default {
             </div>
             <div class="level-container">
                 <div class="level" v-if="level">
-                    <h1 :class="{ featured: level.featured }">{{ level.name }}</h1>
+                    <h1 :class="{ featured: level.featured, epic: level.epic }">{{ level.name }}</h1>
                     <LevelAuthors :author="level.author" :creators="level.creators" :verifier="level.verifier"></LevelAuthors>
                     <iframe class="video" id="videoframe" :src="video" frameborder="0"></iframe>
                     <ul class="stats">

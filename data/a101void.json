@@ -7,6 +7,7 @@
     "verification": "https://www.youtube.com/watch?v=fYVZ9M1CZgY",
     "percentToQualify": "25",
     "device": "mobile",
+    "featured": true,
     "records": [
         {
             "user": "NotTCO",

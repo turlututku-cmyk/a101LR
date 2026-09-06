@@ -24,11 +24,19 @@
 }
 .page-list .featured {
     color: #ffc93c;
-    text-shadow: 0 0 4px #ffc93c, 0 0 10px #ffb100, 0 0 22px rgba(255, 177, 0, 0.7);
+    text-shadow: 0 0 2px rgba(255, 201, 60, 0.7), 0 0 6px rgba(255, 177, 0, 0.4);
 }
 main.dark .page-list .featured {
     color: #ffd873;
-    text-shadow: 0 0 5px #ffd873, 0 0 12px #ffb100, 0 0 26px rgba(255, 177, 0, 0.8);
+    text-shadow: 0 0 2px rgba(255, 216, 115, 0.7), 0 0 7px rgba(255, 177, 0, 0.45);
+}
+.page-list .epic {
+    color: #a855f7;
+    text-shadow: 0 0 2px rgba(168, 85, 247, 0.7), 0 0 6px rgba(147, 51, 234, 0.4);
+}
+main.dark .page-list .epic {
+    color: #c894fb;
+    text-shadow: 0 0 2px rgba(200, 148, 251, 0.7), 0 0 7px rgba(147, 51, 234, 0.45);
 }
 .page-list .meta-container {
     padding-right: 2rem;
