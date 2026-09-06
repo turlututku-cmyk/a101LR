@@ -1,0 +1,26 @@
+{
+    "id": 148425051,
+    "name": "Soguk a101",
+    "author": "CdukingGD",
+    "creators": ["HuseyGD"],
+    "verifier": "HuseyGD",
+    "verification": "https://youtu.be/ck3MfjsJJ1Q",
+    "percentToQualify": "100",
+    "device": "pc",
+    "records": [
+        {
+            "user": "CdukingGD",
+            "link": "https://youtu.be/RARxGN4ZRcU",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        },
+        {
+            "user": "PnGD",
+            "link": "https://youtu.be/Vh2RDMcsLow",
+            "percent": 100,
+            "hz": 60,
+            "device": "pc"
+        }
+    ]
+}
