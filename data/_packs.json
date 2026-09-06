@@ -52,5 +52,50 @@
 			"cata",
 			"freezenightmare"
         ]
+    },
+    {
+        "name": "Begginer Pack",
+        "color": "#009dff",
+        "levels": [
+            "a101lecleeeeerc",
+            "ArtifArtif",
+			"a101xo"
+        ]
+    },
+    {
+        "name": "Newbie Pack",
+        "color": "#ffbb00",
+        "levels": [
+            "spoue",
+            "brea101",
+			"c101"
+        ]
+    },
+    {
+        "name": "Pro Pack",
+        "color": "#ff0000",
+        "levels": [
+            "a101kumar",
+            "ArtifUnl",
+			"a101james"
+        ]
+    },
+    {
+        "name": "Hard Pack",
+        "color": "#8300ab",
+        "levels": [
+            "BLOIDY",
+            "cata",
+			"a101void"
+        ]
+    },
+    {
+        "name": "Top Pack",
+        "color": "#780018",
+        "levels": [
+            "Fairynerf",
+            "moisture",
+			"a101bath"
+        ]
     }
 ]
