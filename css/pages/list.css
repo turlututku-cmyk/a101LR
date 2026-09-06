@@ -22,6 +22,14 @@
     padding: 1rem;
     opacity: 0.7;
 }
+.page-list .featured {
+    color: #ffc93c;
+    text-shadow: 0 0 4px #ffc93c, 0 0 10px #ffb100, 0 0 22px rgba(255, 177, 0, 0.7);
+}
+main.dark .page-list .featured {
+    color: #ffd873;
+    text-shadow: 0 0 5px #ffd873, 0 0 12px #ffb100, 0 0 26px rgba(255, 177, 0, 0.8);
+}
 .page-list .meta-container {
     padding-right: 2rem;
 }
