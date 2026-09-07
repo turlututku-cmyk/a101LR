@@ -49,6 +49,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "yttrisium",
+            "link": "https://youtu.be/7oLsr02kteQ",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
