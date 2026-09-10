@@ -5,9 +5,8 @@
     "creators": ["Salqih"],
     "verifier": "Salqih",
     "verification": "https://youtu.be/1uFzplbQbfs",
-    "percentToQualify": "100",
+    "percentToQualify": "60",
     "device": "pc",
-    "featured": true,
     "records": [
     ]
 }
