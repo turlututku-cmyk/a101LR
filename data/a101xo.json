@@ -56,6 +56,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "Sahqih",
+            "link": "https://youtu.be/W0nUYu6l9BY",
+            "percent": 100,
+            "hz": 200,
+            "device": "pc"
         }
     ]
 }
