@@ -97,5 +97,15 @@
             "moisture",
 			"a101bath"
         ]
+    },
+    {
+        "name": "Remake Pack",
+        "color": "#0f9421",
+        "levels": [
+            "a101bath",
+            "sc101",
+            "a101 CORRIDOR",
+            "a101famewal"
+        ]
     }
 ]
