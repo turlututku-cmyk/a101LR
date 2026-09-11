@@ -14,6 +14,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "NotTCO",
+            "link": "https://youtu.be/lHwwrDsHmI?si=ECfGHGuOHNyBAAz-",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
