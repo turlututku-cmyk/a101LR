@@ -136,6 +136,11 @@ main.dark .page-list .epic {
 .page-list .level-container .level .records .hz {
     text-align: end;
 }
+.page-list .meta-container .og {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
 .page-list .meta-container .og a:hover,
 .page-list .level-container .level .records a:hover {
     text-decoration: underline;
