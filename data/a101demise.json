@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "dDeox",
+            "link": "https://youtu.be/PwhwGLiG3YE",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
