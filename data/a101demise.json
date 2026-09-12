@@ -14,6 +14,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "ligwor",
+            "link": "https://youtu.be/ZSWke8p9hO0",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
