@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "SamixtonGD",
+            "link": "https://www.youtube.com/watch?v=XS1oyj0QGPM",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
