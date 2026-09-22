@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "Zienik",
+            "link": "https://youtu.be/w7b83hxzZNw",
+            "percent": 100,
+            "hz": 60,
+            "device": "pc"
+        }
     ]
 }
