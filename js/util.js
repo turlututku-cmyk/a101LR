@@ -26,15 +26,36 @@ export function deviceIcon(device, dark) {
     return `/assets/${icon}${dark ? '-dark' : ''}.svg`;
 }
 
-const difficulties = ['easy', 'medium', 'hard', 'insane', 'extreme'];
+const difficultyFiles = {
+    easy: 'easy-hard',
+    medium: 'medium-mid',
+    hard: 'hard-mid',
+    insane: 'insane-mid',
+    extreme: 'extreme-low',
+};
+
+const tierFiles = [
+    'easy-low', 'easy-mid', 'easy-hard',
+    'medium-low', 'medium-mid', 'medium-high',
+    'hard-low', 'hard-mid', 'hard-high',
+    'insane-low', 'insane-mid', 'insane-high',
+    'extreme-low', 'extreme-mid', 'extreme-high',
+    'not-humanly-possible', 'free-demon',
+];
+
+const tierWords = { low: 'Low', mid: 'Mid', high: 'High', hard: 'High' };
+
+const cap = (s) => `${s[0].toUpperCase()}${s.slice(1)}`;
 
 export function difficultyOf(level, rank) {
-    if (difficulties.includes(level?.difficulty)) return level.difficulty;
-    if (rank === undefined || rank <= 1) return 'extreme';
-    if (rank <= 25) return 'insane';
-    if (rank <= 40) return 'hard';
-    if (rank <= 55) return 'medium';
-    return 'easy';
+    const set = level?.difficulty;
+    if (tierFiles.includes(set)) return set;
+    if (set in difficultyFiles) return difficultyFiles[set];
+    if (rank === undefined || rank <= 1) return difficultyFiles.extreme;
+    if (rank <= 25) return difficultyFiles.insane;
+    if (rank <= 40) return difficultyFiles.hard;
+    if (rank <= 55) return difficultyFiles.medium;
+    return difficultyFiles.easy;
 }
 
 export function difficultyIcon(level, rank) {
@@ -42,8 +63,11 @@ export function difficultyIcon(level, rank) {
 }
 
 export function difficultyLabel(level, rank) {
-    const d = difficultyOf(level, rank);
-    return `${d[0].toUpperCase()}${d.slice(1)} Demon`;
+    const file = difficultyOf(level, rank);
+    if (file === 'not-humanly-possible') return 'Not Humanly Possible';
+    if (file === 'free-demon') return 'Free Demon';
+    const [base, part] = file.split('-');
+    return `${tierWords[part]} ${cap(base)} Demon`;
 }
 
 export function deviceLabel(device) {
