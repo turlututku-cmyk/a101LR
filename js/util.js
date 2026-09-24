@@ -26,6 +26,26 @@ export function deviceIcon(device, dark) {
     return `/assets/${icon}${dark ? '-dark' : ''}.svg`;
 }
 
+const difficulties = ['easy', 'medium', 'hard', 'insane', 'extreme'];
+
+export function difficultyOf(level, rank) {
+    if (difficulties.includes(level?.difficulty)) return level.difficulty;
+    if (rank === undefined || rank <= 1) return 'extreme';
+    if (rank <= 25) return 'insane';
+    if (rank <= 40) return 'hard';
+    if (rank <= 55) return 'medium';
+    return 'easy';
+}
+
+export function difficultyIcon(level, rank) {
+    return `/assets/difficulty/${difficultyOf(level, rank)}.png`;
+}
+
+export function difficultyLabel(level, rank) {
+    const d = difficultyOf(level, rank);
+    return `${d[0].toUpperCase()}${d.slice(1)} Demon`;
+}
+
 export function deviceLabel(device) {
     if (device === 'console') return 'Console';
     if (device === 'mobile') return 'Mobile';

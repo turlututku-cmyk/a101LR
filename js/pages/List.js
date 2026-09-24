@@ -1,5 +1,5 @@
 import { store } from "../main.js";
-import { embed, deviceIcon, deviceLabel } from "../util.js";
+import { embed, deviceIcon, deviceLabel, difficultyIcon, difficultyLabel } from "../util.js";
 import { score } from "../score.js";
 import { fetchEditors, fetchList } from "../content.js";
 
@@ -37,6 +37,7 @@ export default {
                         </td>
                         <td class="level" :class="{ 'active': selected == i, 'error': !level }">
                             <button @click="selected = i">
+                                <img v-if="level" class="difficulty-face" :src="difficultyIcon(level, i + 1)" :alt="difficultyLabel(level, i + 1)" :title="difficultyLabel(level, i + 1)">
                                 <span class="type-label-lg" :class="{ featured: level?.featured, epic: level?.epic }">{{ level?.name || \`Error (\${err}.json)\` }}</span>
                             </button>
                         </td>
@@ -65,6 +66,10 @@ export default {
                         <li>
                             <div class="type-title-sm">Device</div>
                             <p><img class="device-icon" :src="deviceIcon(level.device)" :alt="deviceLabel(level.device)" :title="deviceLabel(level.device)"></p>
+                        </li>
+                        <li>
+                            <div class="type-title-sm">Tier</div>
+                            <p class="tier"><img class="tier-icon" :src="difficultyIcon(level, selected + 1)" :alt="difficultyLabel(level, selected + 1)"><span>{{ difficultyLabel(level, selected + 1) }}</span></p>
                         </li>
                     </ul>
                     <h2>Records</h2>
@@ -226,5 +231,7 @@ export default {
         score,
         deviceIcon: (device) => deviceIcon(device, store.dark),
         deviceLabel,
+        difficultyIcon,
+        difficultyLabel,
     },
 };

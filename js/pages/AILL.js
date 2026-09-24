@@ -1,5 +1,5 @@
 import { store } from "../main.js";
-import { embed, deviceIcon, deviceLabel } from "../util.js";
+import { embed, deviceIcon, deviceLabel, difficultyIcon, difficultyLabel } from "../util.js";
 import { fetchList } from "../content.js";
 
 import Spinner from "../components/Spinner.js";
@@ -27,6 +27,7 @@ export default {
                         </td>
                         <td class="level" :class="{ 'active': selected == i, 'error': !level }">
                             <button @click="selected = i">
+                                <img v-if="level" class="difficulty-face" :src="difficultyIcon(level)" :alt="difficultyLabel(level)" :title="difficultyLabel(level)">
                                 <span class="type-label-lg" :class="{ featured: level?.featured, epic: level?.epic }">{{ level?.name || \`Error (\${err}.json)\` }}</span>
                             </button>
                         </td>
@@ -51,6 +52,10 @@ export default {
                         <li>
                             <div class="type-title-sm">Device</div>
                             <p><img class="device-icon" :src="deviceIcon(level.device)" :alt="deviceLabel(level.device)" :title="deviceLabel(level.device)"></p>
+                        </li>
+                        <li>
+                            <div class="type-title-sm">Tier</div>
+                            <p class="tier"><img class="tier-icon" :src="difficultyIcon(level)" :alt="difficultyLabel(level)"><span>{{ difficultyLabel(level) }}</span></p>
                         </li>
                     </ul>
                     <h2>Records</h2>
@@ -141,5 +146,7 @@ export default {
         embed,
         deviceIcon: (device) => deviceIcon(device, store.dark),
         deviceLabel,
+        difficultyIcon,
+        difficultyLabel,
     },
 };

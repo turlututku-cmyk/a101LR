@@ -53,6 +53,9 @@ main.dark .page-list .epic {
     width: 100%;
 }
 .page-list .list .level button {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     background-color: var(--color-background);
     color: var(--color-on-background);
     border: none;
@@ -62,6 +65,12 @@ main.dark .page-list .epic {
     word-break: normal;
     overflow-wrap: anywhere;
     cursor: pointer;
+}
+.page-list .list .level button .difficulty-face {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: none;
+    object-fit: contain;
 }
 .page-list .list .level.error button {
     color: var(--color-error);
@@ -107,6 +116,15 @@ main.dark .page-list .epic {
 .page-list .level-container .level .stats .device-icon {
     height: 1.5rem;
     vertical-align: middle;
+}
+.page-list .level-container .level .stats .tier {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.page-list .level-container .level .stats .tier-icon {
+    height: 1.75rem;
+    width: auto;
 }
 .page-list .level-container .level .records {
     table-layout: fixed;
