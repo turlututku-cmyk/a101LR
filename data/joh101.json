@@ -14,6 +14,13 @@
             "percent": 100,
             "hz": 60,
             "device": "pc"
+        },
+        {
+            "user": "SamixtonGD",
+            "link": "https://youtu.be/4QtfTuVWmb8",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
