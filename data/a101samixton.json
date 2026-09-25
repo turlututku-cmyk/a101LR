@@ -9,5 +9,12 @@
     "device": "pc",
     "difficulty": "insane-high",
     "records": [
+        {
+            "user": "ligwor",
+            "link": "https://www.youtube.com/watch?v=21OALZYzVgY",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }

@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "SimShortGMD",
+            "link": "https://youtube.com/shorts/cucG2a48Qxo",
+            "percent": 100,
+            "hz": 720,
+            "device": "pc"
+        }
     ]
 }
