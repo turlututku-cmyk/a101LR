@@ -15,6 +15,13 @@
             "percent": 100,
             "hz": 200,
             "device": "pc"
+        },
+        {
+            "user": "CdukingGD",
+            "link": "https://youtu.be/ZCP9ag2djW8",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }

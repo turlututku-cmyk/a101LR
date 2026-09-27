@@ -8,5 +8,12 @@
     "percentToQualify": "100",
     "device": "pc",
     "records": [
+        {
+            "user": "CdukingGD",
+            "link": "https://www.youtube.com/watch?v=pUHkwQFbbMQ",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }

@@ -9,5 +9,12 @@
     "device": "pc",
     "difficulty": "hard-low",
     "records": [
+        {
+            "user": "CdukingGD",
+            "link": "https://youtu.be/YMhvCsP6Mo8",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
