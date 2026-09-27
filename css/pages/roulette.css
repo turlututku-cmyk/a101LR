@@ -18,6 +18,14 @@
     align-items: center;
 }
 
+.page-roulette .levels .level .actions input[type="number"] {
+    transition: box-shadow 150ms ease;
+}
+.page-roulette .levels .level .actions input[type="number"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(103, 190, 217, 0.35);
+}
+
 .page-roulette .sidebar form {
     display: flex;
     flex-direction: column;
@@ -48,9 +56,10 @@
     display: grid;
     grid-template-columns: 12rem 1fr;
     grid-auto-rows: max-content;
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     overflow: hidden;
     background-color: var(--color-background-hover);
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.12);
 }
 .page-roulette .levels .level .video img {
     width: 100%;
@@ -114,6 +123,7 @@
     color: white;
     padding: 1rem;
     border-radius: 0.5rem;
+    box-shadow: 0 3px 14px 0 rgba(0, 0, 0, 0.25);
 }
 
 @media screen and (min-width: 1366px) {

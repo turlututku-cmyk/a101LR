@@ -41,6 +41,12 @@
     border-radius: 0.5rem;
     background: var(--color-background);
     color: var(--color-on-background);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.page-leaderboard .board-search input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(103, 190, 217, 0.25);
 }
 .page-leaderboard .board-empty {
     padding: 1rem;
@@ -63,23 +69,31 @@
     width: 100%;
 }
 .page-leaderboard .board .user button {
+    width: 100%;
+    box-sizing: border-box;
     background-color: var(--color-background);
     color: var(--color-on-background);
     border: none;
+    border-left: 3px solid transparent;
     border-radius: 0.5rem;
     padding: 1rem;
     text-align: start;
     word-break: normal;
     overflow-wrap: anywhere;
+    transition: background-color 120ms ease, transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 .page-leaderboard .board .user button:hover {
     background-color: var(--color-background-hover);
     color: var(--color-on-background-hover);
     cursor: pointer;
+    transform: translateX(2px);
 }
 .page-leaderboard .board .user.active button {
     background-color: var(--color-primary);
     color: var(--color-on-primary);
+    border-left-color: var(--color-on-primary);
+    box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.18);
+    transform: none;
 }
 .page-leaderboard .player {
     display: flex;
@@ -89,9 +103,20 @@
 }
 .page-leaderboard .player .table {
     table-layout: fixed;
+    border-collapse: collapse;
 }
 .page-leaderboard .player .table tr td:not(:last-child) {
     padding-right: 2rem;
+}
+.page-leaderboard .player .table tbody tr {
+    border-bottom: 1px solid rgba(127, 127, 127, 0.15);
+    transition: background-color 120ms ease;
+}
+.page-leaderboard .player .table tbody tr:last-child {
+    border-bottom: none;
+}
+.page-leaderboard .player .table tbody tr:hover {
+    background-color: var(--color-background-hover);
 }
 .page-leaderboard .player .table p,
 .page-leaderboard .player .table a {
@@ -128,4 +153,5 @@
     background: var(--pack-color, var(--color-primary));
     color: #fff;
     font-weight: 700;
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.14);
 }
