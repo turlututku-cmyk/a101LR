@@ -1,0 +1,80 @@
+.page-time-machine {
+    grid-template-columns: minmax(20rem, 1fr) minmax(24rem, 3fr);
+    max-width: 64rem;
+    margin: 0 auto;
+}
+.page-time-machine .tm-picker {
+    padding: 2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.page-time-machine .tm-form {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+.page-time-machine .tm-form input[type="date"] {
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(127, 127, 127, 0.25);
+    border-radius: 0.5rem;
+    background: var(--color-background);
+    color: var(--color-on-background);
+    font: inherit;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.page-time-machine .tm-form input[type="date"]:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(103, 190, 217, 0.25);
+}
+.page-time-machine .tm-range {
+    opacity: 0.7;
+}
+.page-time-machine .tm-error {
+    color: var(--color-error);
+}
+.page-time-machine .tm-result {
+    padding: 2rem 1rem 2rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.page-time-machine .tm-result-sub {
+    opacity: 0.7;
+}
+.page-time-machine .tm-columns {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+.page-time-machine .tm-column {
+    flex: 1;
+    min-width: 16rem;
+}
+.page-time-machine .tm-list {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.page-time-machine .tm-list li {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.65rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--color-background-hover);
+}
+.page-time-machine .tm-rank {
+    font-family: "Lexend Deca", sans-serif;
+    font-weight: 700;
+    opacity: 0.6;
+    min-width: 2.5rem;
+}
+.page-time-machine .tm-empty {
+    opacity: 0.7;
+    margin-top: 1rem;
+}
