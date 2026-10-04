@@ -73,7 +73,11 @@ export default {
             return this.dates[0] || '';
         },
         latestDate() {
-            return this.dates[this.dates.length - 1] || '';
+            const last = this.dates[this.dates.length - 1] || '';
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+            return today > last ? today : last;
         },
     },
     async mounted() {
