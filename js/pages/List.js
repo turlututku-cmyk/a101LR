@@ -1,5 +1,5 @@
 import { store } from "../main.js";
-import { embed, deviceIcon, deviceLabel, difficultyIcon, difficultyLabel } from "../util.js";
+import { embed, deviceIcon, deviceLabel, difficultyIcon, difficultyLabel, hasHighHz, HIGH_HZ_LIMIT } from "../util.js";
 import { score } from "../score.js";
 import { fetchEditors, fetchList } from "../content.js";
 
@@ -44,6 +44,7 @@ export default {
                             <button @click="selected = i">
                                 <img v-if="level" class="difficulty-face" :src="difficultyIcon(level, i + 1)" :alt="difficultyLabel(level, i + 1)" :title="difficultyLabel(level, i + 1)">
                                 <span class="type-label-lg" :class="{ featured: level?.featured, epic: level?.epic }">{{ level?.name || \`Error (\${err}.json)\` }}</span>
+                                <span v-if="hasHighHz(level)" class="hz-warning" title="Has a record over 360Hz">!</span>
                             </button>
                         </td>
                     </tr>
@@ -93,7 +94,7 @@ export default {
                                 <img :src="deviceIcon(record.device)" :alt="deviceLabel(record.device)" :title="deviceLabel(record.device)">
                             </td>
                             <td class="hz">
-                                <p>{{ record.hz }}Hz</p>
+                                <p>{{ record.hz }}Hz<span v-if="record.hz > hzLimit" class="hz-warning" title="Over 360Hz">!</span></p>
                             </td>
                         </tr>
                     </table>
@@ -173,6 +174,7 @@ export default {
         selected: 0,
         errors: [],
         search: '',
+        hzLimit: HIGH_HZ_LIMIT,
         roleIconMap,
         store
     }),
@@ -238,6 +240,7 @@ export default {
         this.loading = false;
     },
     methods: {
+        hasHighHz,
         isEasy(level) {
             return EASY_VERIFIERS.includes((level?.verifier || '').toLowerCase());
         },

@@ -70,6 +70,12 @@ export function difficultyLabel(level, rank) {
     return `${tierWords[part]} ${cap(base)} Demon`;
 }
 
+export const HIGH_HZ_LIMIT = 360;
+
+export function hasHighHz(level) {
+    return (level?.records || []).some((r) => Number(r.hz) > HIGH_HZ_LIMIT);
+}
+
 export function deviceLabel(device) {
     if (device === 'console') return 'Console';
     if (device === 'mobile') return 'Mobile';

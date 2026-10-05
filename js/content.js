@@ -1,4 +1,5 @@
 import { round, score } from './score.js';
+import { HIGH_HZ_LIMIT } from './util.js';
 
 /**
  * Path to directory containing `_list.json` and all levels
@@ -89,6 +90,8 @@ export async function fetchLeaderboard() {
 
         // Records
         level.records.forEach((record) => {
+            if (Number(record.hz) > HIGH_HZ_LIMIT) return;
+
             const user = Object.keys(scoreMap).find(
                 (u) => u.toLowerCase() === record.user.toLowerCase(),
             ) || record.user;
