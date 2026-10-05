@@ -43,12 +43,23 @@
                 <p>v1.2.0</p>
             </div>
             <nav class="nav">
-                <router-link class="nav__tab" to="/">
-                    <span class="type-label-lg">List</span>
-                </router-link>
-                <router-link class="nav__tab" to="/aill">
-                    <span class="type-label-lg">AILL</span>
-                </router-link>
+                <div class="nav__menu">
+                    <button
+                        class="nav__tab nav__tab--button"
+                        :class="{ 'router-link-active': listActive }"
+                        type="button"
+                        :aria-expanded="listMenuOpen"
+                        @click="listMenuOpen = !listMenuOpen"
+                    >
+                        <span class="type-label-lg">List</span>
+                        <span class="nav__chevron" :class="{ open: listMenuOpen }">&#9662;</span>
+                    </button>
+                    <div class="nav__dropdown" v-if="listMenuOpen">
+                        <router-link class="nav__option" to="/">Main</router-link>
+                        <router-link class="nav__option" to="/aill">AILL</router-link>
+                        <router-link class="nav__option" to="/easy-main">Easy Main</router-link>
+                    </div>
+                </div>
                 <router-link class="nav__tab" to="/leaderboard">
                     <span class="type-label-lg">Leaderboard</span>
                 </router-link>
@@ -85,6 +96,6 @@
                 </div>
             </nav>
         </header>
-        <router-view :class="{ dark: store.dark }"></router-view>
+        <router-view :key="$route.path" :class="{ dark: store.dark }"></router-view>
     </body>
 </html>

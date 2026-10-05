@@ -6,6 +6,10 @@ import { fetchEditors, fetchList } from "../content.js";
 import Spinner from "../components/Spinner.js";
 import LevelAuthors from "../components/List/LevelAuthors.js";
 
+const EASY_VERIFIERS = [
+    'cduking', 'cdukinggd', 'ick567', 'gdkegrem', 'xigot', 'lecleercgd', 'must13must',
+];
+
 const roleIconMap = {
     owner: "crown",
     admin: "user-gear",
@@ -16,6 +20,7 @@ const roleIconMap = {
 
 export default {
     components: { Spinner, LevelAuthors },
+    props: { easyOnly: { type: Boolean, default: false } },
     template: `
         <main v-if="loading">
             <Spinner></Spinner>
@@ -176,6 +181,7 @@ export default {
             const query = this.search.trim().toLowerCase();
             return this.list
                 .map(([level, err], i) => [level, err, i])
+                .filter(([level]) => !this.easyOnly || this.isEasy(level))
                 .filter(([level]) => !query || (level?.name || '').toLowerCase().includes(query));
         },
         level() {
@@ -212,6 +218,11 @@ export default {
                 if (requestedIndex >= 0) this.selected = requestedIndex;
             }
 
+            if (this.easyOnly && !this.isEasy(this.list[this.selected]?.[0])) {
+                const first = this.list.findIndex(([level]) => this.isEasy(level));
+                if (first >= 0) this.selected = first;
+            }
+
             this.errors.push(
                 ...this.list
                     .filter(([_, err]) => err)
@@ -227,6 +238,9 @@ export default {
         this.loading = false;
     },
     methods: {
+        isEasy(level) {
+            return EASY_VERIFIERS.includes((level?.verifier || '').toLowerCase());
+        },
         embed,
         score,
         deviceIcon: (device) => deviceIcon(device, store.dark),

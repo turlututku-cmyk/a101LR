@@ -131,6 +131,14 @@ export default {
                 "Failed to load AILL. Retry in a few minutes or notify list staff.",
             ];
         } else {
+            const requestedLevel = this.$route.query.level;
+            if (requestedLevel) {
+                const requestedIndex = this.list.findIndex(
+                    ([level]) => level?.path === requestedLevel,
+                );
+                if (requestedIndex >= 0) this.selected = requestedIndex;
+            }
+
             this.errors.push(
                 ...this.list
                     .filter(([_, err]) => err)

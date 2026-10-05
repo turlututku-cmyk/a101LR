@@ -1,6 +1,6 @@
 .page-time-machine {
-    grid-template-columns: minmax(20rem, 1fr) minmax(24rem, 3fr);
-    max-width: 64rem;
+    grid-template-columns: minmax(16rem, 1fr) minmax(24rem, 4fr);
+    max-width: 84rem;
     margin: 0 auto;
 }
 .page-time-machine .tm-picker {
@@ -43,30 +43,33 @@
 .page-time-machine .tm-result-sub {
     opacity: 0.7;
 }
-.page-time-machine .tm-columns {
-    display: flex;
-    gap: 2rem;
-    flex-wrap: wrap;
-}
-.page-time-machine .tm-column {
-    flex: 1;
-    min-width: 16rem;
-}
 .page-time-machine .tm-list {
     list-style: none;
-    margin: 1rem 0 0;
+    margin: 0.5rem 0 0;
     padding: 0;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
-.page-time-machine .tm-list li {
+.page-time-machine .tm-item {
     display: flex;
     gap: 0.75rem;
     align-items: baseline;
     padding: 0.65rem 1rem;
     border-radius: 0.5rem;
     background-color: var(--color-background-hover);
+}
+.page-time-machine .tm-item--link {
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.page-time-machine .tm-item--link:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.15);
+}
+.page-time-machine .tm-item__arrow {
+    margin-left: auto;
+    opacity: 0.5;
 }
 .page-time-machine .tm-rank {
     font-family: "Lexend Deca", sans-serif;
@@ -77,4 +80,18 @@
 .page-time-machine .tm-empty {
     opacity: 0.7;
     margin-top: 1rem;
+}
+.page-time-machine .tm-columns {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+.page-time-machine .tm-column {
+    flex: 1;
+    min-width: 15rem;
+}
+.page-time-machine .tm-count {
+    margin-left: 0.5rem;
+    opacity: 0.55;
 }

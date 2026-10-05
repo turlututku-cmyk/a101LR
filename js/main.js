@@ -9,7 +9,22 @@ export const store = Vue.reactive({
 });
 
 const app = Vue.createApp({
-    data: () => ({ store }),
+    data: () => ({ store, listMenuOpen: false }),
+    computed: {
+        listActive() {
+            return ['/', '/aill', '/easy-main'].includes(this.$route.path);
+        },
+    },
+    watch: {
+        '$route.path'() {
+            this.listMenuOpen = false;
+        },
+    },
+    mounted() {
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav__menu')) this.listMenuOpen = false;
+        });
+    },
 });
 const router = VueRouter.createRouter({
     history: VueRouter.createWebHashHistory(),

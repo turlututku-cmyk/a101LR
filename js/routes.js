@@ -7,6 +7,7 @@ import TimeMachine from './pages/TimeMachine.js';
 
 export default [
     { path: '/', component: List },
+    { path: '/easy-main', component: List, props: { easyOnly: true } },
     { path: '/aill', component: AILL },
     { path: '/leaderboard', component: Leaderboard },
     { path: '/roulette', component: Roulette },
