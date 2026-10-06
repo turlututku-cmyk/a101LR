@@ -1,14 +1,10 @@
 import { store } from "../main.js";
-import { embed, deviceIcon, deviceLabel, difficultyIcon, difficultyLabel, hasHighHz, HIGH_HZ_LIMIT } from "../util.js";
+import { embed, deviceIcon, deviceLabel, difficultyIcon, difficultyLabel, hasHighHz, HIGH_HZ_LIMIT, isEasyVerifier } from "../util.js";
 import { score } from "../score.js";
 import { fetchEditors, fetchList } from "../content.js";
 
 import Spinner from "../components/Spinner.js";
 import LevelAuthors from "../components/List/LevelAuthors.js";
-
-const EASY_VERIFIERS = [
-    'cduking', 'cdukinggd', 'ick567', 'gdkegrem', 'xigot', 'lecleercgd', 'must13must',
-];
 
 const roleIconMap = {
     owner: "crown",
@@ -242,7 +238,7 @@ export default {
     methods: {
         hasHighHz,
         isEasy(level) {
-            return EASY_VERIFIERS.includes((level?.verifier || '').toLowerCase());
+            return isEasyVerifier(level?.verifier);
         },
         embed,
         score,

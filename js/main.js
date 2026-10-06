@@ -9,20 +9,27 @@ export const store = Vue.reactive({
 });
 
 const app = Vue.createApp({
-    data: () => ({ store, listMenuOpen: false }),
+    data: () => ({ store, listMenuOpen: false, minigamesMenuOpen: false }),
     computed: {
         listActive() {
             return ['/', '/aill', '/easy-main'].includes(this.$route.path);
+        },
+        minigamesActive() {
+            return ['/roulette', '/minigames'].some((p) => this.$route.path.startsWith(p));
         },
     },
     watch: {
         '$route.path'() {
             this.listMenuOpen = false;
+            this.minigamesMenuOpen = false;
         },
     },
     mounted() {
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.nav__menu')) this.listMenuOpen = false;
+            if (!e.target.closest('.nav__menu')) {
+                this.listMenuOpen = false;
+                this.minigamesMenuOpen = false;
+            }
         });
     },
 });

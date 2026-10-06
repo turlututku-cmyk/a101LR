@@ -40,7 +40,7 @@ const tierFiles = [
     'hard-low', 'hard-mid', 'hard-high',
     'insane-low', 'insane-mid', 'insane-high',
     'extreme-low', 'extreme-mid', 'extreme-high',
-    'not-humanly-possible', 'free-demon',
+    'not-humanly-possible', 'not-humanly-possible-plus', 'free-demon',
 ];
 
 const tierWords = { low: 'Low', mid: 'Mid', high: 'High', hard: 'High' };
@@ -65,9 +65,18 @@ export function difficultyIcon(level, rank) {
 export function difficultyLabel(level, rank) {
     const file = difficultyOf(level, rank);
     if (file === 'not-humanly-possible') return 'Not Humanly Possible';
+    if (file === 'not-humanly-possible-plus') return 'Not Humanly Possible +';
     if (file === 'free-demon') return 'Free Demon';
     const [base, part] = file.split('-');
     return `${tierWords[part]} ${cap(base)} Demon`;
+}
+
+export const EASY_VERIFIERS = [
+    'cduking', 'cdukinggd', 'ick567', 'gdkegrem', 'xigot', 'lecleercgd', 'must13must',
+];
+
+export function isEasyVerifier(name) {
+    return EASY_VERIFIERS.includes((name || '').toLowerCase());
 }
 
 export const HIGH_HZ_LIMIT = 360;

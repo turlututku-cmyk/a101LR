@@ -25,6 +25,7 @@
         <link rel="stylesheet" type="text/css" href="/css/pages/roulette.css" />
         <link rel="stylesheet" type="text/css" href="/css/pages/packs.css" />
         <link rel="stylesheet" type="text/css" href="/css/pages/time-machine.css" />
+        <link rel="stylesheet" type="text/css" href="/css/pages/minigames.css" />
         <link rel="stylesheet" type="text/css" href="/css/components/nav.css" />
         <link rel="stylesheet" type="text/css" href="/css/components/btn.css" />
         <link
@@ -49,7 +50,7 @@
                         :class="{ 'router-link-active': listActive }"
                         type="button"
                         :aria-expanded="listMenuOpen"
-                        @click="listMenuOpen = !listMenuOpen"
+                        @click="listMenuOpen = !listMenuOpen; minigamesMenuOpen = false"
                     >
                         <span class="type-label-lg">List</span>
                         <span class="nav__chevron" :class="{ open: listMenuOpen }">&#9662;</span>
@@ -63,9 +64,24 @@
                 <router-link class="nav__tab" to="/leaderboard">
                     <span class="type-label-lg">Leaderboard</span>
                 </router-link>
-                <router-link class="nav__tab" to="/roulette">
-                    <span class="type-label-lg">Roulette</span>
-                </router-link>
+                <div class="nav__menu">
+                    <button
+                        class="nav__tab nav__tab--button"
+                        :class="{ 'router-link-active': minigamesActive }"
+                        type="button"
+                        :aria-expanded="minigamesMenuOpen"
+                        @click="minigamesMenuOpen = !minigamesMenuOpen; listMenuOpen = false"
+                    >
+                        <span class="type-label-lg">Minigames</span>
+                        <span class="nav__chevron" :class="{ open: minigamesMenuOpen }">&#9662;</span>
+                    </button>
+                    <div class="nav__dropdown" v-if="minigamesMenuOpen">
+                        <router-link class="nav__option" to="/roulette">Roulette</router-link>
+                        <router-link class="nav__option" to="/minigames/higher-lower">Higher or Lower</router-link>
+                        <router-link class="nav__option" to="/minigames/verifier">Guess the Verifier</router-link>
+                        <router-link class="nav__option" to="/minigames/rank">Guess the Rank</router-link>
+                    </div>
+                </div>
                 <router-link class="nav__tab" to="/packs">
                     <span class="type-label-lg">Packs</span>
                 </router-link>

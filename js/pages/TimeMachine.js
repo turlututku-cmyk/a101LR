@@ -1,9 +1,6 @@
 import { store } from "../main.js";
+import { isEasyVerifier } from "../util.js";
 import Spinner from "../components/Spinner.js";
-
-const EASY_VERIFIERS = [
-    'cduking', 'cdukinggd', 'ick567', 'gdkegrem', 'xigot', 'lecleercgd', 'must13must',
-];
 
 export default {
     components: { Spinner },
@@ -90,9 +87,7 @@ export default {
         columns() {
             const withRank = (arr) => arr.map((entry, i) => ({ entry, rank: i + 1 }));
             const main = withRank(this.resultList);
-            const easy = main.filter(({ entry }) =>
-                EASY_VERIFIERS.includes((entry.v || '').toLowerCase()),
-            );
+            const easy = main.filter(({ entry }) => isEasyVerifier(entry.v));
             const aill = withRank(this.resultAill);
             const link = (key) => (item) => ({ ...item, link: this.linkFor(item.entry.p, key) });
             return [

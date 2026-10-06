@@ -1,7 +1,7 @@
 .page-time-machine {
     grid-template-columns: minmax(16rem, 1fr) minmax(24rem, 4fr);
-    max-width: 84rem;
-    margin: 0 auto;
+    padding-inline: max(1rem, calc((100% - 84rem) / 2));
+    font-family: "Lexend Deca", sans-serif;
 }
 .page-time-machine .tm-picker {
     padding: 2rem 1rem;
