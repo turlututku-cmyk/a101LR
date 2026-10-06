@@ -14,6 +14,10 @@ const GAMES = {
         title: 'Guess the Verifier',
         subtitle: 'Who verified this level? 10 rounds.',
     },
+    creator: {
+        title: 'Guess the Creator',
+        subtitle: 'Who created this level? 10 rounds.',
+    },
     rank: {
         title: 'Guess the Rank',
         subtitle: 'Where does this level sit on the list? The closer you are, the more points you get. 5 rounds, 100 points each.',
@@ -90,12 +94,13 @@ export default {
                         </div>
                     </template>
 
-                    <!-- Guess the Verifier -->
+                    <!-- Guess the Verifier / Guess the Creator -->
                     <template v-if="isQuiz && phase === 'playing'">
                         <p class="mg-score">Round {{ round + 1 }} / {{ rounds }} &middot; Score {{ score }}</p>
                         <div class="mg-question" :class="verdict ? 'is-' + verdict : ''">
                             <img :src="thumb(question.level)" alt="">
-                            <h2>Who verified {{ question.level.name }}?</h2>
+                            <h2 v-if="game === 'creator'">Who created {{ question.level.name }}?</h2>
+                            <h2 v-else>Who verified {{ question.level.name }}?</h2>
                         </div>
                         <div class="mg-options">
                             <button
@@ -153,10 +158,10 @@ export default {
             return this.game === 'rank';
         },
         isQuiz() {
-            return this.game === 'verifier';
+            return this.game === 'verifier' || this.game === 'creator';
         },
         usesEffects() {
-            return this.game === 'verifier' || this.game === 'rank';
+            return this.isQuiz || this.game === 'rank';
         },
         bestSuffix() {
             if (this.isDuel) return '';
@@ -180,18 +185,17 @@ export default {
         pool() {
             return this.levels.filter((l) => l.yt);
         },
-        verifierPool() {
+        answerPool() {
             const seen = new Map();
             this.levels.forEach((l) => {
-                const v = (l.verifier || '').trim();
-                if (!v || v.toLowerCase() === 'none') return;
-                if (!seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v);
+                const v = this.answerOf(l);
+                if (v && !seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v);
             });
             return [...seen.values()];
         },
         ready() {
-            if (this.game === 'verifier') {
-                return this.pool.length >= 4 && this.verifierPool.length >= 4;
+            if (this.isQuiz) {
+                return this.pool.length >= 4 && this.answerPool.length >= 4;
             }
             return this.pool.length >= 4;
         },
@@ -203,6 +207,8 @@ export default {
                 path: lv.path,
                 name: lv.name,
                 verifier: lv.verifier,
+                author: lv.author,
+                creators: lv.creators || [],
                 rank: i + 1,
                 yt: getYoutubeIdFromUrl(lv.verification || ''),
             } : null))
@@ -216,6 +222,11 @@ export default {
     methods: {
         thumb(lv) {
             return getThumbnailFromId(lv.yt);
+        },
+        answerOf(level) {
+            const raw = this.game === 'creator' ? level.author : level.verifier;
+            const value = (raw || '').trim();
+            return value.toLowerCase() === 'none' ? '' : value;
         },
         updateBest(value) {
             if (value > this.best) {
@@ -239,13 +250,7 @@ export default {
                 this.beginRankRound();
                 return;
             }
-            let source = this.pool;
-            if (this.game === 'verifier') {
-                source = source.filter((q) => {
-                    const v = (q.verifier || '').trim().toLowerCase();
-                    return v && v !== 'none';
-                });
-            }
+            const source = this.pool.filter((q) => this.answerOf(q));
             this.questions = shuffle([...source]).slice(0, ROUNDS);
             this.rounds = this.questions.length;
             this.round = 0;
@@ -309,8 +314,14 @@ export default {
         // Quiz games
         buildQuestion() {
             const level = this.questions[this.round];
-            const correct = level.verifier.trim();
-            const others = this.verifierPool.filter((v) => v.toLowerCase() !== correct.toLowerCase());
+            const correct = this.answerOf(level);
+            const excluded = this.game === 'creator'
+                ? level.creators.map((c) => c.trim().toLowerCase())
+                : [];
+            const others = this.answerPool.filter((v) => {
+                const key = v.toLowerCase();
+                return key !== correct.toLowerCase() && !excluded.includes(key);
+            });
             const options = shuffle([correct, ...shuffle(others).slice(0, 3)]);
             this.question = { level, correct, options };
             this.answered = null;

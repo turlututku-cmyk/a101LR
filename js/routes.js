@@ -14,6 +14,7 @@ export default [
     { path: '/roulette', component: Roulette },
     { path: '/minigames/higher-lower', component: Minigame, props: { game: 'higher-lower' } },
     { path: '/minigames/verifier', component: Minigame, props: { game: 'verifier' } },
+    { path: '/minigames/creator', component: Minigame, props: { game: 'creator' } },
     { path: '/minigames/rank', component: Minigame, props: { game: 'rank' } },
     { path: '/packs', component: Packs },
     { path: '/time-machine', component: TimeMachine },
