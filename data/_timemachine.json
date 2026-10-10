@@ -1451,7 +1451,7 @@
     "2026-10-11":  {
                        "list":  [
                                     {
-                                        "n":  "a101 GRIFF FRAMES",
+                                        "n":  "a101 GRIFF",
                                         "p":  "a101griffframes",
                                         "v":  "CdukingGD"
                                     },
@@ -1801,6 +1801,11 @@
                                         "n":  "AMCK",
                                         "p":  "amck",
                                         "v":  "None"
+                                    },
+                                    {
+                                        "n":  "a101 GRIFF",
+                                        "p":  "a101griffframes",
+                                        "v":  "CdukingGD"
                                     },
                                     {
                                         "n":  "a101 angelicide",
