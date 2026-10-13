@@ -9,5 +9,12 @@
     "device": "pc",
     "difficulty": "extreme-low",
     "records": [
+        {
+            "user": "SamixtonGD",
+            "link": "https://www.youtube.com/watch?v=JxgnkMHVyfM",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
+        }
     ]
 }
