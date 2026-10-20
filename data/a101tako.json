@@ -9,5 +9,12 @@
     "device": "pc",
     "difficulty": "extreme-high",
     "records": [
+        {
+            "user": "EclipseMay",
+            "link": "https://youtu.be/PZtqnEuevhE",
+            "percent": 100,
+            "hz": 120,
+            "device": "mobile"
+        }
     ]
 }
