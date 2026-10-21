@@ -42,6 +42,13 @@
             "percent": 100,
             "hz": 60,
             "device": "mobile"
+        },
+        {
+            "user": "HuseyGD",
+            "link": "https://youtu.be/21cJ49YG-KQ",
+            "percent": 100,
+            "hz": 240,
+            "device": "pc"
         }
     ]
 }
