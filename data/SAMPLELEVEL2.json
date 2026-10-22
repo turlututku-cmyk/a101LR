@@ -37,6 +37,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "MarvelGD",
+            "link": "https://youtu.be/7atoRrOqQbU",
+            "percent": 100,
+            "hz": 144,
+            "device": "pc"
         }
     ]
 }
