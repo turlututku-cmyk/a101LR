@@ -29,6 +29,13 @@
             "percent": 100,
             "hz": 60,
             "device": "pc"
+        },
+        {
+            "user": "Meownez",
+            "link": "https://youtu.be/C03QuvDIXzw",
+            "percent": 100,
+            "hz": 144,
+            "device": "pc"
         }
     ]
 }
