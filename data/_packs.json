@@ -1,5 +1,13 @@
 [
     {
+        "name": "Kumar Pack",
+        "color": "#820000",
+        "levels": [
+            "a101kumar",
+            "a101kumar2"
+        ]
+    },
+    {
         "name": "2025 Pack",
         "color": "#00c8ff",
         "levels": [
@@ -23,6 +31,8 @@
         "name": "Wave Only Pack",
         "color": "#00FFFF",
         "levels": [
+            "a101kumar",
+            "a101kumar2",
 			"moisture",
 			"cata",
 			"freezenightmare",
@@ -65,6 +75,7 @@
         "name": "Pro Pack",
         "color": "#ff0000",
         "levels": [
+            "a101kumar",
             "ArtifUnl",
 			"james",
             "a101equinox"
