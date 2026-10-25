@@ -1195,7 +1195,7 @@ export default {
             botReply: "",
             notice: null,
             boardType: "week",
-            shop: { items: [], box: { price: 25 }, nitro: { price: 150, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
+            shop: { items: [], box: { price: 25 }, nitro: { price: 500, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
             orbGain: 1,
             token: load(TOKEN_KEY),
             me: null,

@@ -62,7 +62,7 @@ const ORB_COOLDOWN_MS = 60 * 1000;
 const MIN_ORB_TEXT = 3;
 
 // Nitro: bought with orbs (or gifted by the owner), unlocks extras for 30 days at a time
-const NITRO_PRICE = 150;
+const NITRO_PRICE = 500;
 const NITRO_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_TEXT_NITRO = 500;
