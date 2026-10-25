@@ -12,7 +12,7 @@ const app = Vue.createApp({
     data: () => ({ store, listMenuOpen: false, minigamesMenuOpen: false }),
     computed: {
         listActive() {
-            return ['/', '/aill', '/easy-main'].includes(this.$route.path);
+            return ['/', '/aill', '/easy-main', '/atpll'].includes(this.$route.path);
         },
         minigamesActive() {
             return ['/roulette', '/minigames'].some((p) => this.$route.path.startsWith(p));
