@@ -6,6 +6,7 @@ import Roulette from './pages/Roulette.js';
 import Packs from './pages/Packs.js';
 import TimeMachine from './pages/TimeMachine.js';
 import Minigame from './pages/Minigame.js';
+import Chat from './pages/Chat.js';
 
 export default [
     { path: '/', component: List },
@@ -18,6 +19,7 @@ export default [
     { path: '/minigames/verifier', component: Minigame, props: { game: 'verifier' } },
     { path: '/minigames/creator', component: Minigame, props: { game: 'creator' } },
     { path: '/minigames/rank', component: Minigame, props: { game: 'rank' } },
+    { path: '/minigames/chat', component: Chat },
     { path: '/packs', component: Packs },
     { path: '/time-machine', component: TimeMachine },
 ];

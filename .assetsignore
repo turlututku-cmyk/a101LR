@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+worker
+wrangler.jsonc
+.assetsignore
+.gitignore
+.editorconfig
+README.md
+SECURITY.md
+node_modules
