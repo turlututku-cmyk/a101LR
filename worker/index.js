@@ -59,52 +59,109 @@ const ORB_COOLDOWN_MS = 60 * 1000;
 const MIN_ORB_TEXT = 3;
 
 // Nitro: bought with orbs (or gifted by the owner), unlocks extras for 30 days at a time
-const NITRO_PRICE = 400;
+const NITRO_PRICE = 150;
 const NITRO_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_TEXT_NITRO = 500;
 const MAX_IMAGE_NITRO = 1536 * 1024;
-const MAX_AVATAR_NITRO = 400 * 1024;
+const MAX_AVATAR_NITRO = 1536 * 1024;
 const NITRO_ORBS = 2;
 
 // Shop: slot -> what it changes. `nitro` items need an active Nitro to buy and to show.
 // The look of frames lives in the page's CSS (matched by id); colours and gradients live here.
 const SHOP = [
-    { id: "nc_crimson", slot: "nameColor", name: "Crimson", price: 25, style: { color: "#ff4d6d" } },
-    { id: "nc_ocean", slot: "nameColor", name: "Ocean", price: 25, style: { color: "#3aa3ff" } },
-    { id: "nc_mint", slot: "nameColor", name: "Mint", price: 25, style: { color: "#3ddc97" } },
-    { id: "nc_gold", slot: "nameColor", name: "Gold", price: 40, style: { color: "#f5c542" } },
-    { id: "nc_violet", slot: "nameColor", name: "Violet", price: 40, style: { color: "#b388ff" } },
-    { id: "nc_pink", slot: "nameColor", name: "Bubblegum", price: 40, style: { color: "#ff7ac8" } },
+    { id: "nc_crimson", slot: "nameColor", name: "Crimson", price: 10, style: { color: "#ff4d6d" } },
+    { id: "nc_ocean", slot: "nameColor", name: "Ocean", price: 10, style: { color: "#3aa3ff" } },
+    { id: "nc_mint", slot: "nameColor", name: "Mint", price: 10, style: { color: "#3ddc97" } },
+    { id: "nc_gold", slot: "nameColor", name: "Gold", price: 15, style: { color: "#f5c542" } },
+    { id: "nc_violet", slot: "nameColor", name: "Violet", price: 15, style: { color: "#b388ff" } },
+    { id: "nc_pink", slot: "nameColor", name: "Bubblegum", price: 15, style: { color: "#ff7ac8" } },
     {
-        id: "nc_sunset", slot: "nameColor", name: "Sunset", price: 120, nitro: true,
+        id: "nc_sunset", slot: "nameColor", name: "Sunset", price: 40, nitro: true,
         style: { gradient: "linear-gradient(90deg, #ff512f, #f09819, #ff512f)", animated: true },
     },
     {
-        id: "nc_rainbow", slot: "nameColor", name: "Rainbow", price: 200, nitro: true,
+        id: "nc_rainbow", slot: "nameColor", name: "Rainbow", price: 60, nitro: true,
         style: { gradient: "linear-gradient(90deg, #ff4d4d, #ffd24d, #4dff88, #4dc3ff, #b84dff, #ff4d4d)", animated: true },
     },
-    { id: "fr_gold", slot: "frame", name: "Gold Ring", price: 60 },
-    { id: "fr_neon", slot: "frame", name: "Neon Glow", price: 60 },
-    { id: "fr_emerald", slot: "frame", name: "Emerald Ring", price: 60 },
-    { id: "fr_rose", slot: "frame", name: "Rose Ring", price: 80 },
-    { id: "fr_flame", slot: "frame", name: "Flame", price: 150, nitro: true, style: { animated: true } },
-    { id: "fr_galaxy", slot: "frame", name: "Galaxy", price: 180, nitro: true, style: { animated: true } },
-    { id: "bn_sunset", slot: "banner", name: "Sunset", price: 50, style: { background: "linear-gradient(135deg, #ff7e5f, #feb47b)" } },
-    { id: "bn_ocean", slot: "banner", name: "Deep Ocean", price: 50, style: { background: "linear-gradient(135deg, #2193b0, #6dd5ed)" } },
-    { id: "bn_forest", slot: "banner", name: "Forest", price: 50, style: { background: "linear-gradient(135deg, #134e5e, #71b280)" } },
-    { id: "bn_candy", slot: "banner", name: "Candy", price: 50, style: { background: "linear-gradient(135deg, #ee9ca7, #ffdde1)" } },
-    { id: "bn_midnight", slot: "banner", name: "Midnight", price: 70, style: { background: "linear-gradient(135deg, #0f2027, #2c5364)" } },
+    { id: "fr_gold", slot: "frame", name: "Gold Ring", price: 20 },
+    { id: "fr_neon", slot: "frame", name: "Neon Glow", price: 20 },
+    { id: "fr_emerald", slot: "frame", name: "Emerald Ring", price: 20 },
+    { id: "fr_rose", slot: "frame", name: "Rose Ring", price: 30 },
+    { id: "fr_flame", slot: "frame", name: "Flame", price: 50, nitro: true, style: { animated: true } },
+    { id: "fr_galaxy", slot: "frame", name: "Galaxy", price: 60, nitro: true, style: { animated: true } },
+    { id: "bn_sunset", slot: "banner", name: "Sunset", price: 15, style: { background: "linear-gradient(135deg, #ff7e5f, #feb47b)" } },
+    { id: "bn_ocean", slot: "banner", name: "Deep Ocean", price: 15, style: { background: "linear-gradient(135deg, #2193b0, #6dd5ed)" } },
+    { id: "bn_forest", slot: "banner", name: "Forest", price: 15, style: { background: "linear-gradient(135deg, #134e5e, #71b280)" } },
+    { id: "bn_candy", slot: "banner", name: "Candy", price: 15, style: { background: "linear-gradient(135deg, #ee9ca7, #ffdde1)" } },
+    { id: "bn_midnight", slot: "banner", name: "Midnight", price: 25, style: { background: "linear-gradient(135deg, #0f2027, #2c5364)" } },
     {
-        id: "bn_aurora", slot: "banner", name: "Aurora", price: 150, nitro: true,
+        id: "bn_aurora", slot: "banner", name: "Aurora", price: 50, nitro: true,
         style: { background: "linear-gradient(120deg, #00c9ff, #92fe9d, #b388ff, #00c9ff)", animated: true },
     },
     {
-        id: "bn_lava", slot: "banner", name: "Lava", price: 150, nitro: true,
+        id: "bn_lava", slot: "banner", name: "Lava", price: 50, nitro: true,
         style: { background: "linear-gradient(120deg, #f12711, #f5af19, #f12711)", animated: true },
     },
+    { id: "bd_fire", slot: "badge", name: "On Fire", price: 20, style: { icon: "\u{1F525}" } },
+    { id: "bd_cat", slot: "badge", name: "Cat Lover", price: 20, style: { icon: "\u{1F431}" } },
+    { id: "bd_ghost", slot: "badge", name: "Ghost", price: 20, style: { icon: "\u{1F47B}" } },
+    { id: "bd_clover", slot: "badge", name: "Lucky", price: 25, style: { icon: "\u{1F340}" } },
+    { id: "bd_gamer", slot: "badge", name: "Gamer", price: 25, style: { icon: "\u{1F3AE}" } },
+    { id: "bd_rocket", slot: "badge", name: "Speedrunner", price: 30, style: { icon: "\u{1F680}" } },
+    { id: "bd_skull", slot: "badge", name: "Demon Slayer", price: 35, style: { icon: "\u{1F480}" } },
+    { id: "bd_diamond", slot: "badge", name: "Diamond", price: 50, style: { icon: "\u{1F48E}" } },
+    { id: "bd_dragon", slot: "badge", name: "Dragon", price: 80, nitro: true, style: { icon: "\u{1F409}" } },
+    { id: "bd_prism", slot: "badge", name: "Prism", price: 80, nitro: true, style: { icon: "\u{1F308}" } },
+    { id: "ti_lurker", slot: "title", name: "Professional Lurker", price: 15, style: { text: "Professional Lurker" } },
+    { id: "ti_noob", slot: "title", name: "Certified Noob", price: 15, style: { text: "Certified Noob" } },
+    { id: "ti_owl", slot: "title", name: "Night Owl", price: 20, style: { text: "Night Owl" } },
+    { id: "ti_chaos", slot: "title", name: "Chaos Agent", price: 25, style: { text: "Chaos Agent" } },
+    { id: "ti_slayer", slot: "title", name: "Demon Slayer", price: 30, style: { text: "Demon Slayer" } },
+    { id: "ti_grinder", slot: "title", name: "Extreme Grinder", price: 30, style: { text: "Extreme Grinder" } },
+    { id: "ti_verifier", slot: "title", name: "Verifier", price: 30, style: { text: "Verifier" } },
+    { id: "ti_legend", slot: "title", name: "Legend", price: 60, nitro: true, style: { text: "Legend" } },
+    { id: "ti_sweat", slot: "title", name: "Tryhard Supreme", price: 60, nitro: true, style: { text: "Tryhard Supreme" } },
+    { id: "bu_gold", slot: "bubble", name: "Gold Bar", price: 30, style: { color: "#f5c542" } },
+    { id: "bu_neon", slot: "bubble", name: "Neon Bar", price: 30, style: { color: "#00e5ff" } },
+    { id: "bu_rose", slot: "bubble", name: "Rose Bar", price: 30, style: { color: "#ff6b9d" } },
+    { id: "bu_leaf", slot: "bubble", name: "Leaf Bar", price: 30, style: { color: "#2ecc71" } },
+    { id: "bu_rainbow", slot: "bubble", name: "Rainbow Bar", price: 70, nitro: true, style: { color: "#b84dff", animated: true } },
+    { id: "bu_fire", slot: "bubble", name: "Flame Bar", price: 70, nitro: true, style: { color: "#ff6a00", animated: true } },
+    { id: "ef_sparkle", slot: "effect", name: "Sparkles", price: 40, style: { emoji: "\u2728" } },
+    { id: "ef_snow", slot: "effect", name: "Snowfall", price: 40, style: { emoji: "\u2744\uFE0F" } },
+    { id: "ef_hearts", slot: "effect", name: "Hearts", price: 40, style: { emoji: "\u{1F496}" } },
+    { id: "ef_fire", slot: "effect", name: "Embers", price: 90, nitro: true, style: { emoji: "\u{1F525}" } },
+    { id: "ef_stars", slot: "effect", name: "Star Shower", price: 90, nitro: true, style: { emoji: "\u{1F31F}" } },
 ];
-const SLOTS = ["nameColor", "frame", "banner"];
+const SLOTS = ["nameColor", "frame", "banner", "badge", "title", "bubble", "effect"];
+const BOX_PRICE = 25;
+
+// Orb tasks. Daily ones reset at midnight UTC; achievements are claimed once, ever.
+const DAILY_TASKS = [
+    { id: "d_chat", name: "Chatterbox", desc: "Send 10 messages", goal: 10, reward: 5, key: "msg" },
+    { id: "d_react", name: "Reactor", desc: "React to 3 messages", goal: 3, reward: 3, key: "react" },
+    { id: "d_gif", name: "GIF Master", desc: "Send a GIF", goal: 1, reward: 3, key: "gif" },
+    { id: "d_dm", name: "Pen Pal", desc: "Send a direct or group message", goal: 1, reward: 3, key: "dm" },
+    { id: "d_explore", name: "Explorer", desc: "Post in 3 different channels", goal: 3, reward: 5, key: "channels" },
+    { id: "d_media", name: "Show and Tell", desc: "Share an image or a video", goal: 1, reward: 4, key: "media" },
+    { id: "d_liked", name: "Fan Favourite", desc: "Get 3 reactions on your messages", goal: 3, reward: 5, key: "liked" },
+];
+const ACHIEVEMENTS = [
+    { id: "a_first", name: "First Words", desc: "Send your first message", goal: 1, reward: 5, stat: "msgCount" },
+    { id: "a_pfp", name: "Say Cheese", desc: "Set a profile picture", goal: 1, reward: 10, stat: "avatar" },
+    { id: "a_bio", name: "About Me", desc: "Write something in your bio", goal: 1, reward: 5, stat: "bio" },
+    { id: "a_friend", name: "Friend Zone", desc: "Make your first friend", goal: 1, reward: 10, stat: "friends" },
+    { id: "a_group", name: "Squad Goals", desc: "Be in a group chat", goal: 1, reward: 10, stat: "groups" },
+    { id: "a_shop", name: "Shopper", desc: "Own something from the Orb Shop", goal: 1, reward: 10, stat: "owned" },
+    { id: "a_100", name: "Century", desc: "Send 100 messages", goal: 100, reward: 25, stat: "msgCount" },
+    { id: "a_social", name: "Popular", desc: "Have 5 friends", goal: 5, reward: 25, stat: "friends" },
+];
+const taskDay = () => new Date().toISOString().slice(0, 10);
+const nextMidnight = () => {
+    const d = new Date();
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+};
 
 // friends and groups
 const MAX_FRIENDS = 200;
@@ -287,6 +344,10 @@ export class ChatRoom extends DurableObject {
             return this.postVideo(request, searchParams);
         } else if (get && pathname.startsWith("/api/chat/video/")) {
             return this.getVideo(request, pathname.slice("/api/chat/video/".length));
+        } else if (get && pathname === "/api/chat/tasks") {
+            return this.tasks(request);
+        } else if (post && pathname === "/api/chat/tasks") {
+            return this.claimTask(request);
         } else if (get && pathname === "/api/chat/shop") {
             return this.shop(request);
         } else if (post && pathname === "/api/chat/shop") {
@@ -801,7 +862,7 @@ export class ChatRoom extends DurableObject {
 
     async shop(request) {
         const username = await this.sessionUser(request);
-        const out = { items: SHOP, nitro: { price: NITRO_PRICE, days: NITRO_DAYS, orbsPerMessage: NITRO_ORBS } };
+        const out = { items: SHOP, nitro: { price: NITRO_PRICE, days: NITRO_DAYS, orbsPerMessage: NITRO_ORBS }, box: { price: BOX_PRICE } };
         if (username) {
             const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
             const role = roleOf(username);
@@ -844,6 +905,26 @@ export class ChatRoom extends DurableObject {
             if (!item || !user.owned.includes(item.id)) return json({ error: "You don't own that." }, 400);
             if (item.nitro && !nitro) return json({ error: "That item needs Nitro.", nitro: true }, 403);
             user.equipped[item.slot] = item.id;
+        } else if (action === "box") {
+            if ((user.orbs || 0) < BOX_PRICE) return json({ error: "Not enough orbs." }, 400);
+            const pool = SHOP.filter((i) => !user.owned.includes(i.id) && (!i.nitro || nitro));
+            if (!pool.length) return json({ error: "You already own everything you can get!" }, 400);
+            // cheaper items turn up more often
+            const weights = pool.map((i) => 1 / i.price);
+            let roll = Math.random() * weights.reduce((a, b) => a + b, 0);
+            let won = pool[pool.length - 1];
+            for (let n = 0; n < pool.length; n++) {
+                roll -= weights[n];
+                if (roll <= 0) {
+                    won = pool[n];
+                    break;
+                }
+            }
+            user.orbs -= BOX_PRICE;
+            user.owned.push(won.id);
+            if (!user.equipped[won.slot]) user.equipped[won.slot] = won.id;
+            await this.ctx.storage.put(key, user);
+            return json({ ok: true, won, profile: await this.publicProfile(username) });
         } else if (action === "unequip") {
             if (!SLOTS.includes(body.slot)) return json({ error: "Unknown slot." }, 400);
             delete user.equipped[body.slot];
@@ -867,6 +948,92 @@ export class ChatRoom extends DurableObject {
 
         await this.ctx.storage.put(key, user);
         return json({ ok: true, profile: await this.publicProfile(username) });
+    }
+
+    // ---------- orb tasks ----------
+
+    /** Add to today's progress (resets automatically when the day changes). */
+    async bumpTasks(lower, events) {
+        const key = `tk:${lower}`;
+        let rec = (await this.ctx.storage.get(key)) || {};
+        if (rec.day !== taskDay()) rec = { day: taskDay(), progress: {}, claimed: {}, ach: rec.ach || {} };
+        for (const [k, v] of Object.entries(events)) {
+            if (k === "channels") {
+                const list = rec.progress.channels || [];
+                if (!list.includes(v)) list.push(v);
+                rec.progress.channels = list;
+            } else {
+                rec.progress[k] = (rec.progress[k] || 0) + v;
+            }
+        }
+        await this.ctx.storage.put(key, rec);
+    }
+
+    async taskState(username) {
+        const lower = username.toLowerCase();
+        const user = await this.ctx.storage.get(`u:${lower}`);
+        let rec = (await this.ctx.storage.get(`tk:${lower}`)) || {};
+        if (rec.day !== taskDay()) rec = { day: taskDay(), progress: {}, claimed: {}, ach: rec.ach || {} };
+        const fr = await this.loadFriends(lower);
+        const groups = ((await this.ctx.storage.get(`gx:${lower}`)) || []).length;
+        const stats = {
+            msgCount: user.msgCount || 0,
+            avatar: user.avatar ? 1 : 0,
+            bio: user.bio ? 1 : 0,
+            friends: fr.friends.length,
+            groups,
+            owned: (user.owned || []).length,
+        };
+        const progressOf = (t) => {
+            const raw = rec.progress[t.key];
+            return Array.isArray(raw) ? raw.length : raw || 0;
+        };
+        return {
+            user,
+            rec,
+            lower,
+            daily: DAILY_TASKS.map((t) => ({
+                ...t,
+                progress: Math.min(t.goal, progressOf(t)),
+                claimed: !!rec.claimed[t.id],
+            })),
+            achievements: ACHIEVEMENTS.map((a) => ({
+                ...a,
+                progress: Math.min(a.goal, stats[a.stat] || 0),
+                claimed: !!rec.ach[a.id],
+            })),
+        };
+    }
+
+    async tasks(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const state = await this.taskState(username);
+        return json({
+            daily: state.daily,
+            achievements: state.achievements,
+            resetsAt: nextMidnight(),
+            orbs: state.user.orbs || 0,
+        });
+    }
+
+    async claimTask(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const body = (await this.readBody(request)) || {};
+        const state = await this.taskState(username);
+        const daily = state.daily.find((t) => t.id === body.id);
+        const achievement = state.achievements.find((t) => t.id === body.id);
+        const task = daily || achievement;
+        if (!task) return json({ error: "No such task." }, 404);
+        if (task.claimed) return json({ error: "You already claimed that." }, 400);
+        if (task.progress < task.goal) return json({ error: "That task isn't finished yet." }, 400);
+
+        if (daily) state.rec.claimed[task.id] = true;
+        else state.rec.ach[task.id] = true;
+        state.user.orbs = (state.user.orbs || 0) + task.reward;
+        await this.ctx.storage.put({ [`tk:${state.lower}`]: state.rec, [`u:${state.lower}`]: state.user });
+        return json({ ok: true, reward: task.reward, orbs: state.user.orbs });
     }
 
     // ---------- friends ----------
@@ -1341,6 +1508,13 @@ export class ChatRoom extends DurableObject {
         await this.ctx.storage.put(writes);
         if (dropped.length) await this.purgeMessageAssets(dropped);
 
+        const events = { msg: 1 };
+        if (extra.gif) events.gif = 1;
+        if (extra.image || extra.video) events.media = 1;
+        if (target.isDm) events.dm = 1;
+        else events.channels = key;
+        await this.bumpTasks(lower, events);
+
         if (key.startsWith("dm:")) {
             const [a, b] = key.slice(3).split("|");
             for (const [me, other] of [[a, b], [b, a]]) {
@@ -1398,6 +1572,12 @@ export class ChatRoom extends DurableObject {
 
         await this.ctx.storage.put(`m:${target.key}`, messages);
         await this.bumpVersion(target.key);
+        if (at < 0) {
+            await this.bumpTasks(username.toLowerCase(), { react: 1 });
+            if (message.name.toLowerCase() !== username.toLowerCase()) {
+                await this.bumpTasks(message.name.toLowerCase(), { liked: 1 });
+            }
+        }
         return json({ ok: true });
     }
 

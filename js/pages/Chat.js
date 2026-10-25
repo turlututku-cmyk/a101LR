@@ -183,6 +183,11 @@ export default {
                                 <span class="dc-channel-name">Friends</span>
                                 <span v-if="friendData.incoming.length" class="dc-badge">{{ friendData.incoming.length }}</span>
                             </button>
+                            <button type="button" class="dc-channel" @click="openTasks">
+                                <span class="dc-hash">&#128203;</span>
+                                <span class="dc-channel-name">Orb Tasks</span>
+                                <span v-if="claimable" class="dc-badge">{{ claimable }}</span>
+                            </button>
                             <button type="button" class="dc-channel" @click="openShop()">
                                 <span class="dc-hash">&#128722;</span>
                                 <span class="dc-channel-name">Orb Shop</span>
@@ -391,7 +396,7 @@ export default {
                                     </template>
                                 </div>
                                 <p v-if="offline" class="dc-notice">Chat is offline right now. Retrying...</p>
-                                <div v-for="m in grouped" :key="m.id" class="dc-msg" :class="{ cont: m.cont, mine: m.name === username, mentioned: mentionsMe(m) }">
+                                <div v-for="m in grouped" :key="m.id" class="dc-msg" :class="[{ cont: m.cont, mine: m.name === username, mentioned: mentionsMe(m) }, bubbleClass(m.name)]" :style="bubbleStyle(m.name)">
                                     <div class="dc-msg-tools" v-if="username">
                                         <button type="button" title="Add reaction" @click.stop="reactFor = reactFor === m.id ? 0 : m.id">&#x263A;</button>
                                         <button v-if="canDelete(m)" type="button" title="Delete message" class="danger" @click.stop="removeMessage(m)">&#x1F5D1;</button>
@@ -407,6 +412,7 @@ export default {
                                         <div v-if="!m.cont" class="dc-msg-head">
                                             <button type="button" class="dc-msg-name" :class="nameClass(m.name)" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
                                             <span v-if="roleOfName(m.name) !== 'member'" class="dc-role" :class="roleOfName(m.name)">{{ roleLabel(roleOfName(m.name)) }}</span>
+                                            <span v-if="shopBadge(m.name)" class="dc-badge-icon bought" :title="shopBadge(m.name).name">{{ shopBadge(m.name).style.icon }}</span>
                                             <span v-for="b in topBadges(m.name)" :key="b" class="dc-badge-icon" :title="badgeInfo(b).label + ' - ' + badgeInfo(b).desc">{{ badgeInfo(b).icon }}</span>
                                             <span class="dc-msg-stamp">{{ stamp(m.time) }}</span>
                                         </div>
@@ -554,6 +560,7 @@ export default {
 
             <div v-if="card" class="dc-modal" @click.self="card = null">
                 <div class="dc-card">
+                    <div v-if="effectOf(card.username)" class="dc-fx"><span v-for="n in 9" :key="n" :style="fxStyle(n)">{{ effectOf(card.username) }}</span></div>
                     <div class="dc-card-banner" :class="{ animated: bannerAnimated(card) }" :style="bannerStyle(card)"></div>
                     <Avatar class="dc-avatar-xl dc-card-avatar" :name="card.username" :src="avatarSrc(card.username)" :frame="frameOf(card.username)"><span class="dc-status big" :class="statusOf(card.username)"></span></Avatar>
                     <div class="dc-card-body">
@@ -563,7 +570,9 @@ export default {
                         </div>
                         <span v-if="card.role !== 'member'" class="dc-role first" :class="card.role">{{ roleLabel(card.role) }}</span>
                         <span v-else class="dc-role first member">Member</span>
-                        <div v-if="(card.badges || []).length" class="dc-badges">
+                        <div v-if="titleOf(card.username)" class="dc-card-title">{{ titleOf(card.username) }}</div>
+                        <div v-if="(card.badges || []).length || shopBadge(card.username)" class="dc-badges">
+                            <span v-if="shopBadge(card.username)" class="dc-badge-pill" title="Bought in the Orb Shop"><i>{{ shopBadge(card.username).style.icon }}</i>{{ shopBadge(card.username).name }}</span>
                             <span v-for="b in card.badges" :key="b" class="dc-badge-pill" :title="badgeInfo(b).desc"><i>{{ badgeInfo(b).icon }}</i>{{ badgeInfo(b).label }}</span>
                         </div>
                         <p v-if="card.statusText" class="dc-card-status">{{ card.statusText }}</p>
@@ -604,7 +613,7 @@ export default {
                             <input ref="avatarFile" type="file" accept="image/*" hidden @change="onAvatarFile">
                         </div>
                     </div>
-                    <p class="dc-hint">{{ me && me.nitro ? 'Nitro: animated GIF or WebP pictures up to 400 KB keep their animation.' : 'A GIF becomes a still picture. Animated pictures need Nitro (see the Orb Shop).' }}</p>
+                    <p class="dc-hint">{{ me && me.nitro ? 'Nitro: animated GIF or WebP pictures up to 1.5 MB keep their animation.' : 'A GIF becomes a still picture. Animated pictures need Nitro (see the Orb Shop).' }}</p>
                     <label>BANNER COLOR
                         <span class="dc-swatches">
                             <button v-for="(c, i) in banners" :key="c" type="button" class="dc-swatch" :class="{ active: draft.banner === i }" :style="{ background: c }" @click="draft.banner = i"></button>
@@ -653,6 +662,42 @@ export default {
                 </div>
             </div>
 
+            <div v-if="tasksOpen" class="dc-modal" @click.self="tasksOpen = false">
+                <div class="dc-card dc-shop dc-tasks">
+                    <div class="dc-shop-head">
+                        <h3>&#128203; Orb Tasks</h3>
+                        <span class="dc-balance">&#128302; {{ (me && me.orbs) || 0 }}</span>
+                    </div>
+                    <div v-if="tasks" class="dc-task-list">
+                        <p class="dc-cat">Daily tasks &mdash; resets in {{ resetIn }}</p>
+                        <div v-for="t in tasks.daily" :key="t.id" class="dc-task" :class="{ done: t.progress >= t.goal, claimed: t.claimed }">
+                            <div class="dc-task-info">
+                                <b>{{ t.name }}</b>
+                                <small>{{ t.desc }}</small>
+                                <div class="dc-progress"><div :style="{ width: (t.progress / t.goal * 100) + '%' }"></div></div>
+                            </div>
+                            <span class="dc-task-count">{{ t.progress }}/{{ t.goal }}</span>
+                            <button v-if="t.claimed" type="button" class="dc-btn ghost" disabled>Claimed</button>
+                            <button v-else type="button" class="dc-btn alt" :disabled="t.progress < t.goal || busy" @click="claimTask(t)">&#128302; +{{ t.reward }}</button>
+                        </div>
+                        <p class="dc-cat">Achievements</p>
+                        <div v-for="t in tasks.achievements" :key="t.id" class="dc-task" :class="{ done: t.progress >= t.goal, claimed: t.claimed }">
+                            <div class="dc-task-info">
+                                <b>{{ t.name }}</b>
+                                <small>{{ t.desc }}</small>
+                                <div class="dc-progress"><div :style="{ width: (t.progress / t.goal * 100) + '%' }"></div></div>
+                            </div>
+                            <span class="dc-task-count">{{ t.progress }}/{{ t.goal }}</span>
+                            <button v-if="t.claimed" type="button" class="dc-btn ghost" disabled>Claimed</button>
+                            <button v-else type="button" class="dc-btn alt" :disabled="t.progress < t.goal || busy" @click="claimTask(t)">&#128302; +{{ t.reward }}</button>
+                        </div>
+                    </div>
+                    <p v-else class="dc-members-empty">Loading...</p>
+                    <p v-if="error" class="dc-error">{{ error }}</p>
+                    <div class="dc-card-actions"><button type="button" class="dc-btn ghost" @click="tasksOpen = false">Close</button></div>
+                </div>
+            </div>
+
             <div v-if="shopOpen" class="dc-modal" @click.self="shopOpen = false">
                 <div class="dc-card dc-shop">
                     <div class="dc-shop-head">
@@ -674,7 +719,7 @@ export default {
                             </div>
                         </div>
                         <ul class="dc-perks">
-                            <li>&#127912; <b>Animated profile pictures</b> (GIF or animated WebP, up to 400 KB)</li>
+                            <li>&#127912; <b>Animated profile pictures</b> (GIF or animated WebP, up to 1.5 MB)</li>
                             <li>&#128302; <b>Double orbs</b> from every message ({{ shop.nitro.orbsPerMessage }} instead of 1)</li>
                             <li>&#128172; <b>500-character messages</b> instead of 300</li>
                             <li>&#128247; <b>Bigger image uploads</b> (1.5 MB instead of 500 KB)</li>
@@ -687,11 +732,26 @@ export default {
                         <p v-if="!shop.lifetime && (shop.orbs || 0) < shop.nitro.price" class="dc-hint">You need {{ shop.nitro.price - (shop.orbs || 0) }} more orbs. Send messages to earn them.</p>
                     </div>
 
+                    <div v-else-if="shopTab === 'box'" class="dc-box">
+                        <div class="dc-box-art">&#127873;</div>
+                        <p>Open a <b>Lucky Box</b> for <b>&#128302; {{ shop.box.price }}</b> and get a random item you do not own yet. Cheaper items turn up more often.</p>
+                        <button type="button" class="dc-btn alt" :disabled="busy || (shop.orbs || 0) < shop.box.price" @click="openBox">Open a box</button>
+                        <div v-if="boxResult" class="dc-box-result">
+                            <span>You got</span>
+                            <b>{{ boxResult.name }}</b>
+                            <small>{{ slotLabel(boxResult.slot) }}{{ boxResult.nitro ? ' &middot; Nitro' : '' }}</small>
+                        </div>
+                    </div>
+
                     <div v-else class="dc-shop-grid">
                         <div v-for="it in shopItems" :key="it.id" class="dc-item" :class="{ owned: isOwned(it), worn: isWorn(it) }">
                             <div class="dc-item-preview" :class="'slot-' + it.slot">
                                 <span v-if="it.slot === 'nameColor'" class="dc-preview-name" :class="itemNameClass(it)" :style="itemNameStyle(it)">{{ username || 'Username' }}</span>
                                 <Avatar v-else-if="it.slot === 'frame'" class="dc-avatar-sm" :name="username || 'U'" :src="avatarSrc(username)" :frame="it.id"></Avatar>
+                                <span v-else-if="it.slot === 'badge'" class="dc-preview-badge">{{ it.style.icon }}</span>
+                                <span v-else-if="it.slot === 'title'" class="dc-preview-title">{{ it.style.text }}</span>
+                                <div v-else-if="it.slot === 'bubble'" class="dc-preview-bubble" :class="{ animated: it.style.animated }" :style="{ '--bubble': it.style.color }">Hello there!</div>
+                                <div v-else-if="it.slot === 'effect'" class="dc-preview-fx"><span v-for="n in 5" :key="n" :style="fxStyle(n)">{{ it.style.emoji }}</span></div>
                                 <div v-else class="dc-preview-banner" :class="{ animated: it.style && it.style.animated }" :style="{ background: it.style.background }"></div>
                             </div>
                             <div class="dc-item-name">{{ it.name }}<span v-if="it.nitro" class="dc-nitro-tag" title="Needs Nitro">&#9889;</span></div>
@@ -789,8 +849,16 @@ export default {
                 { id: "nameColor", label: "Name colours" },
                 { id: "frame", label: "Avatar frames" },
                 { id: "banner", label: "Banners" },
+                { id: "badge", label: "Badges" },
+                { id: "title", label: "Titles" },
+                { id: "bubble", label: "Bubbles" },
+                { id: "effect", label: "Effects" },
+                { id: "box", label: "\u{1F381} Lucky Box" },
             ],
-            shop: { items: [], nitro: { price: 400, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
+            boxResult: null,
+            tasks: null,
+            tasksOpen: false,
+            shop: { items: [], box: { price: 25 }, nitro: { price: 150, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
             orbGain: 1,
             token: load(TOKEN_KEY),
             me: null,
@@ -817,6 +885,16 @@ export default {
         },
         myStatus() {
             return this.me?.chosenStatus || "online";
+        },
+        claimable() {
+            if (!this.tasks) return 0;
+            return [...this.tasks.daily, ...this.tasks.achievements].filter((t) => !t.claimed && t.progress >= t.goal).length;
+        },
+        resetIn() {
+            const ms = Math.max(0, (this.tasks?.resetsAt || 0) - Date.now());
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            return h ? `${h}h ${m}m` : `${m}m`;
         },
         maxText() {
             return this.me?.nitro ? 500 : 300;
@@ -986,6 +1064,33 @@ export default {
         },
         frameOf(name) {
             return this.equippedItem(name, "frame")?.id || "";
+        },
+        shopBadge(name) {
+            return this.equippedItem(name, "badge");
+        },
+        titleOf(name) {
+            return this.equippedItem(name, "title")?.style?.text || "";
+        },
+        effectOf(name) {
+            return this.equippedItem(name, "effect")?.style?.emoji || "";
+        },
+        bubbleClass(name) {
+            const item = this.equippedItem(name, "bubble");
+            return item ? ["bubble", { "bubble-anim": !!item.style.animated }] : [];
+        },
+        bubbleStyle(name) {
+            const item = this.equippedItem(name, "bubble");
+            return item ? { "--bubble": item.style.color } : {};
+        },
+        fxStyle(n) {
+            return {
+                left: `${(n * 37) % 92}%`,
+                animationDelay: `${(n * 0.43) % 3}s`,
+                animationDuration: `${3 + (n % 3)}s`,
+            };
+        },
+        slotLabel(slot) {
+            return { nameColor: "Name colour", frame: "Avatar frame", banner: "Banner", badge: "Badge", title: "Title", bubble: "Chat bubble", effect: "Profile effect" }[slot] || slot;
         },
         itemNameStyle(item) {
             if (item.style?.gradient) return { backgroundImage: item.style.gradient };
@@ -1259,6 +1364,14 @@ export default {
             await this.applyShopResult(await this.post(`${API}/shop`, body));
             this.busy = false;
         },
+        async openBox() {
+            this.busy = true;
+            this.boxResult = null;
+            const data = await this.post(`${API}/shop`, { action: "box" });
+            if (data?.won) this.boxResult = data.won;
+            await this.applyShopResult(data);
+            this.busy = false;
+        },
         async buyNitro() {
             this.busy = true;
             await this.applyShopResult(await this.post(`${API}/shop`, { action: "nitro" }));
@@ -1268,6 +1381,34 @@ export default {
             if (!window.confirm(`Gift 30 days of Nitro to ${name}?`)) return;
             const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
             if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
+        },
+        // ---------- orb tasks ----------
+        async loadTasks() {
+            if (!this.token) {
+                this.tasks = null;
+                return;
+            }
+            try {
+                const res = await fetch(`${API}/tasks`, { headers: this.headers(), cache: "no-store" });
+                if (res.ok) this.tasks = await res.json();
+            } catch {}
+        },
+        async openTasks() {
+            this.error = "";
+            this.tasksOpen = true;
+            await this.loadTasks();
+        },
+        async claimTask(task) {
+            this.busy = true;
+            const data = await this.post(`${API}/tasks`, { id: task.id });
+            if (data) {
+                this.me = { ...this.me, orbs: data.orbs };
+                this.orbGain = data.reward;
+                this.orbPop = true;
+                setTimeout(() => (this.orbPop = false), 2200);
+            }
+            await this.loadTasks();
+            this.busy = false;
         },
         async openBoard() {
             this.error = "";
@@ -1303,7 +1444,11 @@ export default {
             try {
                 // Nitro keeps GIF / animated WebP pictures as they are; everyone else gets a still crop
                 const animatedType = file.type === "image/gif" || file.type === "image/webp";
-                if (this.me?.nitro && animatedType && file.size <= 400 * 1024) {
+                if (this.me?.nitro && animatedType && file.size > 1536 * 1024) {
+                    this.error = `That picture is ${(file.size / 1048576).toFixed(1)} MB. Animated pictures can be up to 1.5 MB.`;
+                    return;
+                }
+                if (this.me?.nitro && animatedType) {
                     if (this.draft.preview) URL.revokeObjectURL(this.draft.preview);
                     this.draft.blob = file;
                     this.draft.preview = URL.createObjectURL(file);
@@ -1786,6 +1931,7 @@ export default {
                     this.profiles[this.me.username.toLowerCase()] = this.me;
                     this.loadFriends();
                     this.loadShop();
+                    this.loadTasks();
                 } else if (res.status === 401) {
                     this.token = "";
                     save(TOKEN_KEY, "");
@@ -1816,6 +1962,7 @@ export default {
                     this.primed = false;
                     this.loadFriends();
                     this.loadShop();
+                    this.loadTasks();
                     await this.poll();
                 }
             } catch {
@@ -1835,6 +1982,8 @@ export default {
             this.view = "chat";
             save(TOKEN_KEY, "");
             this.shopOpen = false;
+            this.tasksOpen = false;
+            this.tasks = null;
             this.loadShop();
             if (this.inConvo) {
                 this.dm = "";
@@ -1935,6 +2084,7 @@ export default {
                 }
                 this.ensureProfiles([...this.dms.map((d) => d.user), ...this.groups.flatMap((g) => g.members)]);
                 this.pollCount++;
+                if (this.username && this.pollCount % 4 === 0) this.loadTasks();
                 if (this.pollCount % 10 === 0) {
                     this.ensureProfiles(
                         [

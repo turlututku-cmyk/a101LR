@@ -1958,3 +1958,178 @@
 .page-chat .dc-perks b {
     color: #fff;
 }
+
+/* more shop items: badges, titles, chat bubbles, profile effects, lucky box */
+.page-chat .dc-shop-tabs {
+    flex-wrap: wrap;
+}
+.page-chat .dc-badge-icon.bought {
+    font-size: 0.95rem;
+}
+.page-chat .dc-preview-badge {
+    font-size: 2rem;
+}
+.page-chat .dc-preview-title {
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.3rem;
+    background-color: #2b2d31;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #dbdee1;
+    text-align: center;
+}
+.page-chat .dc-preview-bubble {
+    width: 85%;
+    padding: 0.4rem 0.6rem;
+    border-left: 4px solid var(--bubble, #5865f2);
+    border-radius: 0.2rem;
+    background-color: color-mix(in srgb, var(--bubble, #5865f2) 14%, transparent);
+    font-size: 0.8rem;
+    color: #dbdee1;
+}
+.page-chat .dc-preview-fx {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.page-chat .dc-preview-fx span,
+.page-chat .dc-fx span {
+    position: absolute;
+    top: -1.2rem;
+    font-size: 1rem;
+    animation: dc-fall linear infinite;
+    pointer-events: none;
+}
+.page-chat .dc-fx {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 11rem;
+    overflow: hidden;
+    border-radius: 0.6rem 0.6rem 0 0;
+    pointer-events: none;
+    z-index: 2;
+}
+@keyframes dc-fall {
+    from { transform: translateY(0) rotate(0deg); opacity: 1; }
+    to { transform: translateY(11rem) rotate(40deg); opacity: 0; }
+}
+.page-chat .dc-card-title {
+    margin-top: 0.3rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #c9cdfb;
+}
+
+/* chat bubbles bought in the shop */
+.page-chat .dc-msg.bubble {
+    border-left: 4px solid var(--bubble);
+    background-color: color-mix(in srgb, var(--bubble) 10%, transparent);
+    padding-left: calc(1rem - 4px);
+}
+.page-chat .dc-msg.bubble:hover {
+    background-color: color-mix(in srgb, var(--bubble) 16%, transparent);
+}
+.page-chat .dc-msg.bubble-anim {
+    animation: dc-bubble 3s linear infinite;
+}
+@keyframes dc-bubble {
+    0% { border-left-color: #ff4d4d; --bubble: #ff4d4d; }
+    25% { border-left-color: #ffd24d; }
+    50% { border-left-color: #4dff88; }
+    75% { border-left-color: #4dc3ff; }
+    100% { border-left-color: #b84dff; }
+}
+.page-chat .dc-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1rem 0;
+    text-align: center;
+    color: #dbdee1;
+}
+.page-chat .dc-box p {
+    margin: 0;
+    max-width: 22rem;
+    font-size: 0.9rem;
+}
+.page-chat .dc-box-art {
+    font-size: 4rem;
+    animation: dc-wobble 2s ease-in-out infinite;
+}
+@keyframes dc-wobble {
+    0%, 100% { transform: rotate(-6deg); }
+    50% { transform: rotate(6deg); }
+}
+.page-chat .dc-box-result {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.8rem 1.4rem;
+    border-radius: 0.6rem;
+    background-color: #2b2d31;
+    border: 2px solid #5865f2;
+    animation: dc-pop 0.6s ease;
+}
+.page-chat .dc-box-result b {
+    font-size: 1.2rem;
+    color: #fff;
+}
+.page-chat .dc-box-result small {
+    color: #949ba4;
+}
+
+/* orb tasks */
+.page-chat .dc-tasks .dc-task-list {
+    max-height: 26rem;
+    overflow-y: auto;
+    padding-right: 0.3rem;
+}
+.page-chat .dc-task {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.4rem;
+    border-radius: 0.5rem;
+    background-color: #2b2d31;
+    border: 2px solid transparent;
+}
+.page-chat .dc-task.done:not(.claimed) {
+    border-color: #23a559;
+}
+.page-chat .dc-task.claimed {
+    opacity: 0.55;
+}
+.page-chat .dc-task-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.page-chat .dc-task-info b {
+    color: #f2f3f5;
+    font-size: 0.9rem;
+}
+.page-chat .dc-task-info small {
+    color: #949ba4;
+    font-size: 0.78rem;
+}
+.page-chat .dc-task-count {
+    font-size: 0.8rem;
+    color: #b5bac1;
+    min-width: 2.4rem;
+    text-align: right;
+}
+.page-chat .dc-task .dc-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+.page-chat .dc-task .dc-progress {
+    margin-top: 0.3rem;
+}
