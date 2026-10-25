@@ -818,7 +818,7 @@ export default {
                                 <button type="button" class="dc-btn ghost" @click="draft.bannerRemove = true; draft.bannerBlob = null; draft.bannerPreview = ''">Remove</button>
                                 <input ref="bannerFile" type="file" accept="image/*" hidden @change="onBannerFile">
                             </div>
-                            <label>BANNER HEIGHT: {{ draft.bannerH || 140 }}px
+                            <label>BANNER HEIGHT: {{ draft.bannerH || 140 }}px <button type="button" class="dc-btn ghost" @click.prevent="draft.bannerH = 0">Default size</button>
                                 <input type="range" min="80" max="260" step="4" :value="draft.bannerH || 140" @input="draft.bannerH = Number($event.target.value)">
                             </label>
                             <p class="dc-hint">Nitro Plus: upload a JPEG, PNG, WebP or GIF (up to 1.9 MB) and pick how tall it is.</p>
