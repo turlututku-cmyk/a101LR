@@ -1226,7 +1226,7 @@
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
 }
 .page-chat .dc-card-banner {
-    height: 6rem;
+    height: 8.8rem; /* Discord-like 5:2 banner on a 22rem card */
 }
 .page-chat .dc-card-avatar {
     margin: -2.5rem 0 0 1rem;

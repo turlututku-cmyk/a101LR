@@ -809,7 +809,7 @@ export default {
                         </span>
                     </label>
                     <div class="dc-banner-edit">
-                        <div class="dc-banner-preview" :style="{ height: (draft.bannerH || 96) + 'px', background: bannerColor(me) }">
+                        <div class="dc-banner-preview" :style="{ height: (draft.bannerH || 140) + 'px', background: bannerColor(me) }">
                             <img v-if="draft.bannerPreview || (!draft.bannerRemove && bannerSrc(me))" :src="draft.bannerPreview || bannerSrc(me)" alt="">
                         </div>
                         <template v-if="me && me.plus">
@@ -818,8 +818,8 @@ export default {
                                 <button type="button" class="dc-btn ghost" @click="draft.bannerRemove = true; draft.bannerBlob = null; draft.bannerPreview = ''">Remove</button>
                                 <input ref="bannerFile" type="file" accept="image/*" hidden @change="onBannerFile">
                             </div>
-                            <label>BANNER HEIGHT: {{ draft.bannerH || 96 }}px
-                                <input type="range" min="80" max="260" step="4" :value="draft.bannerH || 96" @input="draft.bannerH = Number($event.target.value)">
+                            <label>BANNER HEIGHT: {{ draft.bannerH || 140 }}px
+                                <input type="range" min="80" max="260" step="4" :value="draft.bannerH || 140" @input="draft.bannerH = Number($event.target.value)">
                             </label>
                             <p class="dc-hint">Nitro Plus: upload a JPEG, PNG, WebP or GIF (up to 1.9 MB) and pick how tall it is.</p>
                         </template>
