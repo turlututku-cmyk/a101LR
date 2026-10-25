@@ -223,6 +223,8 @@ const GEMS = {
     heart: { name: "Heart Gem", desc: (v) => `${v}x better chance of Gem animals`, price: [25, 40, 80, 150, 300], uses: [20, 40, 80, 150, 300], power: [5, 10, 20, 35, 60] },
     power: { name: "Power Gem", desc: (v) => `+${v}% attack in battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [15, 25, 40, 60, 100] },
 };
+// durations before rarer gems lasted longer, used once to scale up gems people already own
+const OLD_GEM_USES = { hunting: [20, 35, 35, 40, 50], heart: [20, 25, 30, 35, 40], power: [10, 10, 15, 15, 20] };
 const gemIcon = (type, tier) => `:item_${type}_${["c", "u", "r", "e", "l"][tier]}:`;
 /** The best gem of a type that still has charges: { key, tier, value } or null. */
 const activeGem = (gems, type) => {
@@ -1909,7 +1911,9 @@ export class ChatRoom extends DurableObject {
 
     async runInventory(username, target, say) {
         if (target.key !== "zoo") return say("Your inventory is in #zoo. Head over there!");
-        const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+        const userKey = `u:${username.toLowerCase()}`;
+        const user = await this.ctx.storage.get(userKey);
+        await this.upgradeGems(userKey, user);
         const zoo = user.zoo || {};
         const sup = (n) => String(n).replace(/\d/g, (d) => "\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079"[d]);
         // one row per tier: the animals with how many you own (0 when none), hidden tiers stay "?" until you catch one
@@ -1934,6 +1938,7 @@ export class ChatRoom extends DurableObject {
 
         const userKey = `u:${lower}`;
         const user = await this.ctx.storage.get(userKey);
+        await this.upgradeGems(userKey, user);
         if ((user.orbs || 0) < HUNT_COST) return say(`A hunt costs ${HUNT_COST} orb and you have ${user.orbs || 0}. Chat in other channels to earn more.`);
 
         // gems: Hunting Gem catches one extra animal, Heart Gem makes Gem animals much more likely
@@ -1989,6 +1994,18 @@ export class ChatRoom extends DurableObject {
 
     // ---------- a101 Zoo: gems, team and battles ----------
 
+    /** One time per user: gems bought before rarer gems lasted longer are scaled up to the new durations. */
+    async upgradeGems(userKey, user) {
+        if (user.gemsV >= 2) return;
+        user.gemsV = 2;
+        for (const [key, n] of Object.entries(user.gems || {})) {
+            const [type, tier] = key.split("_");
+            const t = GEM_TIERS.indexOf(tier);
+            if (n > 0 && GEMS[type] && t >= 0) user.gems[key] = Math.round((n * GEMS[type].uses[t]) / OLD_GEM_USES[type][t]);
+        }
+        await this.ctx.storage.put(userKey, user);
+    }
+
     petLevel(xp) {
         return Math.min(MAX_PET_LEVEL, 1 + Math.floor(Math.sqrt((xp || 0) / 20)));
     }
@@ -2015,6 +2032,7 @@ export class ChatRoom extends DurableObject {
         const lower = username.toLowerCase();
         const userKey = `u:${lower}`;
         const user = await this.ctx.storage.get(userKey);
+        await this.upgradeGems(userKey, user);
         user.gems = user.gems || {};
 
         if (name === "gems") {
