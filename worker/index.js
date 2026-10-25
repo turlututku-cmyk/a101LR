@@ -190,6 +190,8 @@ const MAX_PENDING = 50;
 const SUBMIT_MIN_AGE_MS = 30 * 60 * 1000;
 const STICKER_BYTES = 256 * 1024;
 const EMOJI_BYTES = 64 * 1024;
+const GIF_SUBMIT_BYTES = 1536 * 1024;
+const GIF_ID_RE = /^u_[0-9a-f]{12}$/;
 const RANK = { member: 0, admin: 1, a101: 2 };
 const MAX_REPORTS = 100;
 const MAX_MUTE_MINUTES = 60 * 24 * 30;
@@ -926,7 +928,7 @@ export class ChatRoom extends DurableObject {
         if ("dmFriendsOnly" in body) user.dmFriendsOnly = !!body.dmFriendsOnly;
         if ("favGifs" in body) {
             const list = Array.isArray(body.favGifs) ? body.favGifs : [];
-            user.favGifs = [...new Set(list.map(String).filter((g) => GIF_RE.test(g)))].slice(0, 50);
+            user.favGifs = [...new Set(list.map(String).filter((g) => GIF_RE.test(g) || GIF_ID_RE.test(g)))].slice(0, 50);
         }
 
         await this.ctx.storage.put(key, user);
@@ -1245,7 +1247,7 @@ export class ChatRoom extends DurableObject {
                 if (!item) return json({ error: "Not found." }, 404);
                 await this.ctx.storage.put("pending", pending.filter((p) => p.id !== id));
                 if (action === "asset-approve") {
-                    await this.ctx.storage.put("community", [...community, { id: item.id, kind: item.kind, name: item.name, by: item.by }]);
+                    await this.ctx.storage.put("community", [...community, { id: item.id, kind: item.kind, name: item.name, by: item.by, video: !!item.video }]);
                 } else {
                     await this.ctx.storage.delete(`ca:${id}`);
                 }
@@ -1410,7 +1412,7 @@ export class ChatRoom extends DurableObject {
 
     async community() {
         const items = (await this.ctx.storage.get("community")) || [];
-        return json({ stickers: items.filter((i) => i.kind === "sticker"), emojis: items.filter((i) => i.kind === "emoji") });
+        return json({ stickers: items.filter((i) => i.kind === "sticker"), emojis: items.filter((i) => i.kind === "emoji"), gifs: items.filter((i) => i.kind === "gif") });
     }
 
     async getAsset(id) {
@@ -1433,13 +1435,14 @@ export class ChatRoom extends DurableObject {
         // only successful submissions count towards the daily limit
         const todays = recent(this.submitHits.get(lower), 24 * 60 * 60 * 1000);
         if (todays.length >= 3) return json({ error: "You can submit 3 per day." }, 429);
-        const kind = searchParams.get("kind") === "emoji" ? "emoji" : "sticker";
+        const kindParam = searchParams.get("kind");
+        const kind = kindParam === "emoji" ? "emoji" : kindParam === "gif" ? "gif" : "sticker";
         const raw = String(searchParams.get("name") ?? "").trim();
         const name = kind === "emoji" ? raw.toLowerCase() : raw.replace(/\s+/g, " ").slice(0, 24);
         if (kind === "emoji" && !/^[a-z0-9_]{2,24}$/.test(name)) {
             return json({ error: "Emoji names are 2-24 letters, numbers or underscores." }, 400);
         }
-        if (kind === "sticker" && name.length < 2) return json({ error: "Give the sticker a name." }, 400);
+        if (kind !== "emoji" && name.length < 2) return json({ error: `Give the ${kind} a name.` }, 400);
 
         const taken = new Set(((await this.fetchAsset("/data/_emojis.json")) || []).map((e) => e.name));
         const community = (await this.ctx.storage.get("community")) || [];
@@ -1452,17 +1455,17 @@ export class ChatRoom extends DurableObject {
             return json({ error: "The community library is full." }, 400);
         }
 
-        const max = kind === "emoji" ? EMOJI_BYTES : STICKER_BYTES;
+        const max = kind === "emoji" ? EMOJI_BYTES : kind === "gif" ? GIF_SUBMIT_BYTES : STICKER_BYTES;
         const declared = Number(request.headers.get("content-length")) || 0;
         const bytes = declared > max ? null : await readLimited(request, max);
         if (!bytes) return json({ error: `That file is too big (max ${max / 1024} KB).` }, 413);
-        const type = sniffImage(bytes) || sniffGif(bytes);
-        if (!type) return json({ error: "Only PNG, JPEG, WebP or GIF images." }, 415);
+        const type = kind === "gif" ? sniffGif(bytes) || sniffVideo(bytes) : sniffImage(bytes) || sniffGif(bytes);
+        if (!type) return json({ error: kind === "gif" ? "GIFs must be .gif, .mp4 or .webm files." : "Only PNG, JPEG, WebP or GIF images." }, 415);
 
         const id = `u_${toHex(crypto.getRandomValues(new Uint8Array(6)))}`;
         await this.ctx.storage.put({
             [`ca:${id}`]: { type, bytes: bytes.buffer },
-            pending: [...pending, { id, kind, name, by: username, time: Date.now() }],
+            pending: [...pending, { id, kind, name, by: username, time: Date.now(), video: type.startsWith("video/") }],
         });
         this.submitHits.set(lower, [...todays, Date.now()]);
         return json({ ok: true });
@@ -2022,7 +2025,14 @@ export class ChatRoom extends DurableObject {
 
         const text = String(body?.text ?? "").trim().slice(0, await this.textLimit(username));
         const gif = body?.gif == null ? "" : String(body.gif);
-        if (gif && !GIF_RE.test(gif)) return json({ error: "Unknown GIF." }, 400);
+        if (gif && !GIF_RE.test(gif) && !GIF_ID_RE.test(gif)) return json({ error: "Unknown GIF." }, 400);
+        let gifVideo = false;
+        if (GIF_ID_RE.test(gif)) {
+            const approved = (await this.ctx.storage.get("community")) || [];
+            const found = approved.find((a) => a.id === gif && a.kind === "gif");
+            if (!found) return json({ error: "Unknown GIF." }, 400);
+            gifVideo = !!found.video;
+        }
         const sticker = body?.sticker == null ? "" : String(body.sticker);
         if (sticker && !STICKER_RE.test(sticker)) return json({ error: "Unknown sticker." }, 400);
         if (sticker.startsWith("u_")) {
@@ -2033,6 +2043,7 @@ export class ChatRoom extends DurableObject {
 
         const extra = {};
         if (gif) extra.gif = gif;
+        if (gifVideo) extra.gifVideo = true;
         if (sticker) extra.sticker = sticker;
         const replyTo = await this.buildReply(target.key, body?.reply);
         if (replyTo) extra.replyTo = replyTo;

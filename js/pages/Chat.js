@@ -510,7 +510,7 @@ export default {
                                         </div>
                                         <img v-if="m.image" class="dc-msg-img" :src="imageUrl(m.image)" :style="imageStyle(m)" loading="lazy" alt="shared image" @load="onImageLoad" @click="viewer = imageUrl(m.image)">
                                         <template v-if="m.gif">
-                                            <video v-if="m.gif.endsWith('.mp4')" class="dc-msg-gif" :src="gifUrl(m.gif)" autoplay loop muted playsinline @loadeddata="onImageLoad"></video>
+                                            <video v-if="m.gifVideo || m.gif.endsWith('.mp4')" class="dc-msg-gif" :src="gifUrl(m.gif)" autoplay loop muted playsinline @loadeddata="onImageLoad"></video>
                                             <img v-else class="dc-msg-gif" :src="gifUrl(m.gif)" alt="GIF" @load="onImageLoad" @click="viewer = gifUrl(m.gif)">
                                         </template>
                                         <img v-if="m.sticker" class="dc-sticker" :src="stickerUrl(m.sticker)" alt="sticker" @load="onImageLoad" @click="viewer = stickerUrl(m.sticker)">
@@ -568,13 +568,14 @@ export default {
                                 <div v-if="picker === 'gif' || picker === 'fav'" class="dc-picker-grid gifs">
                                     <div v-for="g in filteredGifs" :key="g.file" class="dc-gif-wrap">
                                         <button type="button" class="dc-gif" :title="g.name" @click="sendGif(g)">
-                                            <video v-if="g.file.endsWith('.mp4')" :src="gifUrl(g.file)" autoplay loop muted playsinline></video>
+                                            <video v-if="g.video || g.file.endsWith('.mp4')" :src="gifUrl(g.file)" autoplay loop muted playsinline></video>
                                             <img v-else :src="gifUrl(g.file)" :alt="g.name" loading="lazy">
                                             <span>{{ g.name }}</span>
                                         </button>
                                         <button type="button" class="dc-fav" :class="{ on: isFav(g) }" :title="isFav(g) ? 'Remove from favourites' : 'Add to favourites'" @click.stop="toggleFav(g)">{{ isFav(g) ? '\u2605' : '\u2606' }}</button>
                                     </div>
                                     <p v-if="!filteredGifs.length" class="dc-picker-empty">{{ picker === 'fav' ? 'Click the star on a GIF to keep it here.' : 'No GIFs found.' }}</p>
+                                    <button v-if="picker === 'gif'" type="button" class="dc-gif dc-submit dc-gif-submit" title="Suggest a GIF for the library" @click="startSubmit('gif')"><b>+</b><span>Submit a GIF</span></button>
                                 </div>
                                 <div v-else-if="picker === 'sticker'" class="dc-picker-grid stickers">
                                     <button v-for="s in filteredStickers" :key="s.file" type="button" class="dc-stick" :title="s.name" @click="sendSticker(s)">
@@ -803,7 +804,7 @@ export default {
                 </div>
             </div>
 
-            <input ref="submitFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="onSubmitFile">
+            <input ref="submitFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" hidden @change="onSubmitFile">
 
             <div v-if="notice" class="dc-modal">
                 <div class="dc-card dc-edit">
@@ -854,7 +855,8 @@ export default {
                     <div v-else-if="modData && modTab === 'assets'" class="dc-mod-list">
                         <p class="dc-cat">Waiting for review &mdash; {{ (modData.submissions || []).length }}</p>
                         <div v-for="s in modData.submissions" :key="s.id" class="dc-report dc-asset">
-                            <img :src="assetUrl(s.id)" alt="">
+                            <video v-if="s.video" :src="assetUrl(s.id)" autoplay loop muted playsinline></video>
+                            <img v-else :src="assetUrl(s.id)" alt="">
                             <div class="dc-asset-info"><b>{{ s.kind === 'emoji' ? ':' + s.name + ':' : s.name }}</b><small>{{ s.kind }} by {{ s.by }}</small></div>
                             <button type="button" class="dc-btn alt" @click="modAct({ action: 'asset-approve', id: s.id, name: s.name })">Approve</button>
                             <button type="button" class="dc-btn ghost" @click="modAct({ action: 'asset-reject', id: s.id, name: s.name })">Reject</button>
@@ -862,7 +864,8 @@ export default {
                         <p v-if="!(modData.submissions || []).length" class="dc-members-empty">Nothing waiting.</p>
                         <p class="dc-cat">Approved &mdash; {{ (modData.community || []).length }}</p>
                         <div v-for="s in modData.community" :key="s.id" class="dc-report dc-asset">
-                            <img :src="assetUrl(s.id)" alt="">
+                            <video v-if="s.video" :src="assetUrl(s.id)" autoplay loop muted playsinline></video>
+                            <img v-else :src="assetUrl(s.id)" alt="">
                             <div class="dc-asset-info"><b>{{ s.kind === 'emoji' ? ':' + s.name + ':' : s.name }}</b><small>{{ s.kind }} by {{ s.by }}</small></div>
                             <button type="button" class="dc-btn ghost" @click="modAct({ action: 'asset-remove', id: s.id, name: s.name })">Remove</button>
                         </div>
@@ -1095,7 +1098,7 @@ export default {
             tasks: null,
             tasksOpen: false,
             stickers: [],
-            community: { stickers: [], emojis: [] },
+            community: { stickers: [], emojis: [], gifs: [] },
             emojiCat: "custom",
             emojiCats: EMOJI_CATS,
             editingId: 0,
@@ -1216,6 +1219,9 @@ export default {
         allEmojis() {
             return [...this.emojis, ...this.community.emojis.map((e) => ({ name: e.name, src: this.assetUrl(e.id) }))];
         },
+        allGifs() {
+            return [...this.gifs, ...(this.community.gifs || []).map((g) => ({ name: g.name, file: g.id, video: !!g.video }))];
+        },
         allStickers() {
             return [...this.stickers, ...this.community.stickers.map((s) => ({ name: s.name, file: s.id }))];
         },
@@ -1241,7 +1247,7 @@ export default {
         filteredGifs() {
             const q = this.pickerSearch.trim().toLowerCase();
             const favs = this.me?.favGifs || [];
-            let list = this.gifs.filter((g) => !q || g.name.toLowerCase().includes(q));
+            let list = this.allGifs.filter((g) => !q || g.name.toLowerCase().includes(q));
             if (this.picker === "fav") list = list.filter((g) => favs.includes(g.file));
             else list = [...list.filter((g) => favs.includes(g.file)), ...list.filter((g) => !favs.includes(g.file))];
             return list;
@@ -1563,7 +1569,7 @@ export default {
                 }
             }
         },
-        gifUrl: (file) => `/assets/gifs/${file}`,
+        gifUrl: (file) => (file.startsWith("u_") ? `/api/chat/asset/${file}` : `/assets/gifs/${file}`),
         videoUrl: (id) => `${API}/video/${id}`,
         imageUrl: (id) => `${API}/image/${id}`,
         imageStyle(m) {
@@ -1795,13 +1801,18 @@ export default {
             e.target.value = "";
             if (!file) return;
             const kind = this.submitKind;
-            const name = window.prompt(kind === "emoji" ? "Emoji name (letters, numbers and _ only):" : "Sticker name:", "");
+            const name = window.prompt(kind === "emoji" ? "Emoji name (letters, numbers and _ only):" : kind === "gif" ? "GIF name:" : "Sticker name:", "");
             if (!name || !name.trim()) return;
             this.error = "";
             try {
                 const limit = kind === "emoji" ? 60 * 1024 : 250 * 1024;
                 let blob = file;
-                if (file.type !== "image/gif" || file.size > limit) blob = await this.shrinkImage(file, kind === "emoji" ? 128 : 512, limit);
+                if (kind === "gif") {
+                    if (!(file.type === "image/gif" || file.type.startsWith("video/"))) throw new Error("GIFs must be .gif, .mp4 or .webm files.");
+                    if (file.size > 1536 * 1024) throw new Error(`That file is ${(file.size / 1048576).toFixed(1)} MB. GIFs can be up to 1.5 MB.`);
+                } else if (file.type !== "image/gif" || file.size > limit) {
+                    blob = await this.shrinkImage(file, kind === "emoji" ? 128 : 512, limit);
+                }
                 const res = await fetch(`${API}/submit?${new URLSearchParams({ kind, name: name.trim() })}`, {
                     method: "POST",
                     headers: this.token ? { authorization: `Bearer ${this.token}` } : {},
