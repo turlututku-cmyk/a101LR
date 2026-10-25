@@ -47,6 +47,7 @@ const CATEGORIES = [
     {
         name: "Important",
         channels: [
+            { id: "rules", icon: "\u{1F4DC}", post: ["a101"], topic: "Please read these before chatting." },
             { id: "announcements", icon: "\u{1F4E2}", post: ["a101"], topic: "Official news and updates from a101." },
         ],
     },
@@ -590,6 +591,7 @@ export default {
                                 <label v-if="registering && needClaim">CLAIM CODE <small>(this username is reserved)</small>
                                     <input type="text" v-model="form.claim" maxlength="40" autocomplete="off">
                                 </label>
+                                <p v-if="registering" class="dc-hint">By creating an account you agree to the rules in <b>#rules</b> (or type <code>/rules</code> in chat).</p>
                                 <button class="dc-btn" type="submit" :disabled="busy || !form.username.trim() || !form.password">{{ registering ? 'Continue' : 'Log In' }}</button>
                                 <p class="dc-switch">
                                     {{ registering ? 'Already have an account?' : 'Need an account?' }}
@@ -2117,7 +2119,7 @@ export default {
             const slash = !this.inConvo && /^\/([a-z0-9_]*)$/i.exec(this.text);
             if (slash) {
                 const q = slash[1].toLowerCase();
-                const desc = { help: "list commands", roll: "roll dice, e.g. 2d6", flip: "flip a coin", "8ball": "ask the magic 8 ball", choose: "pick one: a | b | c", rank: "find a level on the lists", level: "show a level card", top: "top 5 of the main list", orbs: "see someone's orbs" };
+                const desc = { help: "list commands", rules: "show the chat rules", roll: "roll dice, e.g. 2d6", flip: "flip a coin", "8ball": "ask the magic 8 ball", choose: "pick one: a | b | c", rank: "find a level on the lists", level: "show a level card", top: "top 5 of the main list", orbs: "see someone's orbs" };
                 const all = [...this.botCommands.builtin.map((name) => ({ name, cmd: true, desc: desc[name] || "" })), ...this.botCommands.custom.map((c) => ({ name: c.name, cmd: true, desc: "custom" }))];
                 this.suggestKind = "command";
                 this.suggestToken = { start: 0, end: this.text.length };

@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 
 // channel id -> config. `post` limits who can send (by role); omitted = everyone logged in.
 const CHANNELS = {
+    rules: { post: ["a101"] },
     announcements: { post: ["a101"] },
     general: {},
     "off-topic": {},
@@ -157,13 +158,38 @@ const ACHIEVEMENTS = [
     { id: "a_shop", name: "Shopper", desc: "Own something from the Orb Shop", goal: 1, reward: 10, stat: "owned" },
     { id: "a_100", name: "Century", desc: "Send 100 messages", goal: 100, reward: 25, stat: "msgCount" },
     { id: "a_social", name: "Popular", desc: "Have 5 friends", goal: 5, reward: 25, stat: "friends" },
+    { id: "a_invite", name: "Recruiter", desc: "Invite a friend who starts chatting", goal: 1, reward: 15, stat: "invited" },
 ];
 // bot, moderation, stickers, economy extras
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
-const STICKER_RE = /^[A-Za-z0-9_-]{1,50}\.(png|webp|svg|gif|jpg)$/;
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const RULES = [
+    "Be respectful. No harassment, hate speech, slurs or personal attacks.",
+    "No spam or flooding, and do not beg for orbs, Nitro or roles.",
+    "Use the right channel: records in #records, level ideas in #level-requests.",
+    "No NSFW, gore or shock content. Keep GIFs, stickers and videos appropriate.",
+    "No advertising or self-promotion without permission from a moderator.",
+    "Do not share personal information, yours or anyone else's.",
+    "No cheating: hacked, botted or edited records get removed from the list.",
+    "No impersonating staff, dodging a mute or ban with another account, or abusing bugs. Report problems instead.",
+    "Moderators have the final say. Use the flag button on a message to report a problem.",
+];
+const rulesText = () => RULES.map((r, i) => `${i + 1}. ${r}`).join("\n");
+const STICKER_RE = /^(?:[A-Za-z0-9_-]{1,50}\.(?:png|webp|svg|gif|jpg)|u_[0-9a-f]{12})$/;
+const POLL_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_POLL_OPTIONS = 6;
+const EDIT_WINDOW_MS = 60 * 60 * 1000;
+const MAX_BLOCKED = 100;
+const REF_REWARD = 10;
+const REF_MIN_MESSAGES = 5;
+const REF_MAX = 20;
+const MAX_COMMUNITY = 100;
+const MAX_PENDING = 50;
+const SUBMIT_MIN_AGE_MS = 30 * 60 * 1000;
+const STICKER_BYTES = 256 * 1024;
+const EMOJI_BYTES = 64 * 1024;
 const RANK = { member: 0, admin: 1, a101: 2 };
 const MAX_REPORTS = 100;
 const MAX_MUTE_MINUTES = 60 * 24 * 30;
@@ -340,6 +366,9 @@ export class ChatRoom extends DurableObject {
         this.searchHits = new Map();
         this.commandHits = new Map();
         this.botHits = [];
+        this.pollHits = new Map();
+        this.editHits = new Map();
+        this.submitHits = new Map();
     }
 
     async fetch(request) {
@@ -403,6 +432,18 @@ export class ChatRoom extends DurableObject {
             return this.shop(request);
         } else if (post && pathname === "/api/chat/shop") {
             return this.shopAction(request);
+        } else if (post && pathname === "/api/chat/vote") {
+            return this.vote(request);
+        } else if (post && pathname === "/api/chat/edit") {
+            return this.editMessage(request);
+        } else if (post && pathname === "/api/chat/block") {
+            return this.blockAction(request);
+        } else if (post && pathname === "/api/chat/submit") {
+            return this.submitAsset(request, searchParams);
+        } else if (get && pathname === "/api/chat/community") {
+            return this.community();
+        } else if (get && pathname.startsWith("/api/chat/asset/")) {
+            return this.getAsset(pathname.slice("/api/chat/asset/".length));
         } else if (post && pathname === "/api/chat/react") {
             return this.react(request);
         } else if (post && pathname === "/api/chat/delete") {
@@ -589,7 +630,7 @@ export class ChatRoom extends DurableObject {
             friends: friendCount,
             badges: this.badgesOf(user, role, friendCount),
             dmFriendsOnly: !!user.dmFriendsOnly,
-            ...(own ? { favGifs: user.favGifs || [] } : {}),
+            ...(own ? { favGifs: user.favGifs || [], blocked: user.blocked || [], invited: user.refCount || 0 } : {}),
         };
     }
 
@@ -619,6 +660,15 @@ export class ChatRoom extends DurableObject {
             if (!other) return { error: json({ error: "No such user." }, 404) };
             if (other.username.toLowerCase() === username.toLowerCase()) {
                 return { error: json({ error: "You can't message yourself." }, 400) };
+            }
+            if (forPost && (other.blocked || []).includes(username.toLowerCase())) {
+                return { error: json({ error: "You can't message this user." }, 403) };
+            }
+            if (forPost) {
+                const mine = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+                if ((mine?.blocked || []).includes(other.username.toLowerCase())) {
+                    return { error: json({ error: "You blocked this user. Unblock them to send messages." }, 403) };
+                }
             }
             if (forPost && other.dmFriendsOnly) {
                 const fr = await this.ctx.storage.get(`fr:${other.username.toLowerCase()}`);
@@ -685,7 +735,7 @@ export class ChatRoom extends DurableObject {
     }
 
     /** Checks on what the message says: links, mentions, repeats. */
-    contentCheck(username, text, user) {
+    contentCheck(username, text, user, editing = false) {
         if (!text) return null;
         const lower = username.toLowerCase();
         const now = Date.now();
@@ -699,7 +749,7 @@ export class ChatRoom extends DurableObject {
         }
         const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
         const last = this.lastText.get(lower);
-        if (last && last.text === normalized && now - last.time < DUP_WINDOW_MS) {
+        if (!editing && last && last.text === normalized && now - last.time < DUP_WINDOW_MS) {
             this.addStrike(lower);
             return json({ error: "Don't repeat yourself." }, 429);
         }
@@ -791,6 +841,8 @@ export class ChatRoom extends DurableObject {
             return json({ error: "Too many accounts created from your connection. Try again later." }, 429);
         }
 
+        const refName = String(body?.ref ?? "").trim().toLowerCase();
+        const inviter = NAME_RE.test(refName) && refName !== lower ? await this.ctx.storage.get(`u:${refName}`) : null;
         const seq = ((await this.ctx.storage.get("useq")) || 0) + 1;
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const user = {
@@ -804,9 +856,11 @@ export class ChatRoom extends DurableObject {
             orbs: 0,
             msgCount: 0,
             status: "online",
+            ...(inviter ? { ref: refName } : {}),
         };
         await this.ctx.storage.put({ [key]: user, useq: seq });
         this.touch(username);
+        await this.botMessage("general", { text: `Welcome to the chat, @${username}! Read the rules in #rules and say hi.` }, { mentions: [username] });
         return json({ ...(await this.publicProfile(username)), token: await this.createSession(username) });
     }
 
@@ -1165,6 +1219,8 @@ export class ChatRoom extends DurableObject {
                 .filter(([, m]) => m.banned)
                 .map(([lower, m]) => ({ user: nameOf(lower), by: m.banned.by, reason: m.banned.reason, time: m.banned.time })),
             log: ((await this.ctx.storage.get("modlog")) || []).slice(-30).reverse(),
+            submissions: (await this.ctx.storage.get("pending")) || [],
+            community: (await this.ctx.storage.get("community")) || [],
         });
     }
 
@@ -1175,6 +1231,30 @@ export class ChatRoom extends DurableObject {
         const body = (await this.readBody(request)) || {};
         const action = String(body.action ?? "");
         const reason = String(body.reason ?? "").replace(/\s+/g, " ").trim().slice(0, 100);
+
+        if (action === "asset-approve" || action === "asset-reject" || action === "asset-remove") {
+            const pending = (await this.ctx.storage.get("pending")) || [];
+            const community = (await this.ctx.storage.get("community")) || [];
+            const id = String(body.id ?? "");
+            if (action === "asset-remove") {
+                if (!community.some((c) => c.id === id)) return json({ error: "Not found." }, 404);
+                await this.ctx.storage.put("community", community.filter((c) => c.id !== id));
+                await this.ctx.storage.delete(`ca:${id}`);
+            } else {
+                const item = pending.find((p) => p.id === id);
+                if (!item) return json({ error: "Not found." }, 404);
+                await this.ctx.storage.put("pending", pending.filter((p) => p.id !== id));
+                if (action === "asset-approve") {
+                    await this.ctx.storage.put("community", [...community, { id: item.id, kind: item.kind, name: item.name, by: item.by }]);
+                } else {
+                    await this.ctx.storage.delete(`ca:${id}`);
+                }
+            }
+            const log = (await this.ctx.storage.get("modlog")) || [];
+            log.push({ time: Date.now(), by: actor, action, user: String(body.name || id), reason: "" });
+            await this.ctx.storage.put("modlog", log.slice(-100));
+            return json({ ok: true });
+        }
 
         if (action === "resolve") {
             const reports = ((await this.ctx.storage.get("reports")) || []).filter((r) => r.id !== body.id);
@@ -1232,15 +1312,172 @@ export class ChatRoom extends DurableObject {
         return json({ ok: true });
     }
 
-    // ---------- bot ----------
+    // ---------- polls, edits, blocks, community stickers and emoji ----------
 
+    async vote(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in to vote." }, 401);
+        if (this.hitLimit(this.reactHits, username.toLowerCase(), 10 * 1000, REACT_PER_10S)) {
+            return json({ error: "You're voting too fast." }, 429);
+        }
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, body, false);
+        if (target.error) return target.error;
+        const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        const message = messages.find((m) => m.id === Number(body.id));
+        const poll = message?.poll;
+        if (!poll) return json({ error: "That poll doesn't exist." }, 404);
+        if (Date.now() > poll.ends) return json({ error: "This poll has ended." }, 400);
+        const option = Number(body.option);
+        if (!Number.isInteger(option) || option < 0 || option >= poll.options.length) {
+            return json({ error: "Pick one of the options." }, 400);
+        }
+        const had = poll.votes[option].includes(username);
+        poll.votes = poll.votes.map((list) => list.filter((n) => n !== username));
+        if (!had) poll.votes[option].push(username);
+        await this.ctx.storage.put(`m:${target.key}`, messages);
+        await this.bumpVersion(target.key);
+        return json({ ok: true });
+    }
+
+    async editMessage(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const lower = username.toLowerCase();
+        if (this.hitLimit(this.editHits, lower, 60 * 1000, 10)) return json({ error: "You're editing too fast." }, 429);
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, body, true);
+        if (target.error) return target.error;
+        const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        const message = messages.find((m) => m.id === Number(body.id));
+        if (!message) return json({ error: "Message not found." }, 404);
+        if (message.name.toLowerCase() !== lower || message.bot) return json({ error: "You can only edit your own messages." }, 403);
+        if (Date.now() - message.time > EDIT_WINDOW_MS) return json({ error: "Messages can be edited for an hour after sending." }, 400);
+
+        const text = String(body.text ?? "").trim().slice(0, await this.textLimit(username));
+        const hasMedia = !!(message.image || message.video || message.gif || message.sticker);
+        if (!text && !hasMedia) return json({ error: "A message can't be empty." }, 400);
+        const user = await this.ctx.storage.get(`u:${lower}`);
+        const check = text ? this.contentCheck(username, text, user, true) : null;
+        if (check) return check;
+
+        message.text = text;
+        message.edited = Date.now();
+        if (!target.isDm) {
+            const mentions = await this.findMentions(text, username);
+            const replied = message.replyTo?.name;
+            if (replied && replied !== BOT_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
+            if (mentions.length) message.mentions = mentions;
+            else delete message.mentions;
+        }
+        await this.ctx.storage.put(`m:${target.key}`, messages);
+        await this.bumpVersion(target.key);
+        return json({ ok: true });
+    }
+
+    async blockAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const me = username.toLowerCase();
+        const body = (await this.readBody(request)) || {};
+        const target = await this.ctx.storage.get(`u:${String(body.user ?? "").trim().toLowerCase()}`);
+        if (!target) return json({ error: "No such user." }, 404);
+        const other = target.username.toLowerCase();
+        if (other === me) return json({ error: "You can't block yourself." }, 400);
+        const user = await this.ctx.storage.get(`u:${me}`);
+        const list = (user.blocked || []).filter((n) => n !== other);
+        if (body.action === "block") {
+            if (list.length >= MAX_BLOCKED) return json({ error: "Your block list is full." }, 400);
+            list.push(other);
+            // blocking someone also ends any friendship or pending request
+            const mine = await this.loadFriends(me);
+            const theirs = await this.loadFriends(other);
+            const without = (l, n) => l.filter((x) => x !== n);
+            mine.friends = without(mine.friends, other);
+            mine.incoming = without(mine.incoming, other);
+            mine.outgoing = without(mine.outgoing, other);
+            theirs.friends = without(theirs.friends, me);
+            theirs.incoming = without(theirs.incoming, me);
+            theirs.outgoing = without(theirs.outgoing, me);
+            await this.ctx.storage.put({ [`fr:${me}`]: mine, [`fr:${other}`]: theirs });
+        } else if (body.action !== "unblock") {
+            return json({ error: "Unknown action." }, 400);
+        }
+        user.blocked = list;
+        await this.ctx.storage.put(`u:${me}`, user);
+        return json({ ok: true, blocked: list });
+    }
+
+    async community() {
+        const items = (await this.ctx.storage.get("community")) || [];
+        return json({ stickers: items.filter((i) => i.kind === "sticker"), emojis: items.filter((i) => i.kind === "emoji") });
+    }
+
+    async getAsset(id) {
+        if (!/^u_[0-9a-f]{12}$/.test(id)) return json({ error: "Not found." }, 404);
+        const asset = await this.ctx.storage.get(`ca:${id}`);
+        if (!asset) return json({ error: "Not found." }, 404);
+        return new Response(asset.bytes, {
+            headers: { ...IMAGE_HEADERS(asset.type), "cache-control": "public, max-age=31536000, immutable" },
+        });
+    }
+
+    async submitAsset(request, searchParams) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const lower = username.toLowerCase();
+        const user = await this.ctx.storage.get(`u:${lower}`);
+        if (Date.now() - (user.created || 0) < SUBMIT_MIN_AGE_MS) {
+            return json({ error: "New accounts can submit stickers and emoji after 30 minutes." }, 403);
+        }
+        // only successful submissions count towards the daily limit
+        const todays = recent(this.submitHits.get(lower), 24 * 60 * 60 * 1000);
+        if (todays.length >= 3) return json({ error: "You can submit 3 per day." }, 429);
+        const kind = searchParams.get("kind") === "emoji" ? "emoji" : "sticker";
+        const raw = String(searchParams.get("name") ?? "").trim();
+        const name = kind === "emoji" ? raw.toLowerCase() : raw.replace(/\s+/g, " ").slice(0, 24);
+        if (kind === "emoji" && !/^[a-z0-9_]{2,24}$/.test(name)) {
+            return json({ error: "Emoji names are 2-24 letters, numbers or underscores." }, 400);
+        }
+        if (kind === "sticker" && name.length < 2) return json({ error: "Give the sticker a name." }, 400);
+
+        const taken = new Set(((await this.fetchAsset("/data/_emojis.json")) || []).map((e) => e.name));
+        const community = (await this.ctx.storage.get("community")) || [];
+        const pending = (await this.ctx.storage.get("pending")) || [];
+        if (kind === "emoji" && (taken.has(name) || [...community, ...pending].some((c) => c.kind === "emoji" && c.name === name))) {
+            return json({ error: "That emoji name is already taken." }, 409);
+        }
+        if (pending.length >= MAX_PENDING) return json({ error: "The review queue is full. Try again later." }, 429);
+        if (community.filter((c) => c.kind === kind).length >= MAX_COMMUNITY) {
+            return json({ error: "The community library is full." }, 400);
+        }
+
+        const max = kind === "emoji" ? EMOJI_BYTES : STICKER_BYTES;
+        const declared = Number(request.headers.get("content-length")) || 0;
+        const bytes = declared > max ? null : await readLimited(request, max);
+        if (!bytes) return json({ error: `That file is too big (max ${max / 1024} KB).` }, 413);
+        const type = sniffImage(bytes) || sniffGif(bytes);
+        if (!type) return json({ error: "Only PNG, JPEG, WebP or GIF images." }, 415);
+
+        const id = `u_${toHex(crypto.getRandomValues(new Uint8Array(6)))}`;
+        await this.ctx.storage.put({
+            [`ca:${id}`]: { type, bytes: bytes.buffer },
+            pending: [...pending, { id, kind, name, by: username, time: Date.now() }],
+        });
+        this.submitHits.set(lower, [...todays, Date.now()]);
+        return json({ ok: true });
+    }
+
+    // ---------- bot ----------
     async botMessage(key, content, extra = {}) {
         const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
         const nextId = ((await this.ctx.storage.get(`n:${key}`)) || 0) + 1;
-        messages.push({ id: nextId, name: BOT_NAME, bot: true, text: content.text || "", time: Date.now(), ...(content.levelCard ? { levelCard: content.levelCard } : {}), ...extra });
+        messages.push({ id: nextId, name: BOT_NAME, bot: true, text: content.text || "", time: Date.now(), ...(content.levelCard ? { levelCard: content.levelCard } : {}), ...(content.poll ? { poll: content.poll } : {}), ...extra });
         const kept = messages.slice(-MAX_MESSAGES);
         const dropped = messages.slice(0, messages.length - kept.length);
-        await this.ctx.storage.put({ [`m:${key}`]: kept, [`n:${key}`]: nextId });
+        const writes = { [`m:${key}`]: kept, [`n:${key}`]: nextId };
+        for (const name of extra.mentions || []) writes[`mn:${key}:${name.toLowerCase()}`] = nextId;
+        await this.ctx.storage.put(writes);
         if (dropped.length) await this.purgeMessageAssets(dropped);
         return nextId;
     }
@@ -1354,9 +1591,28 @@ export class ChatRoom extends DurableObject {
         const replyTo = { id: messageId, name: username, text: text.slice(0, 80) };
         const say = (content) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo });
 
+        if (name === "rules") return say(`Chat rules:\n${rulesText()}`);
+        if (name === "poll") {
+            const parts = args.split("|").map((p) => p.trim()).filter(Boolean);
+            if (parts.length < 3 || parts.length > MAX_POLL_OPTIONS + 1) {
+                return say(`Make a poll like /poll Best tier? | Easy | Hard | Extreme (2 to ${MAX_POLL_OPTIONS} options).`);
+            }
+            if (this.hitLimit(this.pollHits, lower, 60 * 60 * 1000, 3)) return say("You can make 3 polls an hour.");
+            const [question, ...options] = parts;
+            return say({
+                text: "",
+                poll: {
+                    q: question.slice(0, 150),
+                    options: options.map((o) => o.slice(0, 80)),
+                    votes: options.map(() => []),
+                    by: username,
+                    ends: Date.now() + POLL_TTL_MS,
+                },
+            });
+        }
         if (name === "help") {
             const custom = (await this.customCommands()).map((c) => `/${c.name}`);
-            return say(`Commands: /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
+            return say(`Commands: /rules, /poll q | a | b, /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
         }
         if (name === "roll") {
             const m = /^(\d{1,2})?d(\d{1,4})$/i.exec(args || "d6");
@@ -1481,6 +1737,7 @@ export class ChatRoom extends DurableObject {
             friends: fr.friends.length,
             groups,
             owned: (user.owned || []).length,
+            invited: user.refCount || 0,
         };
         const progressOf = (t) => {
             const raw = rec.progress[t.key];
@@ -1601,6 +1858,7 @@ export class ChatRoom extends DurableObject {
         };
 
         if (action === "request") {
+            if ((target.blocked || []).includes(me)) return json({ error: "That user isn't accepting friend requests." }, 403);
             if (mine.friends.includes(other)) return json({ error: "You're already friends." }, 400);
             if (mine.incoming.includes(other)) {
                 makeFriends();
@@ -1767,6 +2025,10 @@ export class ChatRoom extends DurableObject {
         if (gif && !GIF_RE.test(gif)) return json({ error: "Unknown GIF." }, 400);
         const sticker = body?.sticker == null ? "" : String(body.sticker);
         if (sticker && !STICKER_RE.test(sticker)) return json({ error: "Unknown sticker." }, 400);
+        if (sticker.startsWith("u_")) {
+            const approved = (await this.ctx.storage.get("community")) || [];
+            if (!approved.some((a) => a.id === sticker && a.kind === "sticker")) return json({ error: "Unknown sticker." }, 400);
+        }
         if (!text && !gif && !sticker) return json({ error: "Message is empty." }, 400);
 
         const extra = {};
@@ -2038,6 +2300,16 @@ export class ChatRoom extends DurableObject {
         let earned = false;
         if (user) {
             user.msgCount = (user.msgCount || 0) + 1;
+            if (user.ref && !user.refPaid && user.msgCount >= REF_MIN_MESSAGES) {
+                const inviterKey = `u:${user.ref}`;
+                const inviter = await this.ctx.storage.get(inviterKey);
+                user.refPaid = true;
+                if (inviter && (inviter.refCount || 0) < REF_MAX) {
+                    this.addOrbs(inviter, REF_REWARD, false);
+                    inviter.refCount = (inviter.refCount || 0) + 1;
+                    writes[inviterKey] = inviter;
+                }
+            }
             const worthy = text.length >= MIN_ORB_TEXT || !!(extra.image || extra.video || extra.gif || extra.sticker);
             if (worthy && now - (user.lastOrb || 0) >= ORB_COOLDOWN_MS) {
                 this.addOrbs(user, this.hasNitro(user, roleOf(username)) ? NITRO_ORBS : 1);
