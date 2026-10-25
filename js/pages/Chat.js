@@ -517,13 +517,13 @@ export default {
                                         <div v-if="m.bj" class="dc-bj" :class="m.bj.status">
                                             <div class="dc-bj-row">
                                                 <span class="dc-bj-label">Dealer</span>
-                                                <span v-for="(c, i) in m.bj.dealer" :key="'d' + i" class="dc-card" :class="{ red: cardRed(c) }">{{ c }}</span>
-                                                <span v-if="m.bj.hidden" class="dc-card back">?</span>
+                                                <span v-for="(c, i) in m.bj.dealer" :key="'d' + i" class="dc-bjcard" :class="{ red: cardRed(c) }">{{ c }}</span>
+                                                <span v-if="m.bj.hidden" class="dc-bjcard back">?</span>
                                                 <b v-if="!m.bj.hidden">{{ bjTotal(m.bj.dealer) }}</b>
                                             </div>
                                             <div class="dc-bj-row">
                                                 <span class="dc-bj-label">{{ m.bj.owner }}</span>
-                                                <span v-for="(c, i) in m.bj.player" :key="'p' + i" class="dc-card" :class="{ red: cardRed(c) }">{{ c }}</span>
+                                                <span v-for="(c, i) in m.bj.player" :key="'p' + i" class="dc-bjcard" :class="{ red: cardRed(c) }">{{ c }}</span>
                                                 <b>{{ bjTotal(m.bj.player) }}</b>
                                             </div>
                                             <div class="dc-bj-bet">&#128302; {{ m.bj.bet }} orbs{{ m.bj.doubled ? ' (doubled)' : '' }}</div>
