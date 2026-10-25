@@ -69,6 +69,16 @@ const MAX_TEXT_NITRO = 500;
 const MAX_IMAGE_NITRO = 1536 * 1024;
 const MAX_AVATAR_NITRO = 1536 * 1024;
 const NITRO_ORBS = 2;
+// Nitro Plus: the top tier. Includes everything in Nitro, plus uploadable banners with a custom height
+const PLUS_PRICE = 1500;
+const PLUS_DAYS = 30;
+const PLUS_ORBS = 3;
+const MAX_TEXT_PLUS = 1000;
+const MAX_IMAGE_PLUS = 1900 * 1024;
+const MAX_AVATAR_PLUS = 1900 * 1024;
+const MAX_BANNER_PLUS = 1900 * 1024;
+const BANNER_H_MIN = 80;
+const BANNER_H_MAX = 260;
 
 // Shop: slot -> what it changes. `nitro` items need an active Nitro to buy and to show.
 // The look of frames lives in the page's CSS (matched by id); colours and gradients live here.
@@ -106,6 +116,12 @@ const SHOP = [
         id: "bn_lava", slot: "banner", name: "Lava", price: 50, nitro: true,
         style: { background: "linear-gradient(120deg, #f12711, #f5af19, #f12711)", animated: true },
     },
+    { id: "bn_void", slot: "banner", name: "Void", price: 60, nitro: true, style: { background: "linear-gradient(120deg, #000000, #1a1a2e, #000000, #2b0a3d, #000000)", animated: true } },
+    { id: "bn_neon", slot: "banner", name: "Neon City", price: 60, nitro: true, style: { background: "linear-gradient(120deg, #ff00cc, #3333ff, #00f0ff, #ff00cc)", animated: true } },
+    { id: "bn_galaxy", slot: "banner", name: "Galaxy", price: 70, nitro: true, style: { background: "linear-gradient(120deg, #0f0c29, #302b63, #8e2de2, #24243e, #0f0c29)", animated: true } },
+    { id: "bn_matrix", slot: "banner", name: "Matrix", price: 60, nitro: true, style: { background: "linear-gradient(120deg, #000000, #003b00, #00ff41, #003b00, #000000)", animated: true } },
+    { id: "bn_sakura", slot: "banner", name: "Sakura", price: 60, nitro: true, style: { background: "linear-gradient(120deg, #ffafbd, #ffc3a0, #f8c8ff, #ffafbd)", animated: true } },
+    { id: "bn_ice", slot: "banner", name: "Frostbite", price: 60, nitro: true, style: { background: "linear-gradient(120deg, #e0eafc, #74ebd5, #acb6e5, #e0eafc)", animated: true } },
     { id: "bd_fire", slot: "badge", name: "On Fire", price: 20, style: { icon: "\u{1F525}" } },
     { id: "bd_cat", slot: "badge", name: "Cat Lover", price: 20, style: { icon: "\u{1F431}" } },
     { id: "bd_ghost", slot: "badge", name: "Ghost", price: 20, style: { icon: "\u{1F47B}" } },
@@ -499,6 +515,10 @@ export class ChatRoom extends DurableObject {
             return this.deleteMessage(request);
         } else if (post && pathname === "/api/chat/avatar") {
             return this.postAvatar(request, searchParams);
+        } else if (post && pathname === "/api/chat/banner") {
+            return this.postBanner(request, searchParams);
+        } else if (get && pathname.startsWith("/api/chat/banner/")) {
+            return this.getBanner(pathname.slice("/api/chat/banner/".length));
         } else if (get && pathname.startsWith("/api/chat/avatar/")) {
             return this.getAvatar(pathname.slice("/api/chat/avatar/".length));
         } else if (post && pathname === "/api/auth/register") {
@@ -598,12 +618,16 @@ export class ChatRoom extends DurableObject {
 
     async textLimit(username) {
         const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
-        return this.hasNitro(user, roleOf(username)) ? MAX_TEXT_NITRO : MAX_TEXT;
+        const role = roleOf(username);
+        if (this.hasPlus(user, role)) return MAX_TEXT_PLUS;
+        return this.hasNitro(user, role) ? MAX_TEXT_NITRO : MAX_TEXT;
     }
 
     async imageLimit(username) {
         const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
-        return this.hasNitro(user, roleOf(username)) ? MAX_IMAGE_NITRO : MAX_IMAGE_BYTES;
+        const role = roleOf(username);
+        if (this.hasPlus(user, role)) return MAX_IMAGE_PLUS;
+        return this.hasNitro(user, role) ? MAX_IMAGE_NITRO : MAX_IMAGE_BYTES;
     }
 
     /** Add orbs. `earn` ones also count towards the leaderboards (gifts and refunds do not). */
@@ -624,7 +648,12 @@ export class ChatRoom extends DurableObject {
 
     /** The owner always has Nitro; everyone else while their paid or gifted time lasts. */
     hasNitro(user, role) {
-        return role === "a101" || (user?.nitroUntil || 0) > Date.now();
+        return role === "a101" || (user?.nitroUntil || 0) > Date.now() || this.hasPlus(user, role);
+    }
+
+    /** Nitro Plus (includes Nitro): the owner always, everyone else while it lasts. */
+    hasPlus(user, role) {
+        return role === "a101" || (user?.plusUntil || 0) > Date.now();
     }
 
     /** What is really worn: owned, in the right slot, and Nitro items only while Nitro is active. */
@@ -643,7 +672,8 @@ export class ChatRoom extends DurableObject {
         const badges = [];
         if (role === "a101") badges.push("owner");
         if (role === "admin") badges.push("staff");
-        if (this.hasNitro(user, role)) badges.push("nitro");
+        if (this.hasPlus(user, role)) badges.push("plus");
+        else if (this.hasNitro(user, role)) badges.push("nitro");
         if (user.seq && user.seq <= 100) badges.push("early");
         if ((user.msgCount || 0) >= 100) badges.push("chatter");
         const orbs = user.orbs || 0;
@@ -663,7 +693,11 @@ export class ChatRoom extends DurableObject {
             username: user.username,
             role,
             nitro,
+            plus: this.hasPlus(user, role),
             nitroUntil: role === "a101" ? 0 : user.nitroUntil || 0,
+            plusUntil: role === "a101" ? 0 : user.plusUntil || 0,
+            bannerImg: this.hasPlus(user, role) ? user.bannerImg || 0 : 0,
+            bannerH: this.hasPlus(user, role) ? user.bannerH || 0 : 0,
             equipped: this.effectiveEquipped(user, nitro),
             avatarAnimated: !!user.avatarAnimated,
             avatar: user.avatar || 0,
@@ -968,6 +1002,10 @@ export class ChatRoom extends DurableObject {
             const banner = Number(body.banner);
             user.banner = Number.isInteger(banner) && banner >= 0 && banner < BANNER_COUNT ? banner : undefined;
         }
+        if ("bannerH" in body && this.hasPlus(user, roleOf(username))) {
+            const h = Math.round(Number(body.bannerH));
+            user.bannerH = Number.isFinite(h) && h > 0 ? Math.min(Math.max(h, BANNER_H_MIN), BANNER_H_MAX) : undefined;
+        }
         if ("status" in body) {
             if (!STATUSES.includes(body.status)) return json({ error: "Unknown status." }, 400);
             user.status = body.status;
@@ -1037,7 +1075,7 @@ export class ChatRoom extends DurableObject {
         }
 
         const nitro = this.hasNitro(user, roleOf(username));
-        const max = nitro ? MAX_AVATAR_NITRO : MAX_AVATAR_BYTES;
+        const max = this.hasPlus(user, roleOf(username)) ? MAX_AVATAR_PLUS : nitro ? MAX_AVATAR_NITRO : MAX_AVATAR_BYTES;
         const declared = Number(request.headers.get("content-length")) || 0;
         const bytes = declared > max ? null : await readLimited(request, max);
         if (!bytes) return json({ error: `Profile picture is too large (max ${max / 1024} KB).` }, 413);
@@ -1056,6 +1094,44 @@ export class ChatRoom extends DurableObject {
         return json({ avatar: version, animated });
     }
 
+    async postBanner(request, searchParams) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const lower = username.toLowerCase();
+        const key = `u:${lower}`;
+        const user = await this.ctx.storage.get(key);
+
+        if (searchParams.get("remove")) {
+            await this.ctx.storage.delete(`bn:${lower}`);
+            await this.ctx.storage.put(key, { ...user, bannerImg: 0 });
+            return json({ bannerImg: 0 });
+        }
+        if (!this.hasPlus(user, roleOf(username))) {
+            return json({ error: "Uploading a banner needs Nitro Plus.", plus: true }, 403);
+        }
+        const declared = Number(request.headers.get("content-length")) || 0;
+        const bytes = declared > MAX_BANNER_PLUS ? null : await readLimited(request, MAX_BANNER_PLUS);
+        if (!bytes) return json({ error: `Banner is too large (max ${MAX_BANNER_PLUS / 1024} KB).` }, 413);
+        if (bytes.length === 0) return json({ error: "No image received." }, 400);
+        const type = sniffImage(bytes) || sniffGif(bytes);
+        if (!type) return json({ error: "Only JPEG, PNG, WebP or GIF images are allowed." }, 415);
+
+        const version = Date.now();
+        await this.ctx.storage.put(`bn:${lower}`, { type, bytes: bytes.buffer });
+        await this.ctx.storage.put(key, { ...user, bannerImg: version });
+        return json({ bannerImg: version });
+    }
+
+    async getBanner(name) {
+        const lower = name.toLowerCase();
+        if (!NAME_RE.test(lower)) return json({ error: "Not found." }, 404);
+        const banner = await this.ctx.storage.get(`bn:${lower}`);
+        if (!banner) return json({ error: "Not found." }, 404);
+        return new Response(banner.bytes, {
+            headers: { ...IMAGE_HEADERS(banner.type), "cache-control": "public, max-age=31536000, immutable" },
+        });
+    }
+
     async getAvatar(name) {
         const lower = name.toLowerCase();
         if (!NAME_RE.test(lower)) return json({ error: "Not found." }, 404);
@@ -1070,7 +1146,7 @@ export class ChatRoom extends DurableObject {
 
     async shop(request) {
         const username = await this.sessionUser(request);
-        const out = { items: SHOP, nitro: { price: NITRO_PRICE, days: NITRO_DAYS, orbsPerMessage: NITRO_ORBS }, box: { price: BOX_PRICE } };
+        const out = { items: SHOP, nitro: { price: NITRO_PRICE, days: NITRO_DAYS, orbsPerMessage: NITRO_ORBS }, plus: { price: PLUS_PRICE, days: PLUS_DAYS, orbsPerMessage: PLUS_ORBS }, box: { price: BOX_PRICE } };
         if (username) {
             const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
             const role = roleOf(username);
@@ -1082,6 +1158,8 @@ export class ChatRoom extends DurableObject {
                 nitroActive: nitro,
                 nitroUntil: role === "a101" ? 0 : user.nitroUntil || 0,
                 lifetime: role === "a101",
+                plusActive: this.hasPlus(user, role),
+                plusUntil: role === "a101" ? 0 : user.plusUntil || 0,
             });
         }
         return json(out);
@@ -1141,6 +1219,11 @@ export class ChatRoom extends DurableObject {
             if ((user.orbs || 0) < NITRO_PRICE) return json({ error: "Not enough orbs." }, 400);
             user.orbs -= NITRO_PRICE;
             user.nitroUntil = Math.max(user.nitroUntil || 0, Date.now()) + NITRO_DAYS * DAY_MS;
+        } else if (action === "plus") {
+            if (role === "a101") return json({ error: "You already have Nitro Plus forever." }, 400);
+            if ((user.orbs || 0) < PLUS_PRICE) return json({ error: "Not enough orbs." }, 400);
+            user.orbs -= PLUS_PRICE;
+            user.plusUntil = Math.max(user.plusUntil || 0, Date.now()) + PLUS_DAYS * DAY_MS;
         } else if (action === "gift") {
             if (role !== "a101") return json({ error: "Only the owner can gift Nitro." }, 403);
             const targetKey = `u:${String(body.user ?? "").trim().toLowerCase()}`;
@@ -2703,7 +2786,7 @@ export class ChatRoom extends DurableObject {
             }
             const worthy = text.length >= MIN_ORB_TEXT || !!(extra.image || extra.video || extra.gif || extra.sticker);
             if (worthy && now - (user.lastOrb || 0) >= ORB_COOLDOWN_MS) {
-                this.addOrbs(user, this.hasNitro(user, roleOf(username)) ? NITRO_ORBS : 1);
+                this.addOrbs(user, this.hasPlus(user, roleOf(username)) ? PLUS_ORBS : this.hasNitro(user, roleOf(username)) ? NITRO_ORBS : 1);
                 user.lastOrb = now;
                 earned = true;
             }

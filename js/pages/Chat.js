@@ -34,6 +34,7 @@ const BANNERS = [
 const BADGES = {
     owner: { icon: "\u{1F451}", label: "Owner", desc: "Runs the a101 List Reborn" },
     nitro: { icon: "\u26A1", label: "Nitro", desc: "Has a101 Nitro" },
+    plus: { icon: "\u{1F451}", label: "Nitro Plus", desc: "Has a101 Nitro Plus" },
     staff: { icon: "\u{1F6E1}️", label: "Staff", desc: "Chat moderator" },
     early: { icon: "\u{1F331}", label: "Early Member", desc: "One of the first 100 members" },
     chatter: { icon: "\u{1F4AC}", label: "Chatterbox", desc: "Sent 100 messages" },
@@ -737,7 +738,7 @@ export default {
             <div v-if="card" class="dc-modal" @click.self="card = null">
                 <div class="dc-card">
                     <div v-if="effectOf(card.username)" class="dc-fx"><span v-for="n in 9" :key="n" :style="fxStyle(n)">{{ effectOf(card.username) }}</span></div>
-                    <div class="dc-card-banner" :class="{ animated: bannerAnimated(card) }" :style="bannerStyle(card)"></div>
+                    <div class="dc-card-banner" :class="{ animated: bannerAnimated(card) }" :style="bannerStyle(card)"><img v-if="bannerSrc(card)" class="dc-banner-img" :src="bannerSrc(card)" alt=""></div>
                     <Avatar class="dc-avatar-xl dc-card-avatar" :name="card.username" :src="avatarSrc(card.username)" :frame="frameOf(card.username)"><span class="dc-status big" :class="statusOf(card.username)"></span></Avatar>
                     <div class="dc-card-body">
                         <div class="dc-card-top">
@@ -807,6 +808,23 @@ export default {
                             <button v-for="(c, i) in banners" :key="c" type="button" class="dc-swatch" :class="{ active: draft.banner === i }" :style="{ background: c }" @click="draft.banner = i"></button>
                         </span>
                     </label>
+                    <div class="dc-banner-edit">
+                        <div class="dc-banner-preview" :style="{ height: (draft.bannerH || 96) + 'px', background: bannerColor(me) }">
+                            <img v-if="draft.bannerPreview || (!draft.bannerRemove && bannerSrc(me))" :src="draft.bannerPreview || bannerSrc(me)" alt="">
+                        </div>
+                        <template v-if="me && me.plus">
+                            <div class="dc-edit-actions">
+                                <button type="button" class="dc-btn" @click="$refs.bannerFile.click()">Upload banner</button>
+                                <button type="button" class="dc-btn ghost" @click="draft.bannerRemove = true; draft.bannerBlob = null; draft.bannerPreview = ''">Remove</button>
+                                <input ref="bannerFile" type="file" accept="image/*" hidden @change="onBannerFile">
+                            </div>
+                            <label>BANNER HEIGHT: {{ draft.bannerH || 96 }}px
+                                <input type="range" min="80" max="260" step="4" :value="draft.bannerH || 96" @input="draft.bannerH = Number($event.target.value)">
+                            </label>
+                            <p class="dc-hint">Nitro Plus: upload a JPEG, PNG, WebP or GIF (up to 1.9 MB) and pick how tall it is.</p>
+                        </template>
+                        <p v-else class="dc-hint">&#128081; Nitro Plus lets you upload your own banner (GIFs too) and set its height. See the Orb Shop.</p>
+                    </div>
                     <label>PRONOUNS
                         <input type="text" v-model="draft.pronouns" maxlength="20" placeholder="e.g. they/them">
                     </label>
@@ -1024,6 +1042,29 @@ export default {
                             {{ shop.nitroActive ? 'Add' : 'Get' }} {{ shop.nitro.days }} days of Nitro &mdash; &#128302; {{ shop.nitro.price }}
                         </button>
                         <p v-if="!shop.lifetime && (shop.orbs || 0) < shop.nitro.price" class="dc-hint">You need {{ shop.nitro.price - (shop.orbs || 0) }} more orbs. Send messages to earn them.</p>
+
+                        <div class="dc-nitro-hero plus">
+                            <span class="dc-nitro-bolt">&#128081;</span>
+                            <div>
+                                <b>a101 Nitro Plus</b>
+                                <small v-if="shop.lifetime">You have Nitro Plus forever as the owner.</small>
+                                <small v-else-if="shop.plusActive">Active until {{ formatDate(shop.plusUntil) }}</small>
+                                <small v-else>Not active</small>
+                            </div>
+                        </div>
+                        <ul class="dc-perks">
+                            <li>&#9889; <b>Everything in Nitro</b> (it includes it)</li>
+                            <li>&#128444; <b>Upload your own banner</b> (GIF, PNG, JPEG, WebP up to 1.9 MB)</li>
+                            <li>&#128208; <b>Custom banner size</b> (80 to 260 px tall)</li>
+                            <li>&#128302; <b>Triple orbs</b> from every message ({{ shop.plus.orbsPerMessage }})</li>
+                            <li>&#128172; <b>1000-character messages</b></li>
+                            <li>&#128247; <b>Biggest uploads</b> (1.9 MB images and animated pictures)</li>
+                            <li>&#128081; A golden <b>Plus badge</b></li>
+                        </ul>
+                        <button v-if="!shop.lifetime" type="button" class="dc-btn nitro" :disabled="busy || (shop.orbs || 0) < shop.plus.price" @click="buyPlus">
+                            {{ shop.plusActive ? 'Add' : 'Get' }} {{ shop.plus.days }} days of Nitro Plus &mdash; &#128302; {{ shop.plus.price }}
+                        </button>
+                        <p v-if="!shop.lifetime && (shop.orbs || 0) < shop.plus.price" class="dc-hint">You need {{ shop.plus.price - (shop.orbs || 0) }} more orbs for Plus.</p>
                     </div>
 
                     <div v-else-if="shopTab === 'box'" class="dc-box">
@@ -1132,7 +1173,7 @@ export default {
             dismissed: {},
             card: null,
             editing: false,
-            draft: { bio: "", pronouns: "", statusText: "", banner: -1, dmFriendsOnly: false, blob: null, preview: "", remove: false },
+            draft: { bio: "", pronouns: "", statusText: "", banner: -1, bannerH: 0, bannerBlob: null, bannerPreview: "", bannerRemove: false, dmFriendsOnly: false, blob: null, preview: "", remove: false },
             newDm: false,
             dialogMode: "new",
             dmSearch: "",
@@ -1195,7 +1236,7 @@ export default {
             botReply: "",
             notice: null,
             boardType: "week",
-            shop: { items: [], box: { price: 25 }, nitro: { price: 500, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
+            shop: { items: [], box: { price: 25 }, nitro: { price: 500, days: 30, orbsPerMessage: 2 }, plus: { price: 1500, days: 30, orbsPerMessage: 3 }, plusActive: false, plusUntil: 0, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
             orbGain: 1,
             token: load(TOKEN_KEY),
             me: null,
@@ -1247,7 +1288,7 @@ export default {
             return h ? `${h}h ${m}m` : `${m}m`;
         },
         maxText() {
-            return this.me?.nitro ? 500 : 300;
+            return this.me?.plus ? 1000 : this.me?.nitro ? 500 : 300;
         },
         catalogById() {
             return Object.fromEntries(this.shop.items.map((i) => [i.id, i]));
@@ -1443,7 +1484,7 @@ export default {
             return (this.profileOf(name)?.badges || []).slice(0, 3);
         },
         bannerColor(profile) {
-            return BANNERS[profile?.banner] || `hsl(${hue(profile?.username || "")}, 55%, 40%)`;
+            return BANNERS[profile?.banner] || "#0b0b0d";
         },
         statusOf(name) {
             const lower = String(name).toLowerCase();
@@ -1499,7 +1540,12 @@ export default {
         },
         bannerStyle(profile) {
             const item = this.equippedItem(profile?.username || "", "banner");
-            return { background: item ? item.style.background : this.bannerColor(profile) };
+            const style = { background: item ? item.style.background : this.bannerColor(profile) };
+            if (profile?.bannerH) style.height = `${profile.bannerH}px`;
+            return style;
+        },
+        bannerSrc(profile) {
+            return profile?.bannerImg ? `${API}/banner/${String(profile.username).toLowerCase()}?v=${profile.bannerImg}` : "";
         },
         bannerAnimated(profile) {
             return !!this.equippedItem(profile?.username || "", "banner")?.style?.animated;
@@ -1770,6 +1816,11 @@ export default {
         async buyNitro() {
             this.busy = true;
             await this.applyShopResult(await this.post(`${API}/shop`, { action: "nitro" }));
+            this.busy = false;
+        },
+        async buyPlus() {
+            this.busy = true;
+            await this.applyShopResult(await this.post(`${API}/shop`, { action: "plus" }));
             this.busy = false;
         },
         async giftNitro(name) {
@@ -2287,6 +2338,10 @@ export default {
                 pronouns: me.pronouns || "",
                 statusText: me.statusText || "",
                 banner: Number.isInteger(me.banner) ? me.banner : -1,
+                bannerH: me.bannerH || 0,
+                bannerBlob: null,
+                bannerPreview: "",
+                bannerRemove: false,
                 dmFriendsOnly: !!me.dmFriendsOnly,
                 blob: null,
                 preview: "",
@@ -2342,6 +2397,24 @@ export default {
                 this.error = "Could not read that image.";
             }
         },
+        onBannerFile(e) {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            if (!/^image\//.test(file.type)) {
+                this.error = "That is not an image.";
+                return;
+            }
+            if (file.size > 1900 * 1024) {
+                this.error = `That banner is ${(file.size / 1048576).toFixed(1)} MB. Banners can be up to 1.9 MB.`;
+                return;
+            }
+            if (this.draft.bannerPreview) URL.revokeObjectURL(this.draft.bannerPreview);
+            this.draft.bannerBlob = file;
+            this.draft.bannerPreview = URL.createObjectURL(file);
+            this.draft.bannerRemove = false;
+            this.error = "";
+        },
         async saveProfile() {
             this.busy = true;
             this.error = "";
@@ -2354,10 +2427,18 @@ export default {
                 } else if (this.draft.remove) {
                     await fetch(`${API}/avatar?remove=1`, { method: "POST", headers: auth });
                 }
+                if (this.draft.bannerBlob) {
+                    const res = await fetch(`${API}/banner`, { method: "POST", headers: auth, body: this.draft.bannerBlob });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || "Could not upload the banner.");
+                } else if (this.draft.bannerRemove) {
+                    await fetch(`${API}/banner?remove=1`, { method: "POST", headers: auth });
+                }
                 const res = await fetch(`${AUTH}/profile`, {
                     method: "POST",
                     headers: this.headers(),
                     body: JSON.stringify({
+                        bannerH: this.me?.plus ? this.draft.bannerH : undefined,
                         bio: this.draft.bio,
                         pronouns: this.draft.pronouns,
                         statusText: this.draft.statusText,
@@ -2753,7 +2834,7 @@ export default {
                 ctx.drawImage(bitmap, 0, 0, w, h);
                 for (const quality of [0.85, 0.7, 0.55, 0.4]) {
                     const blob = await new Promise((r) => canvas.toBlob(r, mime, quality));
-                    if (blob && blob.size <= (this.me?.nitro ? 1400 * 1024 : MAX_IMAGE_BYTES)) {
+                    if (blob && blob.size <= (this.me?.plus ? 1800 * 1024 : this.me?.nitro ? 1400 * 1024 : MAX_IMAGE_BYTES)) {
                         return { blob, w, h, url: URL.createObjectURL(blob), name: file.name || "image", size: formatSize(blob.size) };
                     }
                 }
