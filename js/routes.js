@@ -5,7 +5,6 @@ import Roulette from './pages/Roulette.js';
 import Packs from './pages/Packs.js';
 import TimeMachine from './pages/TimeMachine.js';
 import Minigame from './pages/Minigame.js';
-import Editor from './pages/Editor.js';
 
 export default [
     { path: '/', component: List },
@@ -19,5 +18,4 @@ export default [
     { path: '/minigames/rank', component: Minigame, props: { game: 'rank' } },
     { path: '/packs', component: Packs },
     { path: '/time-machine', component: TimeMachine },
-    { path: '/editor', component: Editor },
 ];
