@@ -4,6 +4,10 @@
         "src":  "/assets/emojis/100_members.webp"
     },
     {
+        "name":  "hug",
+        "src":  "/assets/emojis/hug.svg"
+    },
+    {
         "name":  "easy_hard",
         "src":  "/assets/difficulty/easy-hard.png"
     },

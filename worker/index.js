@@ -29,6 +29,7 @@ const REACTIONS = [
     "\u{1F622}",
     "\u{1F525}",
     "\u{1F389}",
+    "\u{1FAC2}",
 ];
 const CUSTOM_REACTION_RE = /^:[a-z0-9_]{2,32}:$/;
 const MAX_REACTION_TYPES = 12;
