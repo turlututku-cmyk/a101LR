@@ -1,13 +1,13 @@
 .nav {
     display: flex;
-    column-gap: 2rem;
+    column-gap: 0.75rem;
 }
 .nav .nav__tab {
     padding-top: 4px;
     border-bottom: 4px solid transparent;
     display: flex;
     align-items: center;
-    padding-inline: 0.5rem;
+    padding-inline: 0.35rem;
     transition: border-color 100ms ease;
 }
 .nav .nav__tab.router-link-active {
