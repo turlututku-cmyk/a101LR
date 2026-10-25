@@ -219,9 +219,9 @@ const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle"];
 // You can own several tiers of a gem; the best one that still has charges is used first.
 const GEM_TIERS = ["common", "uncommon", "rare", "epic", "legendary"];
 const GEMS = {
-    hunting: { name: "Hunting Gem", desc: (v) => `+${v} animal${v > 1 ? "s" : ""} on every hunt`, price: [15, 30, 60, 110, 200], uses: [20, 35, 35, 40, 50], power: [1, 1, 2, 3, 4] },
-    heart: { name: "Heart Gem", desc: (v) => `${v}x better chance of Gem animals`, price: [25, 40, 80, 150, 300], uses: [20, 25, 30, 35, 40], power: [5, 10, 20, 35, 60] },
-    power: { name: "Power Gem", desc: (v) => `+${v}% attack in battles`, price: [15, 25, 50, 90, 160], uses: [10, 10, 15, 15, 20], power: [15, 25, 40, 60, 100] },
+    hunting: { name: "Hunting Gem", desc: (v) => `+${v} animal${v > 1 ? "s" : ""} on every hunt`, price: [15, 30, 60, 110, 200], uses: [20, 40, 80, 150, 300], power: [1, 1, 2, 3, 4] },
+    heart: { name: "Heart Gem", desc: (v) => `${v}x better chance of Gem animals`, price: [25, 40, 80, 150, 300], uses: [20, 40, 80, 150, 300], power: [5, 10, 20, 35, 60] },
+    power: { name: "Power Gem", desc: (v) => `+${v}% attack in battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [15, 25, 40, 60, 100] },
 };
 const gemIcon = (type, tier) => `:item_${type}_${["c", "u", "r", "e", "l"][tier]}:`;
 /** The best gem of a type that still has charges: { key, tier, value } or null. */
