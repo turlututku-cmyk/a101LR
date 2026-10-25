@@ -68,10 +68,15 @@ const CATEGORIES = [
     },
     {
         name: "Games",
-        channels: [{ id: "minigames", topic: "Scores and chat about the site minigames." }],
+        channels: [
+            { id: "minigames", topic: "Scores and chat about the site minigames." },
+            { id: "casino", icon: "\u{1F3B0}", topic: "Orb casino: /cf, /roulette, /slots, /dice, /blackjack, /duel, /bal. Games only work in this channel." },
+        ],
     },
 ];
 const CHANNELS = CATEGORIES.flatMap((c) => c.channels);
+const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
+const botOf = (name) => (CASINO_COMMANDS.includes(name) ? "a101 Casino" : "a101 Bot");
 
 const UNICODE_EMOJI = {
     smileys: "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤔 🤨 😐 😑 😶 🙄 😏 😬 😮 😯 😲 🥱 😴 😪 😷 🤒 🤕 🤢 🤮 🥵 🥶 😵 🤯 🥳 😎 🤓 😕 😟 🙁 😢 😭 😤 😠 😡 🤬 😱 😨 😰 😥 😓 🥺 😳 🤐 🤫 🤭 🧐",
@@ -465,14 +470,14 @@ export default {
                                             <button v-for="r in reactionPalette" :key="r" type="button" @click="react(m, r)"><span v-if="r.startsWith(':')"><img class="dc-emoji" :src="emojiMap[r.slice(1, -1)]" :alt="r"></span><span v-else>{{ r }}</span></button>
                                         </div>
                                     </div>
-                                    <div v-if="!m.cont && m.bot" class="dc-avatar dc-bot-avatar">&#129302;</div>
+                                    <div v-if="!m.cont && m.bot" class="dc-avatar dc-bot-avatar" :class="{ owo: m.name === 'a101 Casino' }">{{ m.name === 'a101 Casino' ? '\u{1F3B0}' : '\u{1F916}' }}</div>
                                     <button v-else-if="!m.cont" type="button" class="dc-avatar-btn" @click="openProfile(m.name)">
                                         <Avatar :name="m.name" :src="avatarSrc(m.name)" :frame="frameOf(m.name)"></Avatar>
                                     </button>
                                     <span v-else class="dc-msg-time">{{ time(m.time) }}</span>
                                     <div class="dc-msg-body">
                                         <div v-if="!m.cont" class="dc-msg-head">
-                                            <span v-if="m.bot" class="dc-msg-name dc-bot-name">{{ m.name }}</span>
+                                            <span v-if="m.bot" class="dc-msg-name dc-bot-name" :class="{ owo: m.name === 'a101 Casino' }">{{ m.name }}</span>
                                             <span v-if="m.bot" class="dc-role bot">BOT</span>
                                             <button v-else type="button" class="dc-msg-name" :class="nameClass(m.name)" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
                                             <span v-if="roleOfName(m.name) !== 'member'" class="dc-role" :class="roleOfName(m.name)">{{ roleLabel(roleOfName(m.name)) }}</span>
@@ -483,7 +488,48 @@ export default {
                                         <div v-if="m.replyTo" class="dc-reply" @click="jumpTo(m.replyTo.id)"><span class="dc-reply-arrow">&#8618;</span> <b>{{ m.replyTo.name }}</b> <span>{{ m.replyTo.text }}</span></div>
                                         <input v-if="editingId === m.id" ref="editInput" class="dc-edit-input" type="text" v-model="editText" :maxlength="maxText" @keydown.enter.prevent="saveEdit(m)" @keydown.esc="editingId = 0">
                                         <small v-if="editingId === m.id" class="dc-edit-hint">escape to cancel &middot; enter to save</small>
-                                        <div v-if="m.text && editingId !== m.id" class="dc-msg-text"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
+                                        <div v-if="anims[m.id]" class="dc-anim" :class="'anim-' + anims[m.id].type">
+                                            <span class="dc-anim-glyph">{{ animGlyph(m) }}</span>
+                                            <small>{{ animLabel(anims[m.id].type) }}</small>
+                                        </div>
+                                        <div v-if="m.text && editingId !== m.id && !anims[m.id]" class="dc-msg-text" :class="{ 'dc-reveal': revealed[m.id] }"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
+                                        <div v-if="m.duel" class="dc-duel" :class="m.duel.status">
+                                            <div class="dc-duel-vs"><b>{{ m.duel.from }}</b> <span>&#9876;&#65039;</span> <b>{{ m.duel.to }}</b></div>
+                                            <div class="dc-duel-bet">&#128302; {{ m.duel.amount }} orbs on the line</div>
+                                            <template v-if="m.duel.status === 'open' && !duelExpired(m)">
+                                                <div v-if="username && username === m.duel.to" class="dc-duel-actions">
+                                                    <button type="button" class="dc-btn alt" @click="duelAct(m, 'accept')">Accept</button>
+                                                    <button type="button" class="dc-btn ghost" @click="duelAct(m, 'decline')">Decline</button>
+                                                </div>
+                                                <div v-else-if="username && username === m.duel.from" class="dc-duel-actions">
+                                                    <small>Waiting for {{ m.duel.to }}...</small>
+                                                    <button type="button" class="dc-btn ghost" @click="duelAct(m, 'decline')">Cancel</button>
+                                                </div>
+                                                <small v-else>Waiting for {{ m.duel.to }}...</small>
+                                            </template>
+                                            <div v-else class="dc-duel-result">{{ duelResult(m) }}</div>
+                                        </div>
+                                        <div v-if="m.bj" class="dc-bj" :class="m.bj.status">
+                                            <div class="dc-bj-row">
+                                                <span class="dc-bj-label">Dealer</span>
+                                                <span v-for="(c, i) in m.bj.dealer" :key="'d' + i" class="dc-card" :class="{ red: cardRed(c) }">{{ c }}</span>
+                                                <span v-if="m.bj.hidden" class="dc-card back">?</span>
+                                                <b v-if="!m.bj.hidden">{{ bjTotal(m.bj.dealer) }}</b>
+                                            </div>
+                                            <div class="dc-bj-row">
+                                                <span class="dc-bj-label">{{ m.bj.owner }}</span>
+                                                <span v-for="(c, i) in m.bj.player" :key="'p' + i" class="dc-card" :class="{ red: cardRed(c) }">{{ c }}</span>
+                                                <b>{{ bjTotal(m.bj.player) }}</b>
+                                            </div>
+                                            <div class="dc-bj-bet">&#128302; {{ m.bj.bet }} orbs{{ m.bj.doubled ? ' (doubled)' : '' }}</div>
+                                            <div v-if="m.bj.status === 'active' && !bjExpired(m) && username === m.bj.owner" class="dc-duel-actions">
+                                                <button type="button" class="dc-btn alt" @click="bjAct(m, 'hit')">Hit</button>
+                                                <button type="button" class="dc-btn" @click="bjAct(m, 'stand')">Stand</button>
+                                                <button v-if="m.bj.player.length === 2" type="button" class="dc-btn ghost" @click="bjAct(m, 'double')">Double</button>
+                                            </div>
+                                            <small v-else-if="m.bj.status === 'active' && !bjExpired(m)">{{ m.bj.owner }} is playing...</small>
+                                            <div v-else class="dc-duel-result">{{ bjResult(m) }}</div>
+                                        </div>
                                         <div v-if="m.poll" class="dc-poll">
                                             <div class="dc-poll-q">&#128202; {{ m.poll.q }}</div>
                                             <button v-for="(o, i) in m.poll.options" :key="i" type="button" class="dc-poll-opt" :class="{ mine: iVoted(m, i) }" :disabled="!username || pollEnded(m)" @click="votePoll(m, i)">
@@ -610,10 +656,10 @@ export default {
                                         :class="{ active: i === suggestIndex }"
                                         @mousedown.prevent="pickSuggest(item)"
                                     >
-                                        <span v-if="item.cmd" class="dc-cmd-icon">/</span>
+                                        <span v-if="item.cmd" class="dc-cmd-icon" :class="{ casino: item.bot === 'a101 Casino' }" :title="item.bot">{{ item.bot === 'a101 Casino' ? '\u{1F3B0}' : '\u{1F916}' }}</span>
                                         <img v-else-if="item.src" class="dc-emoji" :src="item.src" alt="">
                                         <Avatar v-else class="dc-avatar-xs" :name="item.name" :src="avatarSrc(item.name)"></Avatar>
-                                        {{ item.cmd ? '/' + item.name : item.src ? ':' + item.name + ':' : item.name }} <small v-if="item.desc" class="dc-cmd-desc">{{ item.desc }}</small>
+                                        {{ item.cmd ? '/' + item.name : item.src ? ':' + item.name + ':' : item.name }} <small v-if="item.desc" class="dc-cmd-desc">{{ item.desc }}</small><small v-if="item.bot" class="dc-cmd-bot" :class="{ casino: item.bot === 'a101 Casino' }">{{ item.bot }}</small>
                                     </li>
                                 </ul>
                                 <button type="button" class="dc-attach" title="Share an image or video" @click="$refs.file.click()">+</button>
@@ -1097,6 +1143,9 @@ export default {
             boxResult: null,
             tasks: null,
             tasksOpen: false,
+            anims: {},
+            revealed: {},
+            animTick: 0,
             stickers: [],
             community: { stickers: [], emojis: [], gifs: [] },
             emojiCat: "custom",
@@ -1347,6 +1396,7 @@ export default {
         },
     },
     unmounted() {
+        clearInterval(this.animTimer);
         if (this.baseTitle) document.title = this.baseTitle;
         clearInterval(this.timer);
         clearTimeout(this.suggestTimer);
@@ -1713,6 +1763,114 @@ export default {
             const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
             if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
         },
+        // ---------- command animations ----------
+        animType(m) {
+            if (!m.bot) return "";
+            const text = m.text || "";
+            if (m.name === "a101 Casino") {
+                if (text.startsWith("\u{1FA99}")) return "coin";
+                if (text.startsWith("\u{1F3A1}")) return "roulette";
+                if (text.startsWith("\u{1F3B0}")) return "slots";
+                if (text.startsWith("\u{1F3B2}")) return "dice";
+                return "";
+            }
+            const cmd = m.replyTo?.text || "";
+            if (/^\/flip/i.test(cmd)) return "coin";
+            if (/^\/roll/i.test(cmd)) return "dice";
+            if (/^\/8ball/i.test(cmd)) return "ball";
+            return "";
+        },
+        startAnim(m) {
+            if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+            const type = this.animType(m);
+            if (!type) return;
+            this.anims = { ...this.anims, [m.id]: { type } };
+            if (!this.animTimer) this.animTimer = setInterval(() => (this.animTick += 1), 90);
+            setTimeout(() => {
+                const next = { ...this.anims };
+                delete next[m.id];
+                this.anims = next;
+                this.revealed = { ...this.revealed, [m.id]: true };
+                if (!Object.keys(next).length) {
+                    clearInterval(this.animTimer);
+                    this.animTimer = null;
+                }
+                setTimeout(() => {
+                    const r = { ...this.revealed };
+                    delete r[m.id];
+                    this.revealed = r;
+                }, 900);
+                this.scrollDownIfNeeded();
+            }, 1500);
+        },
+        scrollDownIfNeeded() {
+            if (this.atBottom) this.scrollDown();
+        },
+        animLabel: (type) => ({ coin: "Flipping...", roulette: "The ball is rolling...", slots: "Spinning...", dice: "Rolling...", ball: "Shaking..." }[type] || ""),
+        animGlyph(m) {
+            const type = this.anims[m.id]?.type;
+            const pick = (list, offset = 0) => list[Math.abs(this.animTick * 7 + m.id * 3 + offset * 5) % list.length];
+            if (type === "slots") {
+                const symbols = ["\u{1F352}", "\u{1F34B}", "\u{1F347}", "\u{1F514}", "\u{1F48E}", "7\uFE0F\u20E3"];
+                return `${pick(symbols, 0)} ${pick(symbols, 1)} ${pick(symbols, 2)}`;
+            }
+            if (type === "dice") {
+                const faces = ["\u2680", "\u2681", "\u2682", "\u2683", "\u2684", "\u2685"];
+                return `${pick(faces, 0)} ${pick(faces, 1)}`;
+            }
+            if (type === "roulette") return `\u{1F3A1} ${Math.abs(this.animTick * 11 + m.id) % 37}`;
+            if (type === "ball") return "\u{1F3B1}";
+            return "\u{1FA99}";
+        },
+
+        // ---------- casino ----------
+        bjTotal(cards) {
+            let total = 0;
+            let aces = 0;
+            for (const c of cards) {
+                const rank = c.slice(0, -1);
+                if (rank === "A") {
+                    total += 11;
+                    aces++;
+                } else total += ["J", "Q", "K"].includes(rank) ? 10 : Number(rank);
+            }
+            while (total > 21 && aces > 0) {
+                total -= 10;
+                aces--;
+            }
+            return total;
+        },
+        cardRed: (c) => c.endsWith("\u2665") || c.endsWith("\u2666"),
+        bjExpired: (m) => Date.now() > m.bj.expires,
+        bjResult(m) {
+            const b = m.bj;
+            if (b.status === "blackjack") return `\u{1F0CF} Blackjack! ${b.owner} wins ${b.payout - b.bet} orbs`;
+            if (b.status === "won") return `${b.owner} wins ${b.payout - b.bet} orbs`;
+            if (b.status === "push") return "Push. Bet returned.";
+            if (b.status === "bust") return `Bust! ${b.owner} loses ${b.bet} orbs`;
+            if (b.status === "lost") return `Dealer wins. ${b.owner} loses ${b.bet} orbs`;
+            return "The hand timed out. Bet lost.";
+        },
+        async bjAct(m, action) {
+            await this.post(`${API}/blackjack`, { id: m.id, action });
+            await this.poll();
+            setTimeout(() => this.ensureProfiles([this.username], true), 600);
+        },
+        duelExpired: (m) => Date.now() > m.duel.expires,
+        duelResult(m) {
+            const d = m.duel;
+            if (d.status === "done") return `\u{1F3C6} ${d.winner} won ${d.amount - d.fee} orbs`;
+            if (d.status === "declined") return `${d.to} declined`;
+            if (d.status === "cancelled") return `${d.from} cancelled the duel`;
+            if (d.status === "failed") return "Cancelled: someone did not have enough orbs";
+            return "The duel ran out of time";
+        },
+        async duelAct(m, action) {
+            await this.post(`${API}/duel`, { id: m.id, action });
+            await this.poll();
+            setTimeout(() => this.ensureProfiles([this.username], true), 600);
+        },
+
         // ---------- polls, edits, blocking, community stickers, notifications ----------
         stickerUrl: (file) => (file.startsWith("u_") ? `/api/chat/asset/${file}` : `/assets/stickers/${file}`),
         assetUrl: (id) => `/api/chat/asset/${id}`,
@@ -2398,11 +2556,31 @@ export default {
             const slash = !this.inConvo && /^\/([a-z0-9_]*)$/i.exec(this.text);
             if (slash) {
                 const q = slash[1].toLowerCase();
-                const desc = { help: "list commands", rules: "show the chat rules", roll: "roll dice, e.g. 2d6", flip: "flip a coin", "8ball": "ask the magic 8 ball", choose: "pick one: a | b | c", rank: "find a level on the lists", level: "show a level card", top: "top 5 of the main list", orbs: "see someone's orbs" };
-                const all = [...this.botCommands.builtin.map((name) => ({ name, cmd: true, desc: desc[name] || "" })), ...this.botCommands.custom.map((c) => ({ name: c.name, cmd: true, desc: "custom" }))];
+                const desc = {
+                    help: "list every command",
+                    rules: "show the chat rules",
+                    poll: "make a poll: /poll question | a | b",
+                    cf: "coinflip: /cf <bet>, win = 2x",
+                    roulette: "/roulette <red|black|green|even|odd|0-36> <bet>",
+                    slots: "spin the slots: /slots <bet>",
+                    dice: "/dice <bet> <low|high|seven>",
+                    blackjack: "play blackjack: /blackjack <bet>",
+                    duel: "challenge someone: /duel @user <bet>",
+                    accept: "accept a duel",
+                    decline: "decline a duel",
+                    bal: "see your orbs",
+                    roll: "roll dice, e.g. /roll 2d6",
+                    flip: "flip a coin (no bet)",
+                    "8ball": "ask the magic 8 ball",
+                    choose: "pick one: /choose a | b | c",
+                    rank: "find a level on the lists",
+                    level: "show a level card",
+                    top: "top 5 of the main list",
+                    orbs: "see someone's orbs",
+                };                const all = [...this.botCommands.builtin.map((name) => ({ name, cmd: true, bot: botOf(name), desc: desc[name] || "" })), ...this.botCommands.custom.map((c) => ({ name: c.name, cmd: true, bot: "a101 Bot", desc: "custom: " + c.reply.slice(0, 40) }))];
                 this.suggestKind = "command";
                 this.suggestToken = { start: 0, end: this.text.length };
-                this.suggest = all.filter((c) => c.name.startsWith(q)).slice(0, 6);
+                this.suggest = all.filter((c) => c.name.startsWith(q));
                 this.suggestIndex = 0;
                 if (!this.suggest.length) this.suggestToken = null;
                 return;
@@ -2790,6 +2968,7 @@ export default {
 
                 const known = new Set(this.messages.map((m) => m.id));
                 const fresh = data.messages.filter((m) => !known.has(m.id));
+                const animate = this.primed;
                 if (this.primed && fresh.some((m) => this.mentionsMe(m) || (this.inConvo && m.name !== this.username))) {
                     pinged = true;
                 }
@@ -2807,6 +2986,7 @@ export default {
                     this.messages.push(...fresh);
                     this.messages = this.messages.slice(-100);
                 }
+                if (animate) fresh.forEach((m) => this.startAnim(m));
                 this.version = data.version;
                 this.typingNames = data.typing || [];
                 if (data.full || fresh.length) {
@@ -2868,11 +3048,13 @@ export default {
                 } else if (!res.ok) {
                     this.error = data.error || "Could not send message.";
                 } else {
+                    const wasCommand = this.text.startsWith("/");
                     this.text = "";
                     this.replyTo = null;
                     this.clearPending();
                     this.atBottom = true;
                     this.noteOrb(data);
+                    if (wasCommand) setTimeout(() => this.ensureProfiles([this.username], true), 900);
                     await this.poll();
                 }
             } catch {

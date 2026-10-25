@@ -10,6 +10,7 @@ const CHANNELS = {
     records: {},
     "level-requests": {},
     minigames: {},
+    casino: {},
 };
 
 // Roles are assigned by username. Everyone else is a "member".
@@ -164,8 +165,47 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
-const RULES = [
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+// a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
+const CASINO_NAME = "a101 Casino";
+const GAME_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
+const GAME_USAGE = { cf: "/cf 10", roulette: "/roulette red 10", slots: "/slots 10", dice: "/dice 10 high", blackjack: "/blackjack 10", duel: "/duel @user 10" };
+const MAX_BET = 200;
+const MAX_DUEL = 500;
+const DUEL_FEE = 0.05;
+const DUEL_TTL_MS = 2 * 60 * 1000;
+const GAME_COOLDOWN_MS = 4000;
+const BJ_TTL_MS = 5 * 60 * 1000;
+const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const SLOT_SYMBOLS = [
+    { icon: "\u{1F352}", weight: 40, three: 3 },
+    { icon: "\u{1F34B}", weight: 25, three: 8 },
+    { icon: "\u{1F347}", weight: 18, three: 20 },
+    { icon: "\u{1F514}", weight: 10, three: 60 },
+    { icon: "\u{1F48E}", weight: 5, three: 200 },
+    { icon: "7\uFE0F\u20E3", weight: 2, three: 1000 },
+];
+const CARD_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const CARD_SUITS = ["\u2660", "\u2665", "\u2666", "\u2663"];
+const drawCard = () => `${CARD_RANKS[Math.floor(Math.random() * 13)]}${CARD_SUITS[Math.floor(Math.random() * 4)]}`;
+const handValue = (cards) => {
+    let total = 0;
+    let aces = 0;
+    for (const c of cards) {
+        const rank = c.slice(0, -1);
+        if (rank === "A") {
+            total += 11;
+            aces++;
+        } else {
+            total += ["J", "Q", "K"].includes(rank) ? 10 : Number(rank);
+        }
+    }
+    while (total > 21 && aces > 0) {
+        total -= 10;
+        aces--;
+    }
+    return total;
+};const RULES = [
     "Be respectful. No harassment, hate speech, slurs or personal attacks.",
     "No spam or flooding, and do not beg for orbs, Nitro or roles.",
     "Use the right channel: records in #records, level ideas in #level-requests.",
@@ -369,6 +409,9 @@ export class ChatRoom extends DurableObject {
         this.commandHits = new Map();
         this.botHits = [];
         this.pollHits = new Map();
+        this.gameLast = new Map();
+        this.openDuels = new Map();
+        this.openRuns = new Map();
         this.editHits = new Map();
         this.submitHits = new Map();
     }
@@ -434,6 +477,10 @@ export class ChatRoom extends DurableObject {
             return this.shop(request);
         } else if (post && pathname === "/api/chat/shop") {
             return this.shopAction(request);
+        } else if (post && pathname === "/api/chat/duel") {
+            return this.duelAction(request);
+        } else if (post && pathname === "/api/chat/blackjack") {
+            return this.blackjackAction(request);
         } else if (post && pathname === "/api/chat/vote") {
             return this.vote(request);
         } else if (post && pathname === "/api/chat/edit") {
@@ -1175,7 +1222,7 @@ export class ChatRoom extends DurableObject {
         const message = messages.find((m) => m.id === Number(body.id));
         if (!message) return json({ error: "Message not found." }, 404);
         if (message.name.toLowerCase() === lower) return json({ error: "You can't report your own message." }, 400);
-        if (message.name === BOT_NAME) return json({ error: "That is the bot." }, 400);
+        if (message.name === BOT_NAME || message.name === CASINO_NAME) return json({ error: "That is a bot." }, 400);
 
         const reports = (await this.ctx.storage.get("reports")) || [];
         if (reports.some((r) => r.reporter === lower && r.key === target.key && r.msgId === message.id)) {
@@ -1368,7 +1415,7 @@ export class ChatRoom extends DurableObject {
         if (!target.isDm) {
             const mentions = await this.findMentions(text, username);
             const replied = message.replyTo?.name;
-            if (replied && replied !== BOT_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
+            if (replied && replied !== BOT_NAME && replied !== CASINO_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
             if (mentions.length) message.mentions = mentions;
             else delete message.mentions;
         }
@@ -1593,7 +1640,8 @@ export class ChatRoom extends DurableObject {
         if (!name) return;
         const replyTo = { id: messageId, name: username, text: text.slice(0, 80) };
         const say = (content) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo });
-
+        const casino = (content, extra = {}) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo, name: CASINO_NAME, ...extra });
+        if (GAME_COMMANDS.includes(name)) return this.runGame(username, target, name, args, casino);
         if (name === "rules") return say(`Chat rules:\n${rulesText()}`);
         if (name === "poll") {
             const parts = args.split("|").map((p) => p.trim()).filter(Boolean);
@@ -1615,7 +1663,7 @@ export class ChatRoom extends DurableObject {
         }
         if (name === "help") {
             const custom = (await this.customCommands()).map((c) => `/${c.name}`);
-            return say(`Commands: /rules, /poll q | a | b, /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
+            return say(`Commands: /rules, /poll q | a | b, games in #casino (/cf /roulette /slots /dice /blackjack /duel /bal), /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
         }
         if (name === "roll") {
             const m = /^(\d{1,2})?d(\d{1,4})$/i.exec(args || "d6");
@@ -1660,8 +1708,340 @@ export class ChatRoom extends DurableObject {
         if (custom) return say(custom.reply);
     }
 
-    // ---------- orb economy ----------
+    // ---------- a101 Casino: orb games ----------
 
+    drawSlots() {
+        const total = SLOT_SYMBOLS.reduce((n, s) => n + s.weight, 0);
+        const pick = () => {
+            let roll = Math.random() * total;
+            for (const s of SLOT_SYMBOLS) {
+                roll -= s.weight;
+                if (roll <= 0) return s;
+            }
+            return SLOT_SYMBOLS[0];
+        };
+        const reels = [pick(), pick(), pick()];
+        let multiplier = 0;
+        if (reels[0] === reels[1] && reels[1] === reels[2]) multiplier = reels[0].three;
+        else if (reels.filter((r) => r === SLOT_SYMBOLS[0]).length === 2) multiplier = 1.5;
+        return { reels, multiplier };
+    }
+
+    /** Roulette bets: returns { label, wins(n), pays } where pays is the total multiplier on a win. */
+    rouletteBet(word) {
+        const w = String(word || "").toLowerCase();
+        const colour = (n) => (n === 0 ? "green" : RED_NUMBERS.has(n) ? "red" : "black");
+        const table = {
+            red: { label: "Red", wins: (n) => colour(n) === "red", pays: 2 },
+            black: { label: "Black", wins: (n) => colour(n) === "black", pays: 2 },
+            green: { label: "Green (0)", wins: (n) => n === 0, pays: 36 },
+            even: { label: "Even", wins: (n) => n > 0 && n % 2 === 0, pays: 2 },
+            odd: { label: "Odd", wins: (n) => n % 2 === 1, pays: 2 },
+            low: { label: "Low (1-18)", wins: (n) => n >= 1 && n <= 18, pays: 2 },
+            high: { label: "High (19-36)", wins: (n) => n >= 19, pays: 2 },
+            "1st12": { label: "1st dozen (1-12)", wins: (n) => n >= 1 && n <= 12, pays: 3 },
+            "2nd12": { label: "2nd dozen (13-24)", wins: (n) => n >= 13 && n <= 24, pays: 3 },
+            "3rd12": { label: "3rd dozen (25-36)", wins: (n) => n >= 25, pays: 3 },
+        };
+        const alias = { "1-12": "1st12", "13-24": "2nd12", "25-36": "3rd12", "1-18": "low", "19-36": "high", zero: "green", "0": "green" };
+        const key = alias[w] || w;
+        if (table[key]) return table[key];
+        if (/^\d{1,2}$/.test(w) && Number(w) >= 0 && Number(w) <= 36) {
+            const pick = Number(w);
+            return { label: `Number ${pick}`, wins: (n) => n === pick, pays: 36 };
+        }
+        return null;
+    }
+
+    async runGame(username, target, name, args, say) {
+        if (target.key !== "casino") return say("Games only work in #casino. Head over there to play!");
+        const lower = username.toLowerCase();
+        const now = Date.now();
+        if (now - (this.gameLast.get(lower) || 0) < GAME_COOLDOWN_MS) return;
+        this.gameLast.set(lower, now);
+        if (this.gameLast.size > 2000) this.gameLast.clear();
+
+        const userKey = `u:${lower}`;
+        const user = await this.ctx.storage.get(userKey);
+        const orbs = user.orbs || 0;
+        const words = args.split(/\s+/).filter(Boolean);
+        const parseBet = (word, max) => {
+            const w = String(word || "").toLowerCase();
+            if (w === "all") return Math.min(orbs, max);
+            if (w === "half") return Math.floor(Math.min(orbs, max) / 2);
+            return /^\d+$/.test(w) ? Number(w) : 0;
+        };
+        const checkBet = (bet, max) => {
+            if (!(bet >= 1)) return `Tell me how many orbs to bet. Example: ${GAME_USAGE[name] || "/" + name + " 10"}`;
+            if (bet > max) return `The most you can bet is ${max} orbs.`;
+            if (bet > orbs) return `You only have ${orbs} orbs.`;
+            return "";
+        };
+        const settle = async (net) => {
+            this.addOrbs(user, net, false);
+            await this.ctx.storage.put(userKey, user);
+        };
+
+        if (name === "bal") return say(`${username} has ${orbs} orbs.`);
+
+        if (name === "cf") {
+            const bet = parseBet(words[0], MAX_BET);
+            const problem = checkBet(bet, MAX_BET);
+            if (problem) return say(problem);
+            const win = Math.random() < 0.5;
+            await settle(win ? bet : -bet);
+            return say(`\u{1FA99} ${username} flips a coin for ${bet} orbs... ${win ? `it's a WIN! You get ${bet * 2} back (+${bet}).` : "you lost it."} Balance: ${user.orbs}`);
+        }
+
+        if (name === "roulette") {
+            let [kind, amount] = words;
+            // allow "/roulette 50 red" as well
+            if (kind && amount && /^(\d+|all|half)$/i.test(kind) && !/^(\d+|all|half)$/i.test(amount)) [kind, amount] = [amount, kind];
+            if (!kind) {
+                return say("Roulette: /roulette <red|black|green|even|odd|low|high|1st12|2nd12|3rd12|0-36> <bet>\nRed, black, even, odd, low, high pay x2. Dozens pay x3. A single number or green pays x36. Example: /roulette red 20");
+            }
+            const bet = parseBet(amount, MAX_BET);
+            const problem = checkBet(bet, MAX_BET);
+            const choice = this.rouletteBet(kind);
+            if (!choice) return say("I don't know that bet. Try red, black, green, even, odd, low, high, 1st12, 2nd12, 3rd12 or a number from 0 to 36.");
+            if (problem) return say(problem);
+            const ball = crypto.getRandomValues(new Uint32Array(1))[0] % 37;
+            const dot = ball === 0 ? "\u{1F7E2}" : RED_NUMBERS.has(ball) ? "\u{1F534}" : "\u26AB";
+            const win = choice.wins(ball);
+            const payout = win ? bet * choice.pays : 0;
+            await settle(payout - bet);
+            return say(`\u{1F3A1} The ball lands on ${dot} ${ball}!\n${username} bet ${bet} on ${choice.label}. ${win ? `You win ${payout - bet}! (x${choice.pays})` : `You lose ${bet}.`} Balance: ${user.orbs}`);
+        }
+
+        if (name === "slots") {
+            const bet = parseBet(words[0], MAX_BET);
+            const problem = checkBet(bet, MAX_BET);
+            if (problem) return say(problem);
+            const { reels, multiplier } = this.drawSlots();
+            const payout = Math.floor(bet * multiplier);
+            await settle(payout - bet);
+            const strip = `\u{1F3B0} | ${reels.map((r) => r.icon).join(" ")} |`;
+            const result = payout > bet ? `You win ${payout - bet}! (x${multiplier})` : payout === bet ? "You got your bet back." : "No luck this time.";
+            return say(`${strip}\n${username} bet ${bet}. ${result} Balance: ${user.orbs}`);
+        }
+
+        if (name === "dice") {
+            let [first, second] = words;
+            if (first && second && !/^(\d+|all|half)$/i.test(first) && /^(\d+|all|half)$/i.test(second)) [first, second] = [second, first];
+            const side = String(second || "").toLowerCase();
+            const bet = parseBet(first, MAX_BET);
+            const problem = checkBet(bet, MAX_BET);
+            if (problem) return say(problem);
+            const bets = {
+                low: { label: "Low (2-6)", wins: (s) => s <= 6, pays: 2.3 },
+                high: { label: "High (8-12)", wins: (s) => s >= 8, pays: 2.3 },
+                seven: { label: "Lucky Seven", wins: (s) => s === 7, pays: 5.7 },
+            };
+            const choice = bets[side];
+            if (!choice) return say("Pick low, high or seven. Example: /dice 20 high. Low and high pay x2.3, seven pays x5.7.");
+            const rolls = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+            const sum = rolls[0] + rolls[1];
+            const win = choice.wins(sum);
+            const payout = win ? Math.floor(bet * choice.pays) : 0;
+            await settle(payout - bet);
+            return say(`\u{1F3B2} ${rolls[0]} + ${rolls[1]} = ${sum}\n${username} bet ${bet} on ${choice.label}. ${win ? `You win ${payout - bet}! (x${choice.pays})` : `You lose ${bet}.`} Balance: ${user.orbs}`);
+        }
+
+        if (name === "blackjack") {
+            const bet = parseBet(words[0], MAX_BET);
+            const problem = checkBet(bet, MAX_BET);
+            if (problem) return say(problem);
+            const open = this.openRuns.get(lower);
+            if (open && open.expires > now) return say("You already have a blackjack hand going. Finish it first.");
+            const player = [drawCard(), drawCard()];
+            const dealer = [drawCard(), drawCard()];
+            const playerBJ = handValue(player) === 21;
+            const dealerBJ = handValue(dealer) === 21;
+            const bj = { owner: username, bet, player, dealer: [dealer[0]], hidden: true, status: "active", expires: now + BJ_TTL_MS };
+            let net = -bet;
+            if (playerBJ || dealerBJ) {
+                bj.dealer = dealer;
+                bj.hidden = false;
+                bj.status = playerBJ && dealerBJ ? "push" : playerBJ ? "blackjack" : "lost";
+                bj.payout = bj.status === "push" ? bet : bj.status === "blackjack" ? Math.floor(bet * 2.5) : 0;
+                net = bj.payout - bet;
+            } else {
+                this.openRuns.set(lower, { expires: bj.expires });
+            }
+            await settle(net);
+            const id = await say({ text: `\u{1F0CF} ${username} sits down at the blackjack table with ${bet} orbs.` }, { bj });
+            if (bj.status === "active") await this.ctx.storage.put(`bj:${id}`, { hole: dealer[1] });
+            return;
+        }
+
+        if (name === "duel") {
+            const otherName = String(words[0] || "").replace(/^@/, "").toLowerCase();
+            const bet = parseBet(words[1], MAX_DUEL);
+            if (!NAME_RE.test(otherName)) return say("Challenge someone like this: /duel @username 50");
+            if (otherName === lower) return say("You can't duel yourself.");
+            const problem = checkBet(bet, MAX_DUEL);
+            if (problem) return say(problem);
+            const other = await this.ctx.storage.get(`u:${otherName}`);
+            if (!other) return say("I don't know that user.");
+            if ((other.blocked || []).includes(lower)) return say("That user can't be challenged.");
+            const open = this.openDuels.get(lower);
+            if (open && open.expires > now) return say("You already have an open duel. Wait for it to end first.");
+            const nextId = ((await this.ctx.storage.get("n:casino")) || 0) + 1;
+            const duel = { from: username, to: other.username, amount: bet, expires: now + DUEL_TTL_MS, status: "open" };
+            this.openDuels.set(lower, { id: nextId, expires: duel.expires });
+            return say({ text: `\u2694\uFE0F ${username} challenges ${other.username} to a duel for ${bet} orbs! ${other.username}, press Accept or type /accept.` }, { duel, mentions: [other.username] });
+        }
+
+        // accept / decline the newest open duel aimed at you
+        const messages = (await this.ctx.storage.get("m:casino")) || [];
+        const found = [...messages].reverse().find((m) => m.duel && m.duel.status === "open" && m.duel.to.toLowerCase() === lower && m.duel.expires > now);
+        if (!found) return say("Nobody has challenged you to a duel right now.");
+        const result = await this.settleDuel(found.id, lower, name === "accept" ? "accept" : "decline");
+        if (result.error) return say(result.error);
+    }
+
+    /** Blackjack buttons: hit, stand or double down. Only the player can press them. */
+    async blackjackAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, { channel: "casino" }, true);
+        if (target.error) return target.error;
+        const lower = username.toLowerCase();
+        const messages = (await this.ctx.storage.get("m:casino")) || [];
+        const message = messages.find((m) => m.id === Number(body.id));
+        const bj = message?.bj;
+        if (!bj) return json({ error: "That hand doesn't exist." }, 404);
+        if (bj.owner.toLowerCase() !== lower) return json({ error: "That isn't your hand." }, 403);
+        if (bj.status !== "active") return json({ error: "That hand is over." }, 400);
+        const holeKey = `bj:${message.id}`;
+        const stored = await this.ctx.storage.get(holeKey);
+        const userKey = `u:${lower}`;
+        const user = await this.ctx.storage.get(userKey);
+        const finish = (status) => {
+            bj.status = status;
+            bj.hidden = false;
+            this.openRuns.delete(lower);
+        };
+        const dealerPlays = async () => {
+            const dealer = [bj.dealer[0], stored.hole];
+            while (handValue(dealer) < 17) dealer.push(drawCard());
+            bj.dealer = dealer;
+            const p = handValue(bj.player);
+            const d = handValue(dealer);
+            if (d > 21 || p > d) {
+                finish("won");
+                bj.payout = bj.bet * 2;
+            } else if (p === d) {
+                finish("push");
+                bj.payout = bj.bet;
+            } else {
+                finish("lost");
+                bj.payout = 0;
+            }
+        };
+
+        if (bj.expires < Date.now()) {
+            bj.dealer = [bj.dealer[0], stored?.hole || bj.dealer[0]];
+            finish("expired");
+            bj.payout = 0;
+        } else if (body.action === "hit") {
+            bj.player.push(drawCard());
+            const total = handValue(bj.player);
+            if (total > 21) {
+                bj.dealer = [bj.dealer[0], stored.hole];
+                finish("bust");
+                bj.payout = 0;
+            } else if (total === 21) {
+                await dealerPlays();
+            }
+        } else if (body.action === "stand") {
+            await dealerPlays();
+        } else if (body.action === "double") {
+            if (bj.player.length !== 2) return json({ error: "You can only double on your first two cards." }, 400);
+            if ((user.orbs || 0) < bj.bet) return json({ error: "You don't have enough orbs to double." }, 400);
+            this.addOrbs(user, -bj.bet, false);
+            bj.bet *= 2;
+            bj.doubled = true;
+            bj.player.push(drawCard());
+            if (handValue(bj.player) > 21) {
+                bj.dealer = [bj.dealer[0], stored.hole];
+                finish("bust");
+                bj.payout = 0;
+            } else {
+                await dealerPlays();
+            }
+        } else {
+            return json({ error: "Unknown action." }, 400);
+        }
+        if (bj.status !== "active") {
+            if (bj.payout) this.addOrbs(user, bj.payout, false);
+            await this.ctx.storage.delete(holeKey);
+        }
+        await this.ctx.storage.put(userKey, user);
+        await this.ctx.storage.put("m:casino", messages);
+        await this.bumpVersion("casino");
+        return json({ ok: true, status: bj.status });
+    }
+    /** Settle an open duel. Returns { error } or { ok }. Used by the buttons and the /accept command. */
+    async settleDuel(messageId, actorLower, action) {
+        const messages = (await this.ctx.storage.get("m:casino")) || [];
+        const message = messages.find((m) => m.id === Number(messageId));
+        const duel = message?.duel;
+        if (!duel) return { error: "That duel doesn't exist." };
+        const from = duel.from.toLowerCase();
+        const to = duel.to.toLowerCase();
+        const now = Date.now();
+        if (duel.status !== "open") return { error: "That duel is already over." };
+        if (duel.expires < now) {
+            duel.status = "expired";
+        } else if (action === "decline") {
+            if (actorLower !== to && actorLower !== from) return { error: "That isn't your duel." };
+            duel.status = actorLower === from ? "cancelled" : "declined";
+        } else {
+            if (actorLower !== to) return { error: "Only the person who was challenged can accept." };
+            const a = await this.ctx.storage.get(`u:${from}`);
+            const b = await this.ctx.storage.get(`u:${to}`);
+            if ((a.orbs || 0) < duel.amount || (b.orbs || 0) < duel.amount) {
+                duel.status = "failed";
+            } else {
+                const winnerIsFrom = crypto.getRandomValues(new Uint32Array(1))[0] % 2 === 0;
+                const [winner, loser] = winnerIsFrom ? [a, b] : [b, a];
+                const fee = Math.ceil(duel.amount * DUEL_FEE);
+                this.addOrbs(winner, duel.amount - fee, false);
+                this.addOrbs(loser, -duel.amount, false);
+                await this.ctx.storage.put({ [`u:${from}`]: a, [`u:${to}`]: b });
+                duel.status = "done";
+                duel.winner = winner.username;
+                duel.fee = fee;
+            }
+        }
+        this.openDuels.delete(from);
+        await this.ctx.storage.put("m:casino", messages);
+        await this.bumpVersion("casino");
+        const note =
+            duel.status === "done"
+                ? `\u{1F3C6} ${duel.winner} won the duel and takes ${duel.amount - duel.fee} orbs! (${duel.fee} orbs fee)`
+                : duel.status === "failed"
+                  ? "The duel was cancelled because someone doesn't have enough orbs."
+                  : duel.status === "expired"
+                    ? "That duel ran out of time."
+                    : `${duel.status === "cancelled" ? duel.from : duel.to} ${duel.status === "cancelled" ? "cancelled" : "declined"} the duel.`;
+        await this.botMessage("casino", { text: note }, { name: CASINO_NAME, replyTo: { id: message.id, name: duel.from, text: `duel for ${duel.amount} orbs` } });
+        return { ok: true };
+    }
+
+    async duelAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, { channel: "casino" }, true);
+        if (target.error) return target.error;
+        const result = await this.settleDuel(body.id, username.toLowerCase(), body.action === "accept" ? "accept" : "decline");
+        return result.error ? json({ error: result.error }, 400) : json({ ok: true });
+    }
+
+    // ---------- orb economy ----------
     async orbsAction(request) {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in first." }, 401);
@@ -2287,7 +2667,7 @@ export class ChatRoom extends DurableObject {
         const key = target.key;
         const mentions = target.isDm ? [] : await this.findMentions(text, username);
         const repliedTo = extra.replyTo?.name;
-        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
+        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo !== CASINO_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
             mentions.push(repliedTo);
         }
         this.typing.get(key)?.delete(lower);

@@ -2692,3 +2692,226 @@
     padding: 0;
     text-align: center;
 }
+
+/* OwO bot and duels */
+.page-chat .dc-bot-avatar.owo {
+    background-image: linear-gradient(135deg, #ff8a00, #e52e71);
+}
+.page-chat .dc-bot-name.owo {
+    color: #ffb36b;
+}
+.page-chat .dc-duel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 24rem;
+    margin-top: 0.3rem;
+    padding: 0.8rem;
+    border-left: 4px solid #e52e71;
+    border-radius: 0.4rem;
+    background-color: #2b2d31;
+}
+.page-chat .dc-duel.done {
+    border-left-color: #23a559;
+}
+.page-chat .dc-duel.declined,
+.page-chat .dc-duel.cancelled,
+.page-chat .dc-duel.expired,
+.page-chat .dc-duel.failed {
+    border-left-color: #6d6f78;
+    opacity: 0.8;
+}
+.page-chat .dc-duel-vs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #f2f3f5;
+}
+.page-chat .dc-duel-bet {
+    color: #c9cdfb;
+    font-size: 0.9rem;
+}
+.page-chat .dc-duel-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.page-chat .dc-duel-actions .dc-btn {
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+}
+.page-chat .dc-duel small {
+    color: #949ba4;
+}
+.page-chat .dc-duel-result {
+    font-weight: 700;
+    color: #f2f3f5;
+}
+
+/* command list shows every command, blackjack cards */
+.page-chat .dc-suggest {
+    max-height: 20rem;
+    overflow-y: auto;
+}
+.page-chat .dc-suggest li {
+    gap: 0.6rem;
+}
+.page-chat .dc-cmd-desc {
+    margin-left: auto;
+    padding-left: 1rem;
+    font-size: 0.78rem;
+    text-align: right;
+}
+.page-chat .dc-bj {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    max-width: 24rem;
+    margin-top: 0.3rem;
+    padding: 0.8rem;
+    border-left: 4px solid #23a559;
+    border-radius: 0.4rem;
+    background-color: #1f3a2b;
+}
+.page-chat .dc-bj.lost,
+.page-chat .dc-bj.bust,
+.page-chat .dc-bj.expired {
+    border-left-color: #f23f42;
+}
+.page-chat .dc-bj.push {
+    border-left-color: #f0b232;
+}
+.page-chat .dc-bj-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.page-chat .dc-bj-label {
+    min-width: 4.5rem;
+    font-size: 0.8rem;
+    color: #9bc4ad;
+}
+.page-chat .dc-bj-bet {
+    font-size: 0.85rem;
+    color: #c9cdfb;
+}
+.page-chat .dc-card {
+    display: inline-block;
+    min-width: 2.1rem;
+    padding: 0.25rem 0.35rem;
+    border-radius: 0.3rem;
+    background-color: #fff;
+    color: #1e1f22;
+    font-weight: 700;
+    text-align: center;
+}
+.page-chat .dc-card.red {
+    color: #d92d3a;
+}
+.page-chat .dc-card.back {
+    background-image: repeating-linear-gradient(45deg, #5865f2, #5865f2 4px, #4752c4 4px, #4752c4 8px);
+    color: #fff;
+}
+
+/* command animations */
+.page-chat .dc-anim {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-top: 0.2rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.6rem;
+    background-color: #2b2d31;
+    color: #b5bac1;
+}
+.page-chat .dc-anim-glyph {
+    font-size: 1.8rem;
+    line-height: 1;
+    letter-spacing: 0.15rem;
+}
+.page-chat .dc-anim.anim-coin .dc-anim-glyph {
+    display: inline-block;
+    animation: dc-coin 0.5s linear infinite;
+}
+.page-chat .dc-anim.anim-roulette .dc-anim-glyph {
+    animation: dc-glow 0.6s ease-in-out infinite alternate;
+}
+.page-chat .dc-anim.anim-ball .dc-anim-glyph {
+    display: inline-block;
+    animation: dc-shake 0.35s ease-in-out infinite;
+}
+.page-chat .dc-anim.anim-dice .dc-anim-glyph,
+.page-chat .dc-anim.anim-slots .dc-anim-glyph {
+    animation: dc-jitter 0.18s linear infinite;
+}
+@keyframes dc-coin {
+    from { transform: rotateY(0deg); }
+    to { transform: rotateY(360deg); }
+}
+@keyframes dc-shake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-5px) rotate(-12deg); }
+    75% { transform: translateX(5px) rotate(12deg); }
+}
+@keyframes dc-jitter {
+    0% { transform: translateY(-2px); }
+    50% { transform: translateY(2px); }
+    100% { transform: translateY(-2px); }
+}
+@keyframes dc-glow {
+    from { filter: drop-shadow(0 0 0 rgba(240, 178, 50, 0)); }
+    to { filter: drop-shadow(0 0 8px rgba(240, 178, 50, 0.9)); }
+}
+.page-chat .dc-msg-text.dc-reveal {
+    animation: dc-reveal 0.7s cubic-bezier(0.2, 1.4, 0.4, 1);
+    transform-origin: left center;
+}
+@keyframes dc-reveal {
+    0% { transform: scale(0.7); opacity: 0; }
+    60% { transform: scale(1.06); opacity: 1; }
+    100% { transform: scale(1); }
+}
+.page-chat .dc-card {
+    animation: dc-deal 0.45s ease backwards;
+}
+.page-chat .dc-card:nth-child(3) { animation-delay: 0.12s; }
+.page-chat .dc-card:nth-child(4) { animation-delay: 0.24s; }
+.page-chat .dc-card:nth-child(5) { animation-delay: 0.36s; }
+@keyframes dc-deal {
+    from { transform: translateY(-16px) rotate(-10deg) scale(0.8); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+.page-chat .dc-duel,
+.page-chat .dc-bj {
+    animation: dc-slide-in 0.3s ease;
+}
+@keyframes dc-slide-in {
+    from { transform: translateX(-12px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+/* the bot that owns each command */
+.page-chat .dc-cmd-icon {
+    width: 1.8rem;
+    height: 1.8rem;
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+.page-chat .dc-cmd-icon.casino {
+    background-image: linear-gradient(135deg, #ff8a00, #e52e71);
+}
+.page-chat .dc-cmd-bot {
+    flex-shrink: 0;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.25rem;
+    background-color: #5865f2;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.page-chat .dc-cmd-bot.casino {
+    background-image: linear-gradient(135deg, #ff8a00, #e52e71);
+}
