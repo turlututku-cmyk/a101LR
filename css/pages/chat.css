@@ -2521,3 +2521,151 @@
     border-radius: 0.2rem;
     background-color: #1e1f22;
 }
+
+/* polls, edits, blocking, submissions, invites */
+.page-chat .dc-poll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-width: 26rem;
+    margin-top: 0.3rem;
+    padding: 0.7rem;
+    border-radius: 0.5rem;
+    background-color: #2b2d31;
+}
+.page-chat .dc-poll-q {
+    font-weight: 700;
+    color: #f2f3f5;
+}
+.page-chat .dc-poll small {
+    color: #80848e;
+}
+.page-chat .dc-poll-opt {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.5rem 0.7rem;
+    border: 2px solid transparent;
+    border-radius: 0.4rem;
+    background-color: #1e1f22;
+    color: #dbdee1;
+    font: inherit;
+    text-align: left;
+    overflow: hidden;
+    cursor: pointer;
+}
+.page-chat .dc-poll-opt:disabled {
+    cursor: default;
+}
+.page-chat .dc-poll-opt.mine {
+    border-color: #5865f2;
+}
+.page-chat .dc-poll-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background-color: rgba(88, 101, 242, 0.3);
+    transition: width 250ms ease;
+}
+.page-chat .dc-poll-label,
+.page-chat .dc-poll-opt b {
+    position: relative;
+}
+.page-chat .dc-poll-opt b {
+    font-size: 0.8rem;
+    color: #b5bac1;
+}
+.page-chat .dc-edit-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem 0.7rem;
+    border: none;
+    border-radius: 0.4rem;
+    background-color: #383a40;
+    color: #dbdee1;
+    font: inherit;
+}
+.page-chat .dc-edit-input:focus {
+    outline: none;
+}
+.page-chat .dc-edit-hint {
+    display: block;
+    margin-top: 0.15rem;
+    color: #80848e;
+    font-size: 0.72rem;
+}
+.page-chat .dc-edited {
+    margin-left: 0.2rem;
+    color: #80848e;
+    font-size: 0.7rem;
+}
+.page-chat .dc-msg.blocked {
+    display: none;
+}
+.page-chat .dc-icon-btn .dim {
+    opacity: 0.45;
+}
+.page-chat .dc-asset {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+.page-chat .dc-asset img {
+    width: 3.2rem;
+    height: 3.2rem;
+    object-fit: contain;
+    border-radius: 0.3rem;
+    background-color: #1e1f22;
+}
+.page-chat .dc-asset-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.page-chat .dc-submit {
+    border: 2px dashed #4e5058;
+    color: #949ba4;
+}
+.page-chat .dc-submit b {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+.page-chat .dc-submit:hover {
+    border-color: #5865f2;
+    color: #fff;
+}
+
+/* standard emoji */
+.page-chat .dc-emoji-cats {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 0.2rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #1f2023;
+    overflow-x: auto;
+}
+.page-chat .dc-emoji-cats button {
+    flex-shrink: 0;
+    width: 2.2rem;
+    height: 2.2rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    opacity: 0.7;
+}
+.page-chat .dc-emoji-cats button:hover,
+.page-chat .dc-emoji-cats button.active {
+    background-color: #404249;
+    opacity: 1;
+}
+.page-chat .dc-emoji-btn.dc-uni {
+    font-size: 1.5rem;
+    line-height: 2rem;
+}
+.page-chat .dc-picker-grid.emojis {
+    grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr));
+}

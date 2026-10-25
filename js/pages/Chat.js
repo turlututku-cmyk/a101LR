@@ -73,6 +73,24 @@ const CATEGORIES = [
 ];
 const CHANNELS = CATEGORIES.flatMap((c) => c.channels);
 
+const UNICODE_EMOJI = {
+    smileys: "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤔 🤨 😐 😑 😶 🙄 😏 😬 😮 😯 😲 🥱 😴 😪 😷 🤒 🤕 🤢 🤮 🥵 🥶 😵 🤯 🥳 😎 🤓 😕 😟 🙁 😢 😭 😤 😠 😡 🤬 😱 😨 😰 😥 😓 🥺 😳 🤐 🤫 🤭 🧐",
+    people: "👍 👎 👌 ✌️ 🤞 🤟 🤘 🤙 👋 🤚 ✋ 🖐️ 👏 🙌 🤝 🙏 💪 👀 🧠 🫂 💀 👻 👽 🤖 💩 🙈 🙉 🙊 🤡 😈 👿 🦴",
+    hearts: "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 💖 💗 💓 💞 💕 💘 💝 ✨ ⭐ 🌟 💫 🔥 💥 💯 ✅ ❌ ⚠️ ❓ ❗ 💤 🎉 🎊 🎁 🏆 🥇 🥈 🥉 👑 💎 🔔 🔒",
+    animals: "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦉 🐺 🐴 🦄 🐝 🦋 🐢 🐍 🐙 🐬 🐳 🦈 🌸 🌹 🌻 🌲 🍀 🌈 ☀️ 🌙 ⚡ ❄️ 🌊",
+    food: "🍎 🍌 🍉 🍇 🍓 🍒 🍑 🍍 🥑 🌽 🥕 🍞 🧀 🍔 🍟 🍕 🌭 🌮 🍣 🍜 🍝 🍰 🎂 🍩 🍪 🍫 🍿 ☕ 🍵 🍺 🥤 🧋",
+    play: "🎮 🕹️ 🎯 🎲 ♟️ 🎵 🎶 🎧 🎤 🎸 🥁 ⚽ 🏀 🏈 🎾 🏓 🥊 🚀 ✈️ 🚗 🏁 🧩 🎬 📸 💻 📱 ⌨️ 🖱️ 💡 🔧 🔨 📌 📝 📚",
+};
+const EMOJI_CATS = [
+    { id: "custom", icon: "⭐", label: "Server emoji" },
+    { id: "smileys", icon: "😀", label: "Smileys" },
+    { id: "people", icon: "👋", label: "People and gestures" },
+    { id: "hearts", icon: "❤️", label: "Hearts and symbols" },
+    { id: "animals", icon: "🐶", label: "Animals and nature" },
+    { id: "food", icon: "🍕", label: "Food and drink" },
+    { id: "play", icon: "🎮", label: "Games and objects" },
+];
+
 const formatSize = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 const load = (key) => {
@@ -184,6 +202,10 @@ export default {
                                 <span class="dc-channel-name">Friends</span>
                                 <span v-if="friendData.incoming.length" class="dc-badge">{{ friendData.incoming.length }}</span>
                             </button>
+                            <button type="button" class="dc-channel" @click="inviteOpen = true">
+                                <span class="dc-hash">&#128140;</span>
+                                <span class="dc-channel-name">Invite friends</span>
+                            </button>
                             <button v-if="isMod" type="button" class="dc-channel" @click="openMod">
                                 <span class="dc-hash">&#128737;&#65039;</span>
                                 <span class="dc-channel-name">Moderation</span>
@@ -236,7 +258,7 @@ export default {
                             >
                                 <Avatar class="dc-avatar-xs" :name="d.user" :src="avatarSrc(d.user)"><span class="dc-status" :class="statusOf(d.user)"></span></Avatar>
                                 <span class="dc-channel-name">{{ d.user }}</span>
-                                <span v-if="isDmUnread(d)" class="dc-dot"></span>
+                                <span v-if="isDmUnread(d)" class="dc-badge">{{ unreadCount(d.latest, 'dm:' + d.user.toLowerCase()) }}</span>
                             </button>
                             <button
                                 v-for="g in groups"
@@ -248,7 +270,7 @@ export default {
                             >
                                 <div class="dc-avatar dc-avatar-xs dc-group-icon">{{ g.members.length }}</div>
                                 <span class="dc-channel-name">{{ groupLabel(g) }}</span>
-                                <span v-if="isGroupUnread(g)" class="dc-dot"></span>
+                                <span v-if="isGroupUnread(g)" class="dc-badge">{{ unreadCount(g.latest, 'g:' + g.id) }}</span>
                             </button>
                             <p v-if="!dmList.length && !groups.length" class="dc-dm-empty">No conversations yet.</p>
                         </div>
@@ -271,6 +293,7 @@ export default {
                                     </button>
                                 </div>
                             </div>
+                            <button class="dc-icon-btn" type="button" :title="notifyOn ? 'Desktop notifications are on' : 'Turn on desktop notifications'" @click="toggleNotify"><span :class="{ dim: !notifyOn }">&#128172;</span></button>
                             <button class="dc-icon-btn" type="button" :title="muted ? 'Unmute ping sound' : 'Mute ping sound'" @click="toggleMute">{{ muted ? '&#x1F515;' : '&#x1F514;' }}</button>
                             <button class="dc-icon-btn" type="button" title="Log out" @click="logout">&#x23FB;</button>
                         </template>
@@ -348,6 +371,7 @@ export default {
                                 <button type="button" :class="{ active: friendTab === 'online' }" @click="friendTab = 'online'">Online</button>
                                 <button type="button" :class="{ active: friendTab === 'all' }" @click="friendTab = 'all'">All</button>
                                 <button type="button" :class="{ active: friendTab === 'pending' }" @click="friendTab = 'pending'">Pending<span v-if="friendData.incoming.length" class="dc-badge">{{ friendData.incoming.length }}</span></button>
+                                <button type="button" :class="{ active: friendTab === 'blocked' }" @click="friendTab = 'blocked'">Blocked</button>
                                 <button type="button" class="add" :class="{ active: friendTab === 'add' }" @click="friendTab = 'add'">Add Friend</button>
                             </span>
                         </header>
@@ -361,6 +385,17 @@ export default {
                                 </div>
                                 <p v-if="friendMsg" class="dc-friend-msg" :class="{ bad: friendMsgBad }">{{ friendMsg }}</p>
                             </form>
+                            <template v-else-if="friendTab === 'blocked'">
+                                <p class="dc-cat">Blocked &mdash; {{ blockedNames.length }}</p>
+                                <div v-for="n in blockedNames" :key="n" class="dc-friend-row">
+                                    <button type="button" class="dc-friend-main" @click="openProfile(n)">
+                                        <Avatar class="dc-avatar-sm" :name="n" :src="avatarSrc(n)"></Avatar>
+                                        <span class="dc-friend-name">{{ n }}<small>Their messages are hidden</small></span>
+                                    </button>
+                                    <button type="button" class="dc-btn ghost" @click="toggleBlock(n)">Unblock</button>
+                                </div>
+                                <p v-if="!blockedNames.length" class="dc-members-empty">You have not blocked anyone.</p>
+                            </template>
                             <template v-else-if="friendTab === 'pending'">
                                 <p class="dc-cat">Incoming &mdash; {{ friendData.incoming.length }}</p>
                                 <div v-for="f in friendData.incoming" :key="'in-' + f.user" class="dc-friend-row">
@@ -419,9 +454,10 @@ export default {
                                     </template>
                                 </div>
                                 <p v-if="offline" class="dc-notice">Chat is offline right now. Retrying...</p>
-                                <div v-for="m in grouped" :key="m.id" class="dc-msg" :id="'msg-' + m.id" :class="[{ cont: m.cont, mine: m.name === username, mentioned: mentionsMe(m), flash: flashId === m.id, botmsg: m.bot }, bubbleClass(m.name)]" :style="bubbleStyle(m.name)">
+                                <div v-for="m in grouped" :key="m.id" class="dc-msg" :id="'msg-' + m.id" :class="[{ cont: m.cont, mine: m.name === username, mentioned: mentionsMe(m), flash: flashId === m.id, botmsg: m.bot, blocked: m.hidden }, bubbleClass(m.name)]" :style="bubbleStyle(m.name)">
                                     <div class="dc-msg-tools" v-if="username">
                                         <button type="button" title="Reply" @click.stop="startReply(m)">&#8617;</button>
+                                        <button v-if="canEdit(m)" type="button" title="Edit message" @click.stop="startEdit2(m)">&#9998;</button>
                                         <button type="button" title="Add reaction" @click.stop="reactFor = reactFor === m.id ? 0 : m.id">&#x263A;</button>
                                         <button v-if="!m.bot && m.name !== username" type="button" title="Report message" @click.stop="reportMessage(m)">&#9873;</button>
                                         <button v-if="canDelete(m)" type="button" title="Delete message" class="danger" @click.stop="removeMessage(m)">&#x1F5D1;</button>
@@ -445,7 +481,18 @@ export default {
                                             <span class="dc-msg-stamp">{{ stamp(m.time) }}</span>
                                         </div>
                                         <div v-if="m.replyTo" class="dc-reply" @click="jumpTo(m.replyTo.id)"><span class="dc-reply-arrow">&#8618;</span> <b>{{ m.replyTo.name }}</b> <span>{{ m.replyTo.text }}</span></div>
-                                        <div v-if="m.text" class="dc-msg-text"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template></div>
+                                        <input v-if="editingId === m.id" ref="editInput" class="dc-edit-input" type="text" v-model="editText" :maxlength="maxText" @keydown.enter.prevent="saveEdit(m)" @keydown.esc="editingId = 0">
+                                        <small v-if="editingId === m.id" class="dc-edit-hint">escape to cancel &middot; enter to save</small>
+                                        <div v-if="m.text && editingId !== m.id" class="dc-msg-text"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
+                                        <div v-if="m.poll" class="dc-poll">
+                                            <div class="dc-poll-q">&#128202; {{ m.poll.q }}</div>
+                                            <button v-for="(o, i) in m.poll.options" :key="i" type="button" class="dc-poll-opt" :class="{ mine: iVoted(m, i) }" :disabled="!username || pollEnded(m)" @click="votePoll(m, i)">
+                                                <span class="dc-poll-bar" :style="{ width: pollPct(m, i) + '%' }"></span>
+                                                <span class="dc-poll-label">{{ o }}</span>
+                                                <b>{{ m.poll.votes[i].length }} &middot; {{ pollPct(m, i) }}%</b>
+                                            </button>
+                                            <small>{{ pollTotal(m) }} vote{{ pollTotal(m) === 1 ? '' : 's' }} &middot; {{ pollEnded(m) ? 'Poll ended' : 'Ends ' + stamp(m.poll.ends) }}</small>
+                                        </div>
                                         <div v-if="embedFor(m)" class="dc-embed">
                                             <div class="dc-embed-body">
                                                 <div class="dc-embed-provider">YouTube</div>
@@ -535,12 +582,22 @@ export default {
                                         <span>{{ s.name }}</span>
                                     </button>
                                     <p v-if="!filteredStickers.length" class="dc-picker-empty">No stickers found.</p>
+                                    <button type="button" class="dc-stick dc-submit" title="Suggest a sticker for the library" @click="startSubmit('sticker')"><b>+</b><span>Submit a sticker</span></button>
                                 </div>
                                 <div v-else class="dc-picker-grid emojis">
+                                    <div class="dc-emoji-cats">
+                                        <button v-for="c in emojiCats" :key="c.id" type="button" :class="{ active: emojiCat === c.id && !pickerSearch.trim() }" :title="c.label" @click="emojiCat = c.id; pickerSearch = ''">{{ c.icon }}</button>
+                                    </div>
+                                    <template v-if="emojiCat !== 'custom' && !pickerSearch.trim()">
+                                        <button v-for="ch in unicodeList" :key="ch" type="button" class="dc-emoji-btn dc-uni" @click="insertUnicode(ch)">{{ ch }}</button>
+                                    </template>
+                                    <template v-else>
                                     <button v-for="e in filteredEmojis" :key="e.name" type="button" class="dc-emoji-btn" :title="':' + e.name + ':'" @click="insertEmoji(e)">
                                         <img :src="e.src" :alt="e.name">
                                     </button>
                                     <p v-if="!filteredEmojis.length" class="dc-picker-empty">No emoji found.</p>
+                                    <button type="button" class="dc-emoji-btn dc-submit" title="Suggest an emoji for the library" @click="startSubmit('emoji')"><b>+</b></button>
+                                    </template>
                                 </div>
                             </div>
                             <form v-if="username && canPost" class="dc-composer" @submit.prevent="send">
@@ -654,6 +711,7 @@ export default {
                             </template>
                             <button v-if="username && card.username.toLowerCase() === username.toLowerCase()" type="button" class="dc-btn" @click="startEdit">Edit Profile</button>
                             <button v-if="username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn alt" @click="giftOrbs(card.username)">&#127873; Gift orbs</button>
+                            <button v-if="username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn ghost" @click="toggleBlock(card.username)">{{ isBlocked(card.username) ? 'Unblock' : 'Block' }}</button>
                             <button v-if="role === 'a101' && username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn nitro" @click="giftNitro(card.username)">&#9889; Gift Nitro</button>
                             <select v-if="canModerate(card)" class="dc-mod-select" v-model="modPick" @change="modFromCard">
                                 <option value="">Moderate...</option>
@@ -732,6 +790,21 @@ export default {
                 </div>
             </div>
 
+            <div v-if="inviteOpen" class="dc-modal" @click.self="inviteOpen = false">
+                <div class="dc-card dc-edit">
+                    <h3>&#128140; Invite friends</h3>
+                    <p class="dc-hint">Share your link. When someone signs up with it and sends {{ 5 }} messages, you get <b>&#128302; 10 orbs</b> (up to 20 invites).</p>
+                    <input class="dc-dm-search" type="text" readonly :value="inviteLink" @focus="$event.target.select()">
+                    <p class="dc-hint">People you have invited: <b>{{ (me && me.invited) || 0 }}</b></p>
+                    <div class="dc-card-actions">
+                        <button type="button" class="dc-btn alt" @click="copyInvite">{{ inviteCopied ? 'Copied!' : 'Copy link' }}</button>
+                        <button type="button" class="dc-btn ghost" @click="inviteOpen = false">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <input ref="submitFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="onSubmitFile">
+
             <div v-if="notice" class="dc-modal">
                 <div class="dc-card dc-edit">
                     <h3>&#9888;&#65039; You received a warning</h3>
@@ -777,6 +850,22 @@ export default {
                     <div v-else-if="modData && modTab === 'log'" class="dc-mod-list">
                         <div v-for="(l, i) in modData.log" :key="i" class="dc-log"><b>{{ l.by }}</b> {{ l.action }} <b>{{ l.user }}</b> <small>{{ stamp(l.time) }}<template v-if="l.reason"> &middot; {{ l.reason }}</template></small></div>
                         <p v-if="!modData.log.length" class="dc-members-empty">Nothing yet.</p>
+                    </div>
+                    <div v-else-if="modData && modTab === 'assets'" class="dc-mod-list">
+                        <p class="dc-cat">Waiting for review &mdash; {{ (modData.submissions || []).length }}</p>
+                        <div v-for="s in modData.submissions" :key="s.id" class="dc-report dc-asset">
+                            <img :src="assetUrl(s.id)" alt="">
+                            <div class="dc-asset-info"><b>{{ s.kind === 'emoji' ? ':' + s.name + ':' : s.name }}</b><small>{{ s.kind }} by {{ s.by }}</small></div>
+                            <button type="button" class="dc-btn alt" @click="modAct({ action: 'asset-approve', id: s.id, name: s.name })">Approve</button>
+                            <button type="button" class="dc-btn ghost" @click="modAct({ action: 'asset-reject', id: s.id, name: s.name })">Reject</button>
+                        </div>
+                        <p v-if="!(modData.submissions || []).length" class="dc-members-empty">Nothing waiting.</p>
+                        <p class="dc-cat">Approved &mdash; {{ (modData.community || []).length }}</p>
+                        <div v-for="s in modData.community" :key="s.id" class="dc-report dc-asset">
+                            <img :src="assetUrl(s.id)" alt="">
+                            <div class="dc-asset-info"><b>{{ s.kind === 'emoji' ? ':' + s.name + ':' : s.name }}</b><small>{{ s.kind }} by {{ s.by }}</small></div>
+                            <button type="button" class="dc-btn ghost" @click="modAct({ action: 'asset-remove', id: s.id, name: s.name })">Remove</button>
+                        </div>
                     </div>
                     <div v-else-if="modTab === 'bot'" class="dc-mod-list">
                         <p class="dc-hint">The bot answers slash commands. Add your own, like <code>/rules</code>. Built in: {{ botCommands.builtin.map((c) => '/' + c).join(', ') }}</p>
@@ -1006,6 +1095,15 @@ export default {
             tasks: null,
             tasksOpen: false,
             stickers: [],
+            community: { stickers: [], emojis: [] },
+            emojiCat: "custom",
+            emojiCats: EMOJI_CATS,
+            editingId: 0,
+            editText: "",
+            inviteOpen: false,
+            inviteCopied: false,
+            submitKind: "sticker",
+            notifyOn: load("a101lr-chat-notify") === "1",
             typingNames: [],
             lastTyping: 0,
             replyTo: null,
@@ -1022,6 +1120,7 @@ export default {
             modTabs: [
                 { id: "reports", label: "Reports" },
                 { id: "people", label: "Muted & banned" },
+                { id: "assets", label: "Stickers & emoji" },
                 { id: "log", label: "Log" },
                 { id: "bot", label: "Bot commands" },
             ],
@@ -1064,7 +1163,7 @@ export default {
         },
         filteredStickers() {
             const q = this.pickerSearch.trim().toLowerCase();
-            return this.stickers.filter((s) => !q || s.name.toLowerCase().includes(q));
+            return this.allStickers.filter((s) => !q || s.name.toLowerCase().includes(q));
         },
         typingText() {
             const n = this.typingNames;
@@ -1112,10 +1211,32 @@ export default {
             return this.dm ? `Message @${this.dm}` : `Message #${this.channel}`;
         },
         reactionPalette() {
-            return [...REACTIONS, ...this.emojis.slice(0, 12).map((e) => `:${e.name}:`)];
+            return [...REACTIONS, ...this.allEmojis.slice(0, 12).map((e) => `:${e.name}:`)];
+        },
+        allEmojis() {
+            return [...this.emojis, ...this.community.emojis.map((e) => ({ name: e.name, src: this.assetUrl(e.id) }))];
+        },
+        allStickers() {
+            return [...this.stickers, ...this.community.stickers.map((s) => ({ name: s.name, file: s.id }))];
+        },
+        unicodeList() {
+            return (UNICODE_EMOJI[this.emojiCat] || "").split(" ").filter(Boolean);
+        },
+        blockedNames() {
+            return (this.me?.blocked || []).slice();
+        },
+        inviteLink() {
+            return `${location.origin}/#/minigames/chat?ref=${encodeURIComponent(this.username)}`;
+        },
+        totalUnread() {
+            let n = 0;
+            for (const d of this.dmList) if (this.isDmUnread(d)) n += this.unreadCount(d.latest, `dm:${d.user.toLowerCase()}`);
+            for (const g of this.groups) if (this.isGroupUnread(g)) n += this.unreadCount(g.latest, `g:${g.id}`);
+            for (const c of Object.keys(this.mentionLatest)) if (this.isMentioned(c)) n += 1;
+            return n;
         },
         emojiMap() {
-            return Object.fromEntries(this.emojis.map((e) => [e.name, e.src]));
+            return Object.fromEntries(this.allEmojis.map((e) => [e.name, e.src]));
         },
         filteredGifs() {
             const q = this.pickerSearch.trim().toLowerCase();
@@ -1127,7 +1248,7 @@ export default {
         },
         filteredEmojis() {
             const q = this.pickerSearch.trim().toLowerCase();
-            return this.emojis.filter((e) => !q || e.name.toLowerCase().includes(q));
+            return this.allEmojis.filter((e) => !q || e.name.toLowerCase().includes(q));
         },
         dmList() {
             const list = this.dms.map((d) => ({ ...d }));
@@ -1147,7 +1268,7 @@ export default {
             return this.messages.map((m, i) => {
                 const prev = this.messages[i - 1];
                 const cont = !!prev && prev.name === m.name && m.time - prev.time < GROUP_MS && !m.reactions;
-                return { ...m, cont };
+                return { ...m, cont, hidden: this.isBlocked(m.name) };
             });
         },
         members() {
@@ -1202,6 +1323,10 @@ export default {
         manifest("_gifs").then((g) => (this.gifs = Array.isArray(g) ? g : []));
         manifest("_emojis").then((e) => (this.emojis = Array.isArray(e) ? e : []));
         manifest("_stickers").then((s) => (this.stickers = Array.isArray(s) ? s : []));
+        this.loadCommunity();
+        this.baseTitle = document.title;
+        const ref = this.$route?.query?.ref;
+        if (typeof ref === "string" && /^[A-Za-z0-9_]{3,20}$/.test(ref)) save("a101lr-chat-ref", ref);
         this.loadBotInfo();
         this.loadShop();
         if (this.token) await this.restoreSession();
@@ -1210,7 +1335,13 @@ export default {
         this.$refs.box.addEventListener("scroll", this.onScroll);
         document.addEventListener("click", this.closePops);
     },
+    watch: {
+        totalUnread(n) {
+            document.title = `${n ? `(${n}) ` : ""}${this.baseTitle || "a101 List Reborn"}`;
+        },
+    },
     unmounted() {
+        if (this.baseTitle) document.title = this.baseTitle;
         clearInterval(this.timer);
         clearTimeout(this.suggestTimer);
         document.removeEventListener("click", this.closePops);
@@ -1357,6 +1488,7 @@ export default {
         mentionsMe(m) {
             return (
                 !!this.username &&
+                !this.isBlocked(m.name) &&
                 m.name !== this.username &&
                 (m.mentions || []).some((n) => n.toLowerCase() === this.username.toLowerCase())
             );
@@ -1575,8 +1707,141 @@ export default {
             const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
             if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
         },
+        // ---------- polls, edits, blocking, community stickers, notifications ----------
+        stickerUrl: (file) => (file.startsWith("u_") ? `/api/chat/asset/${file}` : `/assets/stickers/${file}`),
+        assetUrl: (id) => `/api/chat/asset/${id}`,
+        pollTotal: (m) => m.poll.votes.reduce((n, v) => n + v.length, 0),
+        pollEnded: (m) => Date.now() > m.poll.ends,
+        pollPct(m, i) {
+            const total = this.pollTotal(m);
+            return total ? Math.round((m.poll.votes[i].length / total) * 100) : 0;
+        },
+        iVoted(m, i) {
+            return !!this.username && m.poll.votes[i].includes(this.username);
+        },
+        async votePoll(m, i) {
+            await this.post(`${API}/vote`, { ...this.target(), id: m.id, option: i });
+            await this.poll();
+        },
+        canEdit(m) {
+            return !!this.username && !m.bot && m.name === this.username && Date.now() - m.time < 60 * 60 * 1000;
+        },
+        startEdit2(m) {
+            this.editingId = m.id;
+            this.editText = m.text || "";
+            this.$nextTick(() => {
+                const el = [].concat(this.$refs.editInput || [])[0];
+                el?.focus();
+            });
+        },
+        async saveEdit(m) {
+            const text = this.editText.trim();
+            if (text === (m.text || "").trim()) {
+                this.editingId = 0;
+                return;
+            }
+            const data = await this.post(`${API}/edit`, { ...this.target(), id: m.id, text });
+            if (data) this.editingId = 0;
+            await this.poll();
+        },
+        isBlocked(name) {
+            return !!this.me && (this.me.blocked || []).includes(String(name).toLowerCase());
+        },
+        async toggleBlock(name) {
+            const blocking = !this.isBlocked(name);
+            if (blocking && !window.confirm(`Block ${name}? You will not see their messages and they cannot message you.`)) return;
+            const data = await this.post(`${API}/block`, { action: blocking ? "block" : "unblock", user: name });
+            if (data) {
+                this.me = { ...this.me, blocked: data.blocked };
+                if (blocking) await this.loadFriends();
+            }
+        },
+        unreadCount(latest, key) {
+            return Math.min(99, Math.max(1, latest - (this.seen[key] || 0)));
+        },
+        async toggleNotify() {
+            if (!("Notification" in window)) {
+                window.alert("This browser does not support desktop notifications.");
+                return;
+            }
+            if (this.notifyOn) {
+                this.notifyOn = false;
+                save("a101lr-chat-notify", "");
+                return;
+            }
+            const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+            this.notifyOn = permission === "granted";
+            save("a101lr-chat-notify", this.notifyOn ? "1" : "");
+            if (!this.notifyOn) window.alert("Notifications are blocked. Allow them for this site in your browser settings.");
+        },
+        notifyDesktop(title, body) {
+            if (!this.notifyOn || this.myStatus === "dnd" || document.hasFocus()) return;
+            try {
+                new Notification(title, { body, icon: "/osur.png", tag: "a101-chat" });
+            } catch {}
+        },
+        async loadCommunity() {
+            try {
+                const res = await fetch(`${API}/community`, { cache: "no-store" });
+                if (res.ok) this.community = await res.json();
+            } catch {}
+        },
+        startSubmit(kind) {
+            this.submitKind = kind;
+            this.$refs.submitFile?.click();
+        },
+        async onSubmitFile(e) {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            const kind = this.submitKind;
+            const name = window.prompt(kind === "emoji" ? "Emoji name (letters, numbers and _ only):" : "Sticker name:", "");
+            if (!name || !name.trim()) return;
+            this.error = "";
+            try {
+                const limit = kind === "emoji" ? 60 * 1024 : 250 * 1024;
+                let blob = file;
+                if (file.type !== "image/gif" || file.size > limit) blob = await this.shrinkImage(file, kind === "emoji" ? 128 : 512, limit);
+                const res = await fetch(`${API}/submit?${new URLSearchParams({ kind, name: name.trim() })}`, {
+                    method: "POST",
+                    headers: this.token ? { authorization: `Bearer ${this.token}` } : {},
+                    body: blob,
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Could not submit that.");
+                window.alert("Thanks! A moderator will review it before it shows up for everyone.");
+            } catch (err) {
+                this.error = err.message || "Could not submit that.";
+            }
+        },
+        async shrinkImage(file, maxDim, maxBytes) {
+            const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+            let scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                for (const quality of [0.9, 0.75, 0.6]) {
+                    const blob = await new Promise((r) => canvas.toBlob(r, WEBP ? "image/webp" : "image/png", quality));
+                    if (blob && blob.size <= maxBytes) return blob;
+                }
+                scale *= 0.7;
+            }
+            throw new Error("That image is too big even after shrinking.");
+        },
+        async copyInvite() {
+            try {
+                await navigator.clipboard.writeText(this.inviteLink);
+            } catch {
+                document.querySelector(".dc-dm-search[readonly]")?.select();
+                document.execCommand?.("copy");
+            }
+            this.inviteCopied = true;
+            setTimeout(() => (this.inviteCopied = false), 2000);
+        },
+
         // ---------- replies, search, stickers ----------
-        stickerUrl: (file) => `/assets/stickers/${file}`,
         startReply(m) {
             const label = m.text || (m.image ? "[image]" : m.video ? "[video]" : m.gif ? "[GIF]" : m.sticker ? "[sticker]" : "");
             this.replyTo = { id: m.id, name: m.name, text: label.replace(/\s+/g, " ").slice(0, 80) };
@@ -1713,6 +1978,9 @@ export default {
             this.error = "";
             this.modOpen = true;
             await Promise.all([this.loadMod(), this.loadBotInfo()]);
+        },
+        async modActAsset(body) {
+            return this.modAct(body);
         },
         async modAct(body) {
             const data = await this.post(`${API}/mod`, body);
@@ -2134,7 +2402,7 @@ export default {
                 const query = emoji[2].toLowerCase();
                 this.suggestKind = "emoji";
                 this.suggestToken = { start: before.length - query.length - 1, end: before.length };
-                this.suggest = this.emojis
+                this.suggest = this.allEmojis
                     .filter((e) => e.name.toLowerCase().startsWith(query))
                     .slice(0, 6)
                     .map((e) => ({ name: e.name, src: e.src }));
@@ -2206,6 +2474,11 @@ export default {
         togglePicker(kind) {
             this.picker = this.picker === kind ? "" : kind;
             this.pickerSearch = "";
+        },
+        insertUnicode(ch) {
+            const space = this.text && !this.text.endsWith(" ") ? " " : "";
+            this.text = `${this.text}${space === " " ? "" : ""}${ch}`.slice(0, this.maxText);
+            this.$nextTick(() => this.$refs.input?.focus());
         },
         insertEmoji(e) {
             const space = this.text && !this.text.endsWith(" ") ? " " : "";
@@ -2381,10 +2654,11 @@ export default {
             this.error = "";
             this.busy = true;
             try {
+                const payload = this.registering ? { ...this.form, ref: load("a101lr-chat-ref") } : this.form;
                 const res = await fetch(`${AUTH}/${this.registering ? "register" : "login"}`, {
                     method: "POST",
                     headers: { "content-type": "application/json" },
-                    body: JSON.stringify(this.form),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
@@ -2482,6 +2756,8 @@ export default {
                         for (const g of s.groups || []) {
                             if (g.id !== this.groupId && g.latest > (this.groupLatest[g.id] || 0)) pinged = true;
                         }
+                        const dmUser = (s.dms || []).find((d) => this.dm.toLowerCase() !== d.user.toLowerCase() && d.latest > (this.dmLatest[d.user.toLowerCase()] || 0));
+                        if (dmUser) this.notifyDesktop(`Message from ${dmUser.user}`, "Open the chat to read it.");
                         if ((s.incoming || []).length > this.incomingSeen) {
                             pinged = true;
                             this.loadFriends();
@@ -2506,7 +2782,11 @@ export default {
                 if (this.primed && fresh.some((m) => this.mentionsMe(m) || (this.inConvo && m.name !== this.username))) {
                     pinged = true;
                 }
-                if (pinged) this.ping();
+                if (pinged) {
+                    this.ping();
+                    const hit = fresh.find((m) => this.mentionsMe(m) || (this.inConvo && m.name !== this.username));
+                    this.notifyDesktop(hit ? (this.dm ? `Message from ${hit.name}` : `${hit.name} in ${this.groupId && this.group ? this.groupLabel(this.group) : "#" + this.channel}`) : "a101 chat", hit ? (hit.text || "sent something").slice(0, 120) : "You have a new message");
+                }
                 this.primed = true;
 
                 const stick = this.atBottom;
