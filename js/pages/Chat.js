@@ -183,6 +183,11 @@ export default {
                                 <span class="dc-channel-name">Friends</span>
                                 <span v-if="friendData.incoming.length" class="dc-badge">{{ friendData.incoming.length }}</span>
                             </button>
+                            <button v-if="isMod" type="button" class="dc-channel" @click="openMod">
+                                <span class="dc-hash">&#128737;&#65039;</span>
+                                <span class="dc-channel-name">Moderation</span>
+                                <span v-if="modData && modData.reports.length" class="dc-badge">{{ modData.reports.length }}</span>
+                            </button>
                             <button type="button" class="dc-channel" @click="openTasks">
                                 <span class="dc-hash">&#128203;</span>
                                 <span class="dc-channel-name">Orb Tasks</span>
@@ -302,7 +307,24 @@ export default {
                             <span class="dc-divider"></span>
                             <span class="dc-topic">{{ topic }}</span>
                         </template>
+                        <button v-if="username" type="button" class="dc-search-btn" title="Search messages" @click.stop="openSearch">&#128269;</button>
                     </header>
+                    <div v-if="searchOpen" class="dc-search" @click.stop>
+                        <input ref="searchInput" type="text" v-model="searchQ" maxlength="50" placeholder="Search messages" @input="runSearch">
+                        <div class="dc-search-scope">
+                            <button type="button" :class="{ active: searchScope === 'here' }" @click="searchScope = 'here'; runSearch()">This chat</button>
+                            <button v-if="!inConvo" type="button" :class="{ active: searchScope === 'all' }" @click="searchScope = 'all'; runSearch()">All channels</button>
+                            <button type="button" class="dc-icon-btn" @click="searchOpen = false">&#x2715;</button>
+                        </div>
+                        <div class="dc-search-results">
+                            <button v-for="r in searchResults" :key="r.channel + r.id" type="button" class="dc-search-hit" @click="goToResult(r)">
+                                <b>{{ r.name }}</b> <small v-if="r.channel">#{{ r.channel }}</small> <small>{{ stamp(r.time) }}</small>
+                                <span>{{ r.text }}</span>
+                            </button>
+                            <p v-if="searchQ.trim().length >= 2 && !searchResults.length && !searchBusy" class="dc-members-empty">No messages found.</p>
+                            <p v-else-if="searchQ.trim().length < 2" class="dc-members-empty">Type at least 2 letters.</p>
+                        </div>
+                    </div>
                     <div v-show="view === 'chat'" class="dc-mobile-channels">
                         <button
                             v-for="ch in allChannels"
@@ -396,26 +418,32 @@ export default {
                                     </template>
                                 </div>
                                 <p v-if="offline" class="dc-notice">Chat is offline right now. Retrying...</p>
-                                <div v-for="m in grouped" :key="m.id" class="dc-msg" :class="[{ cont: m.cont, mine: m.name === username, mentioned: mentionsMe(m) }, bubbleClass(m.name)]" :style="bubbleStyle(m.name)">
+                                <div v-for="m in grouped" :key="m.id" class="dc-msg" :id="'msg-' + m.id" :class="[{ cont: m.cont, mine: m.name === username, mentioned: mentionsMe(m), flash: flashId === m.id, botmsg: m.bot }, bubbleClass(m.name)]" :style="bubbleStyle(m.name)">
                                     <div class="dc-msg-tools" v-if="username">
+                                        <button type="button" title="Reply" @click.stop="startReply(m)">&#8617;</button>
                                         <button type="button" title="Add reaction" @click.stop="reactFor = reactFor === m.id ? 0 : m.id">&#x263A;</button>
+                                        <button v-if="!m.bot && m.name !== username" type="button" title="Report message" @click.stop="reportMessage(m)">&#9873;</button>
                                         <button v-if="canDelete(m)" type="button" title="Delete message" class="danger" @click.stop="removeMessage(m)">&#x1F5D1;</button>
                                         <div v-if="reactFor === m.id" class="dc-react-pop" @click.stop>
                                             <button v-for="r in reactionPalette" :key="r" type="button" @click="react(m, r)"><span v-if="r.startsWith(':')"><img class="dc-emoji" :src="emojiMap[r.slice(1, -1)]" :alt="r"></span><span v-else>{{ r }}</span></button>
                                         </div>
                                     </div>
-                                    <button v-if="!m.cont" type="button" class="dc-avatar-btn" @click="openProfile(m.name)">
+                                    <div v-if="!m.cont && m.bot" class="dc-avatar dc-bot-avatar">&#129302;</div>
+                                    <button v-else-if="!m.cont" type="button" class="dc-avatar-btn" @click="openProfile(m.name)">
                                         <Avatar :name="m.name" :src="avatarSrc(m.name)" :frame="frameOf(m.name)"></Avatar>
                                     </button>
                                     <span v-else class="dc-msg-time">{{ time(m.time) }}</span>
                                     <div class="dc-msg-body">
                                         <div v-if="!m.cont" class="dc-msg-head">
-                                            <button type="button" class="dc-msg-name" :class="nameClass(m.name)" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
+                                            <span v-if="m.bot" class="dc-msg-name dc-bot-name">{{ m.name }}</span>
+                                            <span v-if="m.bot" class="dc-role bot">BOT</span>
+                                            <button v-else type="button" class="dc-msg-name" :class="nameClass(m.name)" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
                                             <span v-if="roleOfName(m.name) !== 'member'" class="dc-role" :class="roleOfName(m.name)">{{ roleLabel(roleOfName(m.name)) }}</span>
                                             <span v-if="shopBadge(m.name)" class="dc-badge-icon bought" :title="shopBadge(m.name).name">{{ shopBadge(m.name).style.icon }}</span>
                                             <span v-for="b in topBadges(m.name)" :key="b" class="dc-badge-icon" :title="badgeInfo(b).label + ' - ' + badgeInfo(b).desc">{{ badgeInfo(b).icon }}</span>
                                             <span class="dc-msg-stamp">{{ stamp(m.time) }}</span>
                                         </div>
+                                        <div v-if="m.replyTo" class="dc-reply" @click="jumpTo(m.replyTo.id)"><span class="dc-reply-arrow">&#8618;</span> <b>{{ m.replyTo.name }}</b> <span>{{ m.replyTo.text }}</span></div>
                                         <div v-if="m.text" class="dc-msg-text"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template></div>
                                         <div v-if="embedFor(m)" class="dc-embed">
                                             <div class="dc-embed-body">
@@ -437,6 +465,17 @@ export default {
                                             <video v-if="m.gif.endsWith('.mp4')" class="dc-msg-gif" :src="gifUrl(m.gif)" autoplay loop muted playsinline @loadeddata="onImageLoad"></video>
                                             <img v-else class="dc-msg-gif" :src="gifUrl(m.gif)" alt="GIF" @load="onImageLoad" @click="viewer = gifUrl(m.gif)">
                                         </template>
+                                        <img v-if="m.sticker" class="dc-sticker" :src="stickerUrl(m.sticker)" alt="sticker" @load="onImageLoad" @click="viewer = stickerUrl(m.sticker)">
+                                        <div v-if="m.levelCard" class="dc-level">
+                                            <img v-if="levelInfo(m.levelCard)" class="dc-level-tier" :src="levelInfo(m.levelCard).tier" alt="">
+                                            <div class="dc-level-body">
+                                                <b>{{ m.levelCard.name }}</b>
+                                                <small>#{{ m.levelCard.rank }} on {{ listLabel(m.levelCard.list) }}<template v-if="levelInfo(m.levelCard)"> &middot; {{ levelInfo(m.levelCard).tierName }}</template></small>
+                                                <small v-if="levelInfo(m.levelCard)">By {{ levelInfo(m.levelCard).creators }} &middot; verified by {{ levelInfo(m.levelCard).verifier }}</small>
+                                                <a class="dc-link" :href="listLink(m.levelCard)">Open on the list</a>
+                                            </div>
+                                            <a v-if="levelInfo(m.levelCard) && levelInfo(m.levelCard).thumb" :href="levelInfo(m.levelCard).video" target="_blank" rel="noopener noreferrer" class="dc-level-thumb"><img :src="levelInfo(m.levelCard).thumb" alt=""></a>
+                                        </div>
                                         <template v-if="m.video">
                                             <p v-if="brokenVideos[m.video]" class="dc-video-gone">This video is no longer available.</p>
                                             <video v-else class="dc-msg-video" :src="videoUrl(m.video)" controls preload="metadata" playsinline @loadedmetadata="onImageLoad" @error="brokenVideos[m.video] = true"></video>
@@ -464,20 +503,37 @@ export default {
                                 </div>
                                 <button type="button" class="dc-icon-btn" :disabled="sending" title="Remove attachment" @click="clearPending">&#x2715;</button>
                             </div>
+                            <div v-if="username && replyTo" class="dc-replybar">
+                                <span>Replying to <b>{{ replyTo.name }}</b> <small>{{ replyTo.text }}</small></span>
+                                <button type="button" title="Cancel reply" @click="replyTo = null">&#x2715;</button>
+                            </div>
+                            <div v-if="typingNames.length" class="dc-typing"><span class="dc-dots"><i></i><i></i><i></i></span> {{ typingText }}</div>
                             <div v-if="username && picker && canPost" class="dc-picker">
                                 <div class="dc-picker-tabs">
+                                    <button type="button" :class="{ active: picker === 'fav' }" @click="picker = 'fav'; pickerSearch = ''">&#11088; Favourites</button>
                                     <button type="button" :class="{ active: picker === 'gif' }" @click="picker = 'gif'; pickerSearch = ''">GIFs</button>
+                                    <button type="button" :class="{ active: picker === 'sticker' }" @click="picker = 'sticker'; pickerSearch = ''">Stickers</button>
                                     <button type="button" :class="{ active: picker === 'emoji' }" @click="picker = 'emoji'; pickerSearch = ''">Emoji</button>
-                                    <input type="text" v-model="pickerSearch" :placeholder="picker === 'gif' ? 'Search GIFs' : 'Search emoji'">
+                                    <input type="text" v-model="pickerSearch" :placeholder="picker === 'emoji' ? 'Search emoji' : picker === 'sticker' ? 'Search stickers' : 'Search GIFs'">
                                     <button type="button" class="dc-icon-btn" @click="picker = ''">&#x2715;</button>
                                 </div>
-                                <div v-if="picker === 'gif'" class="dc-picker-grid gifs">
-                                    <button v-for="g in filteredGifs" :key="g.file" type="button" class="dc-gif" :title="g.name" @click="sendGif(g)">
-                                        <video v-if="g.file.endsWith('.mp4')" :src="gifUrl(g.file)" autoplay loop muted playsinline></video>
-                                        <img v-else :src="gifUrl(g.file)" :alt="g.name" loading="lazy">
-                                        <span>{{ g.name }}</span>
+                                <div v-if="picker === 'gif' || picker === 'fav'" class="dc-picker-grid gifs">
+                                    <div v-for="g in filteredGifs" :key="g.file" class="dc-gif-wrap">
+                                        <button type="button" class="dc-gif" :title="g.name" @click="sendGif(g)">
+                                            <video v-if="g.file.endsWith('.mp4')" :src="gifUrl(g.file)" autoplay loop muted playsinline></video>
+                                            <img v-else :src="gifUrl(g.file)" :alt="g.name" loading="lazy">
+                                            <span>{{ g.name }}</span>
+                                        </button>
+                                        <button type="button" class="dc-fav" :class="{ on: isFav(g) }" :title="isFav(g) ? 'Remove from favourites' : 'Add to favourites'" @click.stop="toggleFav(g)">{{ isFav(g) ? '\u2605' : '\u2606' }}</button>
+                                    </div>
+                                    <p v-if="!filteredGifs.length" class="dc-picker-empty">{{ picker === 'fav' ? 'Click the star on a GIF to keep it here.' : 'No GIFs found.' }}</p>
+                                </div>
+                                <div v-else-if="picker === 'sticker'" class="dc-picker-grid stickers">
+                                    <button v-for="s in filteredStickers" :key="s.file" type="button" class="dc-stick" :title="s.name" @click="sendSticker(s)">
+                                        <img :src="stickerUrl(s.file)" :alt="s.name" loading="lazy" @error="$event.target.closest('.dc-stick').style.display = 'none'">
+                                        <span>{{ s.name }}</span>
                                     </button>
-                                    <p v-if="!filteredGifs.length" class="dc-picker-empty">No GIFs found.</p>
+                                    <p v-if="!filteredStickers.length" class="dc-picker-empty">No stickers found.</p>
                                 </div>
                                 <div v-else class="dc-picker-grid emojis">
                                     <button v-for="e in filteredEmojis" :key="e.name" type="button" class="dc-emoji-btn" :title="':' + e.name + ':'" @click="insertEmoji(e)">
@@ -488,16 +544,17 @@ export default {
                             </div>
                             <form v-if="username && canPost" class="dc-composer" @submit.prevent="send">
                                 <ul v-if="suggest.length" class="dc-suggest">
-                                    <li class="dc-suggest-head">{{ suggestKind === 'emoji' ? 'Emoji' : 'Members' }}</li>
+                                    <li class="dc-suggest-head">{{ suggestKind === 'emoji' ? 'Emoji' : suggestKind === 'command' ? 'Commands' : 'Members' }}</li>
                                     <li
                                         v-for="(item, i) in suggest"
                                         :key="item.name"
                                         :class="{ active: i === suggestIndex }"
                                         @mousedown.prevent="pickSuggest(item)"
                                     >
-                                        <img v-if="item.src" class="dc-emoji" :src="item.src" alt="">
+                                        <span v-if="item.cmd" class="dc-cmd-icon">/</span>
+                                        <img v-else-if="item.src" class="dc-emoji" :src="item.src" alt="">
                                         <Avatar v-else class="dc-avatar-xs" :name="item.name" :src="avatarSrc(item.name)"></Avatar>
-                                        {{ item.src ? ':' + item.name + ':' : item.name }}
+                                        {{ item.cmd ? '/' + item.name : item.src ? ':' + item.name + ':' : item.name }} <small v-if="item.desc" class="dc-cmd-desc">{{ item.desc }}</small>
                                     </li>
                                 </ul>
                                 <button type="button" class="dc-attach" title="Share an image or video" @click="$refs.file.click()">+</button>
@@ -594,7 +651,18 @@ export default {
                                 <button v-else type="button" class="dc-btn ghost" @click="removeFriend(card.username)">Remove Friend</button>
                             </template>
                             <button v-if="username && card.username.toLowerCase() === username.toLowerCase()" type="button" class="dc-btn" @click="startEdit">Edit Profile</button>
+                            <button v-if="username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn alt" @click="giftOrbs(card.username)">&#127873; Gift orbs</button>
                             <button v-if="role === 'a101' && username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn nitro" @click="giftNitro(card.username)">&#9889; Gift Nitro</button>
+                            <select v-if="canModerate(card)" class="dc-mod-select" v-model="modPick" @change="modFromCard">
+                                <option value="">Moderate...</option>
+                                <option value="mute:10">Mute 10 minutes</option>
+                                <option value="mute:60">Mute 1 hour</option>
+                                <option value="mute:1440">Mute 1 day</option>
+                                <option value="unmute">Unmute</option>
+                                <option value="warn">Warn...</option>
+                                <option value="ban">Ban...</option>
+                                <option value="unban">Unban</option>
+                            </select>
                             <button type="button" class="dc-btn ghost" @click="card = null">Close</button>
                         </div>
                         <p v-if="error" class="dc-error">{{ error }}</p>
@@ -662,6 +730,72 @@ export default {
                 </div>
             </div>
 
+            <div v-if="notice" class="dc-modal">
+                <div class="dc-card dc-edit">
+                    <h3>&#9888;&#65039; You received a warning</h3>
+                    <p class="dc-hint">From <b>{{ notice.by }}</b>: {{ notice.reason }}</p>
+                    <p class="dc-hint">Please follow the chat rules. More warnings can lead to a mute or a ban.</p>
+                    <div class="dc-card-actions"><button type="button" class="dc-btn" @click="ackNotice">I understand</button></div>
+                </div>
+            </div>
+
+            <div v-if="modOpen" class="dc-modal" @click.self="modOpen = false">
+                <div class="dc-card dc-shop dc-mod">
+                    <div class="dc-shop-head"><h3>&#128737;&#65039; Moderation</h3></div>
+                    <div class="dc-shop-tabs">
+                        <button v-for="t in modTabs" :key="t.id" type="button" :class="{ active: modTab === t.id }" @click="modTab = t.id">{{ t.label }}<span v-if="t.id === 'reports' && modData && modData.reports.length" class="dc-badge">{{ modData.reports.length }}</span></button>
+                    </div>
+                    <div v-if="modData && modTab === 'reports'" class="dc-mod-list">
+                        <div v-for="r in modData.reports" :key="r.id" class="dc-report">
+                            <div><b>{{ r.target }}</b> in {{ r.where }} <small>reported by {{ r.reporter }} &middot; {{ stamp(r.time) }}</small></div>
+                            <p>&ldquo;{{ r.text || '(no text)' }}&rdquo;</p>
+                            <small v-if="r.reason">Reason: {{ r.reason }}</small>
+                            <div class="dc-card-actions">
+                                <button type="button" class="dc-btn ghost" @click="openProfile(r.target)">View user</button>
+                                <button type="button" class="dc-btn alt" @click="modAct({ action: 'resolve', id: r.id })">Resolve</button>
+                            </div>
+                        </div>
+                        <p v-if="!modData.reports.length" class="dc-members-empty">No open reports.</p>
+                    </div>
+                    <div v-else-if="modData && modTab === 'people'" class="dc-mod-list">
+                        <p class="dc-cat">Muted &mdash; {{ modData.muted.length }}</p>
+                        <div v-for="m in modData.muted" :key="'m' + m.user" class="dc-report">
+                            <div><b>{{ m.user }}</b> <small>until {{ stamp(m.until) }}</small></div>
+                            <small v-if="m.reason">{{ m.reason }}</small>
+                            <button type="button" class="dc-btn ghost" @click="modAct({ action: 'unmute', user: m.user })">Unmute</button>
+                        </div>
+                        <p class="dc-cat">Banned &mdash; {{ modData.banned.length }}</p>
+                        <div v-for="b in modData.banned" :key="'b' + b.user" class="dc-report">
+                            <div><b>{{ b.user }}</b> <small>by {{ b.by }} &middot; {{ stamp(b.time) }}</small></div>
+                            <small v-if="b.reason">{{ b.reason }}</small>
+                            <button type="button" class="dc-btn ghost" @click="modAct({ action: 'unban', user: b.user })">Unban</button>
+                        </div>
+                        <p v-if="!modData.muted.length && !modData.banned.length" class="dc-members-empty">Nobody is muted or banned.</p>
+                    </div>
+                    <div v-else-if="modData && modTab === 'log'" class="dc-mod-list">
+                        <div v-for="(l, i) in modData.log" :key="i" class="dc-log"><b>{{ l.by }}</b> {{ l.action }} <b>{{ l.user }}</b> <small>{{ stamp(l.time) }}<template v-if="l.reason"> &middot; {{ l.reason }}</template></small></div>
+                        <p v-if="!modData.log.length" class="dc-members-empty">Nothing yet.</p>
+                    </div>
+                    <div v-else-if="modTab === 'bot'" class="dc-mod-list">
+                        <p class="dc-hint">The bot answers slash commands. Add your own, like <code>/rules</code>. Built in: {{ botCommands.builtin.map((c) => '/' + c).join(', ') }}</p>
+                        <form class="dc-bot-form" @submit.prevent="addBotCommand">
+                            <input type="text" v-model="botName" maxlength="21" placeholder="command, e.g. rules">
+                            <input type="text" v-model="botReply" maxlength="300" placeholder="what the bot replies">
+                            <button type="submit" class="dc-btn alt" :disabled="!botName.trim() || !botReply.trim()">Add</button>
+                        </form>
+                        <div v-for="c in botCommands.custom" :key="c.name" class="dc-report">
+                            <div><b>/{{ c.name }}</b></div>
+                            <p>{{ c.reply }}</p>
+                            <button type="button" class="dc-btn ghost" @click="removeBotCommand(c.name)">Remove</button>
+                        </div>
+                        <p v-if="!botCommands.custom.length" class="dc-members-empty">No custom commands yet.</p>
+                    </div>
+                    <p v-else class="dc-members-empty">Loading...</p>
+                    <p v-if="error" class="dc-error">{{ error }}</p>
+                    <div class="dc-card-actions"><button type="button" class="dc-btn ghost" @click="modOpen = false">Close</button></div>
+                </div>
+            </div>
+
             <div v-if="tasksOpen" class="dc-modal" @click.self="tasksOpen = false">
                 <div class="dc-card dc-shop dc-tasks">
                     <div class="dc-shop-head">
@@ -669,6 +803,13 @@ export default {
                         <span class="dc-balance">&#128302; {{ (me && me.orbs) || 0 }}</span>
                     </div>
                     <div v-if="tasks" class="dc-task-list">
+                        <div v-if="tasks.bonus" class="dc-bonus">
+                            <div>
+                                <b>&#128293; Daily bonus</b>
+                                <small>{{ tasks.bonus.streak ? tasks.bonus.streak + ' day streak' : 'Start a streak today' }}</small>
+                            </div>
+                            <button type="button" class="dc-btn alt" :disabled="!tasks.bonus.claimable || busy" @click="claimDaily">{{ tasks.bonus.claimable ? '&#128302; +' + tasks.bonus.reward : 'Come back tomorrow' }}</button>
+                        </div>
                         <p class="dc-cat">Daily tasks &mdash; resets in {{ resetIn }}</p>
                         <div v-for="t in tasks.daily" :key="t.id" class="dc-task" :class="{ done: t.progress >= t.goal, claimed: t.claimed }">
                             <div class="dc-task-info">
@@ -768,7 +909,11 @@ export default {
             <div v-if="board" class="dc-modal" @click.self="board = null">
                 <div class="dc-card dc-edit">
                     <h3>&#127942; Orb Leaderboard</h3>
-                    <p class="dc-hint">Send messages to earn an orb (one per minute).</p>
+                    <div class="dc-shop-tabs">
+                        <button type="button" :class="{ active: boardType === 'week' }" @click="openBoard('week')">This week</button>
+                        <button type="button" :class="{ active: boardType === 'all' }" @click="openBoard('all')">All time</button>
+                    </div>
+                    <p class="dc-hint">Orbs earned by chatting and finishing tasks. Gifts and shop spending do not count.</p>
                     <div v-for="(l, i) in board" :key="l.username" class="dc-leader">
                         <span class="dc-rank">{{ i + 1 }}</span>
                         <Avatar class="dc-avatar-sm" :name="l.username" :src="avatarSrc(l.username)"></Avatar>
@@ -858,6 +1003,32 @@ export default {
             boxResult: null,
             tasks: null,
             tasksOpen: false,
+            stickers: [],
+            typingNames: [],
+            lastTyping: 0,
+            replyTo: null,
+            flashId: 0,
+            searchOpen: false,
+            searchQ: "",
+            searchScope: "here",
+            searchResults: [],
+            searchBusy: false,
+            levels: {},
+            botCommands: { builtin: [], custom: [] },
+            modOpen: false,
+            modTab: "reports",
+            modTabs: [
+                { id: "reports", label: "Reports" },
+                { id: "people", label: "Muted & banned" },
+                { id: "log", label: "Log" },
+                { id: "bot", label: "Bot commands" },
+            ],
+            modData: null,
+            modPick: "",
+            botName: "",
+            botReply: "",
+            notice: null,
+            boardType: "week",
             shop: { items: [], box: { price: 25 }, nitro: { price: 150, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
             orbGain: 1,
             token: load(TOKEN_KEY),
@@ -885,6 +1056,19 @@ export default {
         },
         myStatus() {
             return this.me?.chosenStatus || "online";
+        },
+        isMod() {
+            return this.role === "a101" || this.role === "admin";
+        },
+        filteredStickers() {
+            const q = this.pickerSearch.trim().toLowerCase();
+            return this.stickers.filter((s) => !q || s.name.toLowerCase().includes(q));
+        },
+        typingText() {
+            const n = this.typingNames;
+            if (n.length === 1) return `${n[0]} is typing...`;
+            if (n.length === 2) return `${n[0]} and ${n[1]} are typing...`;
+            return "Several people are typing...";
         },
         claimable() {
             if (!this.tasks) return 0;
@@ -933,7 +1117,11 @@ export default {
         },
         filteredGifs() {
             const q = this.pickerSearch.trim().toLowerCase();
-            return this.gifs.filter((g) => !q || g.name.toLowerCase().includes(q));
+            const favs = this.me?.favGifs || [];
+            let list = this.gifs.filter((g) => !q || g.name.toLowerCase().includes(q));
+            if (this.picker === "fav") list = list.filter((g) => favs.includes(g.file));
+            else list = [...list.filter((g) => favs.includes(g.file)), ...list.filter((g) => !favs.includes(g.file))];
+            return list;
         },
         filteredEmojis() {
             const q = this.pickerSearch.trim().toLowerCase();
@@ -963,7 +1151,8 @@ export default {
         members() {
             const names = [];
             for (let i = this.messages.length - 1; i >= 0; i--) {
-                if (!names.includes(this.messages[i].name)) names.push(this.messages[i].name);
+                const m = this.messages[i];
+                if (!m.bot && !names.includes(m.name)) names.push(m.name);
             }
             return names;
         },
@@ -1010,6 +1199,8 @@ export default {
                 .catch(() => []);
         manifest("_gifs").then((g) => (this.gifs = Array.isArray(g) ? g : []));
         manifest("_emojis").then((e) => (this.emojis = Array.isArray(e) ? e : []));
+        manifest("_stickers").then((s) => (this.stickers = Array.isArray(s) ? s : []));
+        this.loadBotInfo();
         this.loadShop();
         if (this.token) await this.restoreSession();
         await this.poll();
@@ -1382,6 +1573,216 @@ export default {
             const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
             if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
         },
+        // ---------- replies, search, stickers ----------
+        stickerUrl: (file) => `/assets/stickers/${file}`,
+        startReply(m) {
+            const label = m.text || (m.image ? "[image]" : m.video ? "[video]" : m.gif ? "[GIF]" : m.sticker ? "[sticker]" : "");
+            this.replyTo = { id: m.id, name: m.name, text: label.replace(/\s+/g, " ").slice(0, 80) };
+            this.$nextTick(() => this.$refs.input?.focus());
+        },
+        jumpTo(id) {
+            const el = document.getElementById(`msg-${id}`);
+            if (!el) return;
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+            this.flashId = id;
+            setTimeout(() => (this.flashId = 0), 1600);
+        },
+        async sendSticker(s) {
+            if (this.sending) return;
+            this.picker = "";
+            this.error = "";
+            this.sending = true;
+            try {
+                const res = await fetch(API, {
+                    method: "POST",
+                    headers: this.headers(),
+                    body: JSON.stringify({ ...this.target(), sticker: s.file, text: this.text.trim(), reply: this.replyTo?.id }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 401) {
+                    this.expire(data.error);
+                } else if (!res.ok) {
+                    this.error = data.error || "Could not send sticker.";
+                } else {
+                    this.text = "";
+                    this.replyTo = null;
+                    this.atBottom = true;
+                    this.noteOrb(data);
+                    await this.poll();
+                }
+            } catch {
+                this.error = "Could not reach the chat.";
+            }
+            this.sending = false;
+        },
+        openSearch() {
+            this.searchOpen = !this.searchOpen;
+            if (this.searchOpen) this.$nextTick(() => this.$refs.searchInput?.focus());
+        },
+        runSearch() {
+            clearTimeout(this.searchTimer);
+            const q = this.searchQ.trim().toLowerCase();
+            if (q.length < 2) {
+                this.searchResults = [];
+                return;
+            }
+            if (this.searchScope === "here" || this.inConvo) {
+                this.searchResults = this.messages
+                    .filter((m) => (m.text || "").toLowerCase().includes(q) || m.name.toLowerCase().includes(q))
+                    .slice(-30)
+                    .reverse()
+                    .map((m) => ({ channel: "", id: m.id, name: m.name, text: (m.text || "").slice(0, 200), time: m.time }));
+                return;
+            }
+            this.searchBusy = true;
+            this.searchTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`, { headers: this.headers() });
+                    const data = await res.json().catch(() => ({}));
+                    this.searchResults = res.ok ? data.results : [];
+                    if (!res.ok) this.error = data.error || "Search failed.";
+                } catch {
+                    this.searchResults = [];
+                }
+                this.searchBusy = false;
+            }, 250);
+        },
+        async goToResult(r) {
+            this.searchOpen = false;
+            if (r.channel && (this.inConvo || r.channel !== this.channel)) await this.selectChannel(r.channel, true);
+            this.$nextTick(() => setTimeout(() => this.jumpTo(r.id), 150));
+        },
+
+        // ---------- bot, level cards ----------
+        async loadBotInfo() {
+            try {
+                const res = await fetch(`${API}/bot`);
+                if (res.ok) this.botCommands = await res.json();
+            } catch {}
+        },
+        listLabel: (list) => ({ main: "the Main list", aill: "AILL", atpll: "ATPLL" }[list] || list),
+        listLink: (card) => `/#/${{ main: "", aill: "aill", atpll: "atpll" }[card.list] ?? ""}?level=${encodeURIComponent(card.path)}`,
+        levelInfo(card) {
+            return this.levels[card.path] || null;
+        },
+        async loadLevels(messages) {
+            for (const m of messages) {
+                const c = m.levelCard;
+                if (!c || c.path in this.levels) continue;
+                this.levels[c.path] = null;
+                try {
+                    const res = await fetch(`/data/${encodeURIComponent(c.path)}.json`);
+                    if (!res.ok) continue;
+                    const lv = await res.json();
+                    const tier = this.levelTier(lv, c);
+                    const id = youtubeId(lv.verification || "");
+                    this.levels[c.path] = {
+                        tier: `/assets/difficulty/${tier}.png`,
+                        tierName: tier.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" "),
+                        creators: (lv.creators && lv.creators.length ? lv.creators : [lv.author]).join(", "),
+                        verifier: lv.verifier,
+                        video: lv.verification,
+                        thumb: id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : "",
+                    };
+                } catch {}
+            }
+        },
+        levelTier(lv, card) {
+            const known = ["easy-hard", "easy-low", "easy-mid", "medium-low", "medium-mid", "medium-high", "hard-low", "hard-mid", "hard-high", "insane-low", "insane-mid", "insane-high", "extreme-low", "extreme-mid", "extreme-high", "not-humanly-possible", "not-humanly-possible-plus", "free-demon"];
+            if (known.includes(lv.difficulty)) return lv.difficulty;
+            const r = card.rank;
+            if (card.list !== "main") return "extreme-high";
+            if (r <= 1) return "extreme-low";
+            if (r <= 25) return "insane-mid";
+            if (r <= 40) return "hard-mid";
+            if (r <= 55) return "medium-mid";
+            return "easy-hard";
+        },
+
+        // ---------- moderation ----------
+        async loadMod() {
+            if (!this.isMod) return;
+            try {
+                const res = await fetch(`${API}/mod`, { headers: this.headers(), cache: "no-store" });
+                if (res.ok) this.modData = await res.json();
+            } catch {}
+        },
+        async openMod() {
+            this.error = "";
+            this.modOpen = true;
+            await Promise.all([this.loadMod(), this.loadBotInfo()]);
+        },
+        async modAct(body) {
+            const data = await this.post(`${API}/mod`, body);
+            await this.loadMod();
+            return data;
+        },
+        canModerate(card) {
+            const rank = { member: 0, admin: 1, a101: 2 };
+            return this.isMod && !!this.username && card.username.toLowerCase() !== this.username.toLowerCase() && rank[card.role || "member"] < rank[this.role];
+        },
+        async modFromCard() {
+            const pick = this.modPick;
+            this.modPick = "";
+            if (!pick || !this.card) return;
+            const user = this.card.username;
+            const [action, minutes] = pick.split(":");
+            let reason = "";
+            if (["mute", "warn", "ban"].includes(action)) {
+                reason = window.prompt(`${action === "mute" ? "Mute" : action === "warn" ? "Warn" : "Ban"} ${user} - reason:`, "");
+                if (reason === null) return;
+                if (action === "warn" && !reason.trim()) return;
+            }
+            const data = await this.modAct({ action, user, minutes: Number(minutes) || undefined, reason });
+            if (data) window.alert(`Done: ${action} ${user}.`);
+        },
+        async reportMessage(m) {
+            const reason = window.prompt("Why are you reporting this message? (optional)", "");
+            if (reason === null) return;
+            const data = await this.post(`${API}/report`, { ...this.target(), id: m.id, reason });
+            if (data) window.alert("Thanks - the moderators will take a look.");
+        },
+        async ackNotice() {
+            const id = this.notice?.id;
+            this.notice = null;
+            await this.post(`${API}/ack`, { id });
+        },
+        async addBotCommand() {
+            const data = await this.post(`${API}/bot`, { action: "add", name: this.botName, reply: this.botReply });
+            if (data) {
+                this.botCommands = data;
+                this.botName = "";
+                this.botReply = "";
+            }
+        },
+        async removeBotCommand(name) {
+            const data = await this.post(`${API}/bot`, { action: "remove", name });
+            if (data) this.botCommands = data;
+        },
+
+        // ---------- orb economy ----------
+        async claimDaily() {
+            this.busy = true;
+            const data = await this.post(`${API}/orbs`, { action: "daily" });
+            if (data) {
+                this.me = { ...this.me, orbs: data.orbs };
+                this.orbGain = data.reward;
+                this.orbPop = true;
+                setTimeout(() => (this.orbPop = false), 2200);
+            }
+            await this.loadTasks();
+            this.busy = false;
+        },
+        async giftOrbs(name) {
+            const answer = window.prompt(`How many orbs do you want to gift to ${name}? (1-100)`, "10");
+            if (answer === null) return;
+            const data = await this.post(`${API}/orbs`, { action: "gift", user: name, amount: Number(answer) });
+            if (data) {
+                this.me = { ...this.me, orbs: data.orbs };
+                window.alert(`You gifted ${answer} orbs to ${data.to}!`);
+            }
+        },
+
         // ---------- orb tasks ----------
         async loadTasks() {
             if (!this.token) {
@@ -1410,10 +1811,11 @@ export default {
             await this.loadTasks();
             this.busy = false;
         },
-        async openBoard() {
+        async openBoard(type) {
             this.error = "";
+            if (typeof type === "string") this.boardType = type;
             try {
-                const res = await fetch(`${API}/leaderboard`);
+                const res = await fetch(`${API}/leaderboard?type=${this.boardType}`);
                 const leaders = res.ok ? (await res.json()).leaders : [];
                 this.ensureProfiles(leaders.map((l) => l.username));
                 this.board = leaders;
@@ -1689,6 +2091,9 @@ export default {
             this.text = "";
             this.suggest = [];
             this.picker = "";
+            this.typingNames = [];
+            this.replyTo = null;
+            this.searchOpen = false;
             this.atBottom = true;
         },
 
@@ -1703,6 +2108,24 @@ export default {
             if (!input) return;
             const before = this.text.slice(0, input.selectionStart ?? this.text.length);
             clearTimeout(this.suggestTimer);
+
+            if (this.canPost && this.text.trim() && !this.text.startsWith("/") && Date.now() - this.lastTyping > 3000) {
+                this.lastTyping = Date.now();
+                fetch(`${API}/typing`, { method: "POST", headers: this.headers(), body: JSON.stringify(this.target()) }).catch(() => {});
+            }
+
+            const slash = !this.inConvo && /^\/([a-z0-9_]*)$/i.exec(this.text);
+            if (slash) {
+                const q = slash[1].toLowerCase();
+                const desc = { help: "list commands", roll: "roll dice, e.g. 2d6", flip: "flip a coin", "8ball": "ask the magic 8 ball", choose: "pick one: a | b | c", rank: "find a level on the lists", level: "show a level card", top: "top 5 of the main list", orbs: "see someone's orbs" };
+                const all = [...this.botCommands.builtin.map((name) => ({ name, cmd: true, desc: desc[name] || "" })), ...this.botCommands.custom.map((c) => ({ name: c.name, cmd: true, desc: "custom" }))];
+                this.suggestKind = "command";
+                this.suggestToken = { start: 0, end: this.text.length };
+                this.suggest = all.filter((c) => c.name.startsWith(q)).slice(0, 6);
+                this.suggestIndex = 0;
+                if (!this.suggest.length) this.suggestToken = null;
+                return;
+            }
 
             const emoji = before.match(/(^|\s):([A-Za-z0-9_]{2,32})$/);
             if (emoji) {
@@ -1755,6 +2178,8 @@ export default {
                 e.preventDefault();
                 const step = e.key === "ArrowDown" ? 1 : -1;
                 this.suggestIndex = (this.suggestIndex + step + this.suggest.length) % this.suggest.length;
+            } else if (e.key === "Enter" && this.suggestKind === "command") {
+                this.suggest = [];
             } else if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
                 this.pickSuggest(this.suggest[this.suggestIndex]);
@@ -1765,7 +2190,7 @@ export default {
         pickSuggest(item) {
             const token = this.suggestToken;
             if (!token || !item) return;
-            const insert = this.suggestKind === "emoji" ? `:${item.name}: ` : `@${item.name} `;
+            const insert = this.suggestKind === "emoji" ? `:${item.name}: ` : this.suggestKind === "command" ? `/${item.name} ` : `@${item.name} `;
             this.text = `${this.text.slice(0, token.start)}${insert}${this.text.slice(token.end)}`.slice(0, this.maxText);
             this.suggest = [];
             this.suggestToken = null;
@@ -1785,6 +2210,16 @@ export default {
             this.text = `${this.text}${space}:${e.name}: `.slice(0, this.maxText);
             this.$nextTick(() => this.$refs.input?.focus());
         },
+        isFav(g) {
+            return (this.me?.favGifs || []).includes(g.file);
+        },
+        async toggleFav(g) {
+            const current = this.me?.favGifs || [];
+            const next = current.includes(g.file) ? current.filter((f) => f !== g.file) : [...current, g.file];
+            this.me = { ...this.me, favGifs: next };
+            const data = await this.post(`${AUTH}/profile`, { favGifs: next });
+            if (data) this.me = { ...this.me, favGifs: data.favGifs || next };
+        },
         async sendGif(g) {
             if (this.sending) return;
             this.picker = "";
@@ -1794,7 +2229,7 @@ export default {
                 const res = await fetch(API, {
                     method: "POST",
                     headers: this.headers(),
-                    body: JSON.stringify({ ...this.target(), gif: g.file, text: this.text.trim() }),
+                    body: JSON.stringify({ ...this.target(), gif: g.file, text: this.text.trim(), reply: this.replyTo?.id }),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (res.status === 401) {
@@ -1932,9 +2367,11 @@ export default {
                     this.loadFriends();
                     this.loadShop();
                     this.loadTasks();
-                } else if (res.status === 401) {
+                } else if (res.status === 401 || res.status === 403) {
+                    const d = await res.json().catch(() => ({}));
                     this.token = "";
                     save(TOKEN_KEY, "");
+                    if (res.status === 403) this.error = d.error || "This account can't be used.";
                 }
             } catch {}
         },
@@ -2055,6 +2492,7 @@ export default {
                     this.groups = s.groups || [];
                     this.groupLatest = Object.fromEntries(this.groups.map((g) => [g.id, g.latest]));
                     this.incomingSeen = (s.incoming || []).length;
+                    if (s.notice && !this.notice) this.notice = s.notice;
                     this.presence = Object.fromEntries((s.online || []).map((o) => [o.user.toLowerCase(), o.status]));
                     this.presenceName = Object.fromEntries((s.online || []).map((o) => [o.user.toLowerCase(), o.user]));
                 }
@@ -2077,7 +2515,9 @@ export default {
                     this.messages = this.messages.slice(-100);
                 }
                 this.version = data.version;
+                this.typingNames = data.typing || [];
                 if (data.full || fresh.length) {
+                    this.loadLevels(this.messages);
                     if (stick) this.scrollDown();
                     this.scanEmbeds(this.messages);
                     this.ensureProfiles([...this.messages.map((m) => m.name), ...(this.dm ? [this.dm] : [])]);
@@ -2085,6 +2525,7 @@ export default {
                 this.ensureProfiles([...this.dms.map((d) => d.user), ...this.groups.flatMap((g) => g.members)]);
                 this.pollCount++;
                 if (this.username && this.pollCount % 4 === 0) this.loadTasks();
+                if (this.isMod && this.pollCount % 6 === 0) this.loadMod();
                 if (this.pollCount % 10 === 0) {
                     this.ensureProfiles(
                         [
@@ -2110,12 +2551,12 @@ export default {
                 let res;
                 const where = this.target();
                 if (this.pending?.kind === "video") {
-                    const query = new URLSearchParams({ ...where, text: this.text.trim() });
+                    const query = new URLSearchParams({ ...where, text: this.text.trim(), ...(this.replyTo ? { reply: this.replyTo.id } : {}) });
                     this.uploadPct = 0;
                     res = await this.upload(`${API}/video?${query}`, this.pending.blob);
                 } else if (this.pending) {
                     const { blob, w, h } = this.pending;
-                    const query = new URLSearchParams({ ...where, text: this.text.trim(), w, h });
+                    const query = new URLSearchParams({ ...where, text: this.text.trim(), w, h, ...(this.replyTo ? { reply: this.replyTo.id } : {}) });
                     res = await fetch(`${API}/image?${query}`, {
                         method: "POST",
                         headers: this.token ? { authorization: `Bearer ${this.token}` } : {},
@@ -2125,7 +2566,7 @@ export default {
                     res = await fetch(API, {
                         method: "POST",
                         headers: this.headers(),
-                        body: JSON.stringify({ ...where, text: this.text }),
+                        body: JSON.stringify({ ...where, text: this.text, reply: this.replyTo?.id }),
                     });
                 }
                 const data = await res.json().catch(() => ({}));
@@ -2135,6 +2576,7 @@ export default {
                     this.error = data.error || "Could not send message.";
                 } else {
                     this.text = "";
+                    this.replyTo = null;
                     this.clearPending();
                     this.atBottom = true;
                     this.noteOrb(data);

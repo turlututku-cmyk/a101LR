@@ -142,7 +142,7 @@ const BOX_PRICE = 25;
 const DAILY_TASKS = [
     { id: "d_chat", name: "Chatterbox", desc: "Send 10 messages", goal: 10, reward: 5, key: "msg" },
     { id: "d_react", name: "Reactor", desc: "React to 3 messages", goal: 3, reward: 3, key: "react" },
-    { id: "d_gif", name: "GIF Master", desc: "Send a GIF", goal: 1, reward: 3, key: "gif" },
+    { id: "d_gif", name: "GIF Master", desc: "Send a GIF or sticker", goal: 1, reward: 3, key: "gif" },
     { id: "d_dm", name: "Pen Pal", desc: "Send a direct or group message", goal: 1, reward: 3, key: "dm" },
     { id: "d_explore", name: "Explorer", desc: "Post in 3 different channels", goal: 3, reward: 5, key: "channels" },
     { id: "d_media", name: "Show and Tell", desc: "Share an image or a video", goal: 1, reward: 4, key: "media" },
@@ -158,6 +158,26 @@ const ACHIEVEMENTS = [
     { id: "a_100", name: "Century", desc: "Send 100 messages", goal: 100, reward: 25, stat: "msgCount" },
     { id: "a_social", name: "Popular", desc: "Have 5 friends", goal: 5, reward: 25, stat: "friends" },
 ];
+// bot, moderation, stickers, economy extras
+const BOT_NAME = "a101 Bot";
+const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
+const MAX_CUSTOM_COMMANDS = 30;
+const BUILTIN_COMMANDS = ["help", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const STICKER_RE = /^[A-Za-z0-9_-]{1,50}\.(png|webp|svg|gif|jpg)$/;
+const RANK = { member: 0, admin: 1, a101: 2 };
+const MAX_REPORTS = 100;
+const MAX_MUTE_MINUTES = 60 * 24 * 30;
+const TYPING_MS = 5000;
+const GIFT_MIN_AGE_MS = 10 * 60 * 1000;
+const GIFT_MAX = 100;
+const GIFT_DAILY = 300;
+const STREAK_BASE = 2;
+const STREAK_MAX = 12;
+const weekKey = () => {
+    const d = new Date();
+    const start = Date.UTC(d.getUTCFullYear(), 0, 1);
+    return `${d.getUTCFullYear()}-W${Math.floor((Date.now() - start) / (7 * 86400000))}`;
+};
 const taskDay = () => new Date().toISOString().slice(0, 10);
 const nextMidnight = () => {
     const d = new Date();
@@ -310,11 +330,21 @@ export class ChatRoom extends DurableObject {
         this.reactHits = new Map();
         this.friendHits = new Map();
         this.groupHits = new Map();
-        this.board = { time: 0, data: [] };
+        this.board = {};
+        this.typing = new Map();
+        this.modMap = new Map();
+        this.modLoaded = false;
+        this.origin = "";
+        this.levelCache = { time: 0, data: null };
+        this.reportHits = new Map();
+        this.searchHits = new Map();
+        this.commandHits = new Map();
+        this.botHits = [];
     }
 
     async fetch(request) {
-        const { pathname, searchParams } = new URL(request.url);
+        const { pathname, searchParams, origin } = new URL(request.url);
+        this.origin = origin;
         const get = request.method === "GET";
         const post = request.method === "POST";
 
@@ -328,7 +358,27 @@ export class ChatRoom extends DurableObject {
         } else if (get && pathname === "/api/chat/profiles") {
             return this.profiles(searchParams);
         } else if (get && pathname === "/api/chat/leaderboard") {
-            return this.leaderboard();
+            return this.leaderboard(searchParams);
+        } else if (get && pathname === "/api/chat/search") {
+            return this.search(request, searchParams);
+        } else if (post && pathname === "/api/chat/typing") {
+            return this.typingPing(request);
+        } else if (post && pathname === "/api/chat/report") {
+            return this.report(request);
+        } else if (post && pathname === "/api/chat/ack") {
+            return this.ack(request);
+        } else if (get && pathname === "/api/chat/mod") {
+            return this.modOverview(request);
+        } else if (post && pathname === "/api/chat/mod") {
+            return this.modAction(request);
+        } else if (get && pathname === "/api/chat/bot") {
+            return this.botInfo();
+        } else if (post && pathname === "/api/chat/bot/say") {
+            return this.botSay(request);
+        } else if (post && pathname === "/api/chat/bot") {
+            return this.botManage(request);
+        } else if (post && pathname === "/api/chat/orbs") {
+            return this.orbsAction(request);
         } else if (get && pathname === "/api/chat/friends") {
             return this.friends(request);
         } else if (post && pathname === "/api/chat/friends") {
@@ -370,8 +420,11 @@ export class ChatRoom extends DurableObject {
         } else if (post && pathname === "/api/auth/profile") {
             return this.updateProfile(request);
         } else if (get && pathname === "/api/auth/me") {
-            const username = await this.sessionUser(request);
+            const username = await this.rawSession(request);
             if (!username) return json({ error: "Not logged in." }, 401);
+            await this.loadMod();
+            const ban = this.modMap.get(username.toLowerCase())?.banned;
+            if (ban) return json({ error: `This account is banned.${ban.reason ? " Reason: " + ban.reason : ""}`, banned: true }, 403);
             this.touch(username);
             return json(await this.publicProfile(username));
         }
@@ -398,7 +451,22 @@ export class ChatRoom extends DurableObject {
         return token;
     }
 
+    /** The logged-in user, or null if logged out or banned. */
     async sessionUser(request) {
+        const username = await this.rawSession(request);
+        if (!username) return null;
+        await this.loadMod();
+        return this.modMap.get(username.toLowerCase())?.banned ? null : username;
+    }
+
+    async loadMod() {
+        if (this.modLoaded) return;
+        const list = await this.ctx.storage.list({ prefix: "mod:" });
+        this.modMap = new Map([...list].map(([k, v]) => [k.slice(4), v]));
+        this.modLoaded = true;
+    }
+
+    async rawSession(request) {
         const header = request.headers.get("authorization") || "";
         const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
         if (!token) return null;
@@ -448,6 +516,22 @@ export class ChatRoom extends DurableObject {
         return this.hasNitro(user, roleOf(username)) ? MAX_IMAGE_NITRO : MAX_IMAGE_BYTES;
     }
 
+    /** Add orbs. `earn` ones also count towards the leaderboards (gifts and refunds do not). */
+    addOrbs(user, amount, earn = true) {
+        const before = user.orbs || 0;
+        // accounts from before lifetime totals existed start from what they already had
+        if (user.earned === undefined) user.earned = before;
+        user.orbs = before + amount;
+        if (!earn) return;
+        user.earned += amount;
+        const wk = weekKey();
+        if (user.weekKey !== wk) {
+            user.weekKey = wk;
+            user.weekEarned = 0;
+        }
+        user.weekEarned = (user.weekEarned || 0) + amount;
+    }
+
     /** The owner always has Nitro; everyone else while their paid or gifted time lasts. */
     hasNitro(user, role) {
         return role === "a101" || (user?.nitroUntil || 0) > Date.now();
@@ -480,7 +564,7 @@ export class ChatRoom extends DurableObject {
         return badges;
     }
 
-    makeProfile(user, fr) {
+    makeProfile(user, fr, own = false) {
         const lower = user.username.toLowerCase();
         const role = roleOf(user.username);
         const friendCount = (fr?.friends || []).length;
@@ -505,6 +589,7 @@ export class ChatRoom extends DurableObject {
             friends: friendCount,
             badges: this.badgesOf(user, role, friendCount),
             dmFriendsOnly: !!user.dmFriendsOnly,
+            ...(own ? { favGifs: user.favGifs || [] } : {}),
         };
     }
 
@@ -512,7 +597,7 @@ export class ChatRoom extends DurableObject {
         const lower = username.toLowerCase();
         const user = (await this.ctx.storage.get(`u:${lower}`)) || { username };
         const fr = await this.ctx.storage.get(`fr:${lower}`);
-        return this.makeProfile(user, fr);
+        return this.makeProfile(user, fr, true);
     }
 
     /** Turn { channel } / { dm } / { group } into a storage key, enforcing who may read or post. */
@@ -580,6 +665,13 @@ export class ChatRoom extends DurableObject {
             return json(
                 { error: `You're timed out for spamming. Try again in ${Math.ceil((until - now) / 1000)}s.` },
                 429,
+            );
+        }
+        const muted = this.modMap.get(lower);
+        if (muted?.mutedUntil > now) {
+            return json(
+                { error: `You are muted for ${Math.ceil((muted.mutedUntil - now) / 60000)} more minute(s).${muted.muteReason ? " Reason: " + muted.muteReason : ""}` },
+                403,
             );
         }
         if (now - (this.lastSent.get(lower) || 0) < COOLDOWN_MS) {
@@ -739,6 +831,11 @@ export class ChatRoom extends DurableObject {
         }
 
         this.fails.delete(failId);
+        await this.loadMod();
+        const banned = this.modMap.get(user.username.toLowerCase())?.banned;
+        if (banned) {
+            return json({ error: `This account is banned.${banned.reason ? " Reason: " + banned.reason : ""}`, banned: true }, 403);
+        }
         this.touch(user.username);
         return json({
             ...(await this.publicProfile(user.username)),
@@ -773,6 +870,10 @@ export class ChatRoom extends DurableObject {
             user.status = body.status;
         }
         if ("dmFriendsOnly" in body) user.dmFriendsOnly = !!body.dmFriendsOnly;
+        if ("favGifs" in body) {
+            const list = Array.isArray(body.favGifs) ? body.favGifs : [];
+            user.favGifs = [...new Set(list.map(String).filter((g) => GIF_RE.test(g)))].slice(0, 50);
+        }
 
         await this.ctx.storage.put(key, user);
         this.touch(username);
@@ -800,22 +901,25 @@ export class ChatRoom extends DurableObject {
         });
     }
 
-    async leaderboard() {
+    async leaderboard(searchParams) {
+        const type = searchParams.get("type") === "week" ? "week" : "all";
         const now = Date.now();
-        if (now - this.board.time > 30000) {
+        const cached = this.board[type];
+        if (!cached || now - cached.time > 30000) {
             const list = await this.ctx.storage.list({ prefix: "u:", limit: 2000 });
-            this.board = {
+            const wk = weekKey();
+            const score = (u) => (type === "week" ? (u.weekKey === wk ? u.weekEarned || 0 : 0) : u.earned ?? u.orbs ?? 0);
+            this.board[type] = {
                 time: now,
                 data: [...list.values()]
-                    .filter((u) => (u.orbs || 0) > 0)
-                    .sort((a, b) => (b.orbs || 0) - (a.orbs || 0))
+                    .filter((u) => score(u) > 0)
+                    .sort((a, b) => score(b) - score(a))
                     .slice(0, 10)
-                    .map((u) => ({ username: u.username, orbs: u.orbs || 0, avatar: u.avatar || 0 })),
+                    .map((u) => ({ username: u.username, orbs: score(u), avatar: u.avatar || 0 })),
             };
         }
-        return json({ leaders: this.board.data });
+        return json({ leaders: this.board[type].data, type });
     }
-
     async postAvatar(request, searchParams) {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in first." }, 401);
@@ -951,8 +1055,401 @@ export class ChatRoom extends DurableObject {
         return json({ ok: true, profile: await this.publicProfile(username) });
     }
 
-    // ---------- orb tasks ----------
+    // ---------- typing, search, reports ----------
 
+    typingNames(key, me) {
+        const map = this.typing.get(key);
+        if (!map) return [];
+        const now = Date.now();
+        const exclude = me ? me.toLowerCase() : "";
+        const names = [];
+        for (const [lower, entry] of map) {
+            if (now - entry.time >= TYPING_MS) map.delete(lower);
+            else if (lower !== exclude) names.push(entry.name);
+        }
+        return names.slice(0, 4);
+    }
+
+    async typingPing(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, body, true);
+        if (target.error) return target.error;
+        const map = this.typing.get(target.key) || new Map();
+        map.set(username.toLowerCase(), { name: username, time: Date.now() });
+        this.typing.set(target.key, map);
+        if (this.typing.size > 500) this.typing.clear();
+        return json({ ok: true });
+    }
+
+    async search(request, searchParams) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in to search." }, 401);
+        if (this.hitLimit(this.searchHits, username.toLowerCase(), 60 * 1000, 12)) {
+            return json({ error: "You're searching too fast." }, 429);
+        }
+        const q = String(searchParams.get("q") ?? "").trim().toLowerCase().slice(0, 50);
+        if (q.length < 2) return json({ results: [] });
+        const ids = Object.keys(CHANNELS);
+        const lists = await this.many(ids.map((c) => `m:${c}`));
+        const results = [];
+        for (const channel of ids) {
+            for (const m of lists.get(`m:${channel}`) || []) {
+                if ((m.text || "").toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) {
+                    results.push({ channel, id: m.id, name: m.name, text: (m.text || "").slice(0, 200), time: m.time });
+                }
+            }
+        }
+        results.sort((a, b) => b.time - a.time);
+        return json({ results: results.slice(0, 30) });
+    }
+
+    async report(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in to report." }, 401);
+        const lower = username.toLowerCase();
+        if (this.hitLimit(this.reportHits, lower, 60 * 60 * 1000, 5)) {
+            return json({ error: "You have sent a lot of reports. Try again later." }, 429);
+        }
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, body, false);
+        if (target.error) return target.error;
+        const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        const message = messages.find((m) => m.id === Number(body.id));
+        if (!message) return json({ error: "Message not found." }, 404);
+        if (message.name.toLowerCase() === lower) return json({ error: "You can't report your own message." }, 400);
+        if (message.name === BOT_NAME) return json({ error: "That is the bot." }, 400);
+
+        const reports = (await this.ctx.storage.get("reports")) || [];
+        if (reports.some((r) => r.reporter === lower && r.key === target.key && r.msgId === message.id)) {
+            return json({ error: "You already reported that message." }, 400);
+        }
+        reports.push({
+            id: `${Date.now().toString(36)}${toHex(crypto.getRandomValues(new Uint8Array(2)))}`,
+            reporter: username,
+            target: message.name,
+            text: (message.text || (message.image ? "[image]" : message.video ? "[video]" : message.gif ? "[GIF]" : "")).slice(0, 300),
+            where: target.key.startsWith("dm:") ? "a direct message" : target.key.startsWith("g:") ? "a group chat" : `#${target.key}`,
+            msgId: message.id,
+            key: target.key,
+            reason: String(body.reason ?? "").replace(/\s+/g, " ").trim().slice(0, 100),
+            time: Date.now(),
+        });
+        await this.ctx.storage.put("reports", reports.slice(-MAX_REPORTS));
+        return json({ ok: true });
+    }
+
+    // ---------- moderation ----------
+
+    async requireMod(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return { error: json({ error: "Log in first." }, 401) };
+        if (!MODERATORS.includes(roleOf(username))) return { error: json({ error: "Moderators only." }, 403) };
+        return { username };
+    }
+
+    async modOverview(request) {
+        const who = await this.requireMod(request);
+        if (who.error) return who.error;
+        const now = Date.now();
+        const entries = [...this.modMap];
+        const names = await this.many(entries.map(([lower]) => `u:${lower}`));
+        const nameOf = (lower) => names.get(`u:${lower}`)?.username || lower;
+        return json({
+            reports: ((await this.ctx.storage.get("reports")) || []).slice().reverse(),
+            muted: entries
+                .filter(([, m]) => m.mutedUntil > now)
+                .map(([lower, m]) => ({ user: nameOf(lower), until: m.mutedUntil, reason: m.muteReason || "" })),
+            banned: entries
+                .filter(([, m]) => m.banned)
+                .map(([lower, m]) => ({ user: nameOf(lower), by: m.banned.by, reason: m.banned.reason, time: m.banned.time })),
+            log: ((await this.ctx.storage.get("modlog")) || []).slice(-30).reverse(),
+        });
+    }
+
+    async modAction(request) {
+        const who = await this.requireMod(request);
+        if (who.error) return who.error;
+        const actor = who.username;
+        const body = (await this.readBody(request)) || {};
+        const action = String(body.action ?? "");
+        const reason = String(body.reason ?? "").replace(/\s+/g, " ").trim().slice(0, 100);
+
+        if (action === "resolve") {
+            const reports = ((await this.ctx.storage.get("reports")) || []).filter((r) => r.id !== body.id);
+            await this.ctx.storage.put("reports", reports);
+            return json({ ok: true });
+        }
+
+        const target = await this.ctx.storage.get(`u:${String(body.user ?? "").trim().toLowerCase()}`);
+        if (!target) return json({ error: "No such user." }, 404);
+        const lower = target.username.toLowerCase();
+        if (lower === actor.toLowerCase()) return json({ error: "You can't do that to yourself." }, 400);
+        if (RANK[roleOf(target.username)] >= RANK[roleOf(actor)]) {
+            return json({ error: "You can only act on people below your rank." }, 403);
+        }
+
+        await this.loadMod();
+        const rec = { ...(this.modMap.get(lower) || {}) };
+        const now = Date.now();
+        if (action === "mute") {
+            const minutes = Math.min(Math.max(Math.round(Number(body.minutes) || 10), 1), MAX_MUTE_MINUTES);
+            rec.mutedUntil = now + minutes * 60000;
+            rec.muteReason = reason;
+        } else if (action === "unmute") {
+            delete rec.mutedUntil;
+            delete rec.muteReason;
+        } else if (action === "ban") {
+            rec.banned = { by: actor, reason, time: now };
+        } else if (action === "unban") {
+            delete rec.banned;
+        } else if (action === "warn") {
+            if (!reason) return json({ error: "Add a reason for the warning." }, 400);
+            rec.warnings = [...(rec.warnings || []), { id: now, by: actor, reason, time: now, ack: false }].slice(-10);
+        } else {
+            return json({ error: "Unknown action." }, 400);
+        }
+
+        this.modMap.set(lower, rec);
+        await this.ctx.storage.put(`mod:${lower}`, rec);
+        const log = (await this.ctx.storage.get("modlog")) || [];
+        log.push({ time: now, by: actor, action, user: target.username, reason });
+        await this.ctx.storage.put("modlog", log.slice(-100));
+        return json({ ok: true });
+    }
+
+    async ack(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const body = (await this.readBody(request)) || {};
+        const lower = username.toLowerCase();
+        const rec = this.modMap.get(lower);
+        if (rec?.warnings) {
+            rec.warnings = rec.warnings.map((w) => (w.id === Number(body.id) ? { ...w, ack: true } : w));
+            await this.ctx.storage.put(`mod:${lower}`, rec);
+        }
+        return json({ ok: true });
+    }
+
+    // ---------- bot ----------
+
+    async botMessage(key, content, extra = {}) {
+        const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
+        const nextId = ((await this.ctx.storage.get(`n:${key}`)) || 0) + 1;
+        messages.push({ id: nextId, name: BOT_NAME, bot: true, text: content.text || "", time: Date.now(), ...(content.levelCard ? { levelCard: content.levelCard } : {}), ...extra });
+        const kept = messages.slice(-MAX_MESSAGES);
+        const dropped = messages.slice(0, messages.length - kept.length);
+        await this.ctx.storage.put({ [`m:${key}`]: kept, [`n:${key}`]: nextId });
+        if (dropped.length) await this.purgeMessageAssets(dropped);
+        return nextId;
+    }
+
+    async fetchAsset(path) {
+        const url = this.origin + path;
+        try {
+            const res = this.env?.ASSETS ? await this.env.ASSETS.fetch(new Request(url)) : await fetch(url);
+            return res.ok ? await res.json() : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /** Every level on the three lists, from the latest Time Machine snapshot (cached for 5 minutes). */
+    async levelIndex() {
+        if (this.levelCache.data && Date.now() - this.levelCache.time < 5 * 60 * 1000) return this.levelCache.data;
+        const tm = await this.fetchAsset("/data/_timemachine.json");
+        const days = tm ? Object.keys(tm).sort() : [];
+        const last = days.length ? tm[days[days.length - 1]] : null;
+        const levels = [];
+        for (const [list, entries] of [["main", last?.list || []], ["aill", last?.aill || []]]) {
+            entries.forEach((e, i) => levels.push({ name: e.n, path: e.p, verifier: e.v, list, rank: i + 1 }));
+        }
+        const atpll = (await this.fetchAsset("/data/_atpll.json")) || [];
+        for (let i = 0; i < atpll.length; i++) {
+            const level = await this.fetchAsset(`/data/${atpll[i]}.json`);
+            if (level) levels.push({ name: level.name, path: atpll[i], verifier: level.verifier, list: "atpll", rank: i + 1 });
+        }
+        this.levelCache = { time: Date.now(), data: levels };
+        return levels;
+    }
+
+    findLevel(levels, query) {
+        const q = query.trim().toLowerCase();
+        if (!q) return null;
+        return (
+            levels.find((l) => l.name.toLowerCase() === q) ||
+            levels.find((l) => l.name.toLowerCase().startsWith(q)) ||
+            levels.find((l) => l.name.toLowerCase().includes(q)) ||
+            null
+        );
+    }
+
+    async customCommands() {
+        return (await this.ctx.storage.get("cmds")) || [];
+    }
+
+    async botInfo() {
+        return json({
+            name: BOT_NAME,
+            builtin: BUILTIN_COMMANDS,
+            custom: (await this.customCommands()).map((c) => ({ name: c.name, reply: c.reply })),
+        });
+    }
+
+    async botManage(request) {
+        const who = await this.requireMod(request);
+        if (who.error) return who.error;
+        const body = (await this.readBody(request)) || {};
+        const cmds = await this.customCommands();
+        const name = String(body.name ?? "").trim().toLowerCase().replace(/^\//, "");
+        if (!/^[a-z0-9_]{2,20}$/.test(name)) return json({ error: "Command names are 2-20 letters, numbers or underscores." }, 400);
+        if (body.action === "add") {
+            const reply = String(body.reply ?? "").trim().slice(0, 300);
+            if (!reply) return json({ error: "Write what the bot should reply." }, 400);
+            if (BUILTIN_COMMANDS.includes(name)) return json({ error: "That is a built-in command." }, 400);
+            if (!cmds.some((c) => c.name === name) && cmds.length >= MAX_CUSTOM_COMMANDS) {
+                return json({ error: "Too many custom commands." }, 400);
+            }
+            await this.ctx.storage.put("cmds", [...cmds.filter((c) => c.name !== name), { name, reply }]);
+        } else if (body.action === "remove") {
+            await this.ctx.storage.put("cmds", cmds.filter((c) => c.name !== name));
+        } else {
+            return json({ error: "Unknown action." }, 400);
+        }
+        return this.botInfo();
+    }
+
+    /** Lets the owner's scripts post as the bot, e.g. to announce new levels. */
+    async botSay(request) {
+        const header = request.headers.get("authorization") || "";
+        const token = header.startsWith("Bot ") ? header.slice(4).trim() : "";
+        if (!token || !safeEqual(await sha256(token), BOT_TOKEN_HASH)) return json({ error: "Bad bot token." }, 401);
+        const now = Date.now();
+        this.botHits = this.botHits.filter((t) => now - t < 60000);
+        if (this.botHits.length >= 30) return json({ error: "Slow down." }, 429);
+        this.botHits.push(now);
+
+        const body = (await this.readBody(request)) || {};
+        const channel = String(body.channel ?? "announcements");
+        if (!has(CHANNELS, channel)) return json({ error: "Unknown channel." }, 404);
+        const text = String(body.text ?? "").trim().slice(0, 500);
+        let levelCard = null;
+        if (body.level) {
+            const found = this.findLevel(await this.levelIndex(), String(body.level));
+            if (found) levelCard = { path: found.path, list: found.list, rank: found.rank, name: found.name };
+        }
+        if (!text && !levelCard) return json({ error: "Nothing to say." }, 400);
+        const id = await this.botMessage(channel, { text, levelCard });
+        return json({ ok: true, id });
+    }
+
+    async runCommand(username, target, text, messageId) {
+        const lower = username.toLowerCase();
+        if (this.hitLimit(this.commandHits, lower, 60 * 1000, 8)) return;
+        const [head, ...rest] = text.slice(1).trim().split(/\s+/);
+        const name = (head || "").toLowerCase();
+        const args = rest.join(" ").trim();
+        if (!name) return;
+        const replyTo = { id: messageId, name: username, text: text.slice(0, 80) };
+        const say = (content) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo });
+
+        if (name === "help") {
+            const custom = (await this.customCommands()).map((c) => `/${c.name}`);
+            return say(`Commands: /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
+        }
+        if (name === "roll") {
+            const m = /^(\d{1,2})?d(\d{1,4})$/i.exec(args || "d6");
+            if (!m) return say("Use it like /roll, /roll d20 or /roll 3d6.");
+            const count = Number(m[1] || 1);
+            const sides = Number(m[2]);
+            if (sides < 2 || count < 1) return say("That dice doesn't exist.");
+            const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * sides));
+            return say(`${username} rolled ${count}d${sides}: ${rolls.join(" + ")}${count > 1 ? " = " + rolls.reduce((a, b) => a + b, 0) : ""}`);
+        }
+        if (name === "flip") return say(`${username} flipped a coin: ${Math.random() < 0.5 ? "Heads" : "Tails"}`);
+        if (name === "8ball") {
+            const answers = ["It is certain.", "Without a doubt.", "Yes, definitely.", "Most likely.", "Ask again later.", "Cannot predict now.", "Don't count on it.", "My sources say no.", "Very doubtful.", "Outlook not so good."];
+            return say(`${args ? args + " - " : ""}${answers[Math.floor(Math.random() * answers.length)]}`);
+        }
+        if (name === "choose") {
+            const options = args.split("|").map((o) => o.trim()).filter(Boolean);
+            if (options.length < 2) return say("Give me at least two options, like /choose pizza | burgers");
+            return say(`I choose: ${options[Math.floor(Math.random() * options.length)]}`);
+        }
+        if (name === "rank" || name === "level") {
+            if (!args) return say(`Tell me a level, like /${name} a101 never beat`);
+            const levels = await this.levelIndex();
+            const found = this.findLevel(levels, args);
+            if (!found) return say(`I couldn't find a level called "${args.slice(0, 40)}".`);
+            const where = { main: "the Main list", aill: "AILL", atpll: "ATPLL" }[found.list];
+            return say({
+                text: `${found.name} is #${found.rank} on ${where}.`,
+                levelCard: { path: found.path, list: found.list, rank: found.rank, name: found.name },
+            });
+        }
+        if (name === "top") {
+            const top = (await this.levelIndex()).filter((l) => l.list === "main").slice(0, 5);
+            return say(top.length ? `Top ${top.length}: ${top.map((l) => `#${l.rank} ${l.name}`).join(" | ")}` : "I can't read the list right now.");
+        }
+        if (name === "orbs") {
+            const who = args ? await this.ctx.storage.get(`u:${args.replace(/^@/, "").toLowerCase()}`) : await this.ctx.storage.get(`u:${lower}`);
+            if (!who) return say("I don't know that user.");
+            return say(`${who.username} has ${who.orbs || 0} orbs (${who.earned ?? who.orbs ?? 0} earned in total).`);
+        }
+        const custom = (await this.customCommands()).find((c) => c.name === name);
+        if (custom) return say(custom.reply);
+    }
+
+    // ---------- orb economy ----------
+
+    async orbsAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const lower = username.toLowerCase();
+        const key = `u:${lower}`;
+        const user = await this.ctx.storage.get(key);
+        const body = (await this.readBody(request)) || {};
+        const today = taskDay();
+
+        if (body.action === "daily") {
+            const streak = user.streak || { last: "", count: 0 };
+            if (streak.last === today) return json({ error: "You already took today's bonus." }, 400);
+            const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            const count = streak.last === yesterday ? streak.count + 1 : 1;
+            const reward = Math.min(STREAK_BASE + count, STREAK_MAX);
+            user.streak = { last: today, count };
+            this.addOrbs(user, reward);
+            await this.ctx.storage.put(key, user);
+            return json({ ok: true, reward, streak: count, orbs: user.orbs });
+        }
+
+        if (body.action === "gift") {
+            if (Date.now() - (user.created || 0) < GIFT_MIN_AGE_MS) {
+                return json({ error: "New accounts can gift orbs after 10 minutes." }, 403);
+            }
+            const amount = Math.round(Number(body.amount));
+            if (!(amount >= 1 && amount <= GIFT_MAX)) return json({ error: `Gift between 1 and ${GIFT_MAX} orbs.` }, 400);
+            const targetKey = `u:${String(body.user ?? "").trim().toLowerCase()}`;
+            const target = await this.ctx.storage.get(targetKey);
+            if (!target) return json({ error: "No such user." }, 404);
+            if (targetKey === key) return json({ error: "You can't gift orbs to yourself." }, 400);
+            if ((user.orbs || 0) < amount) return json({ error: "You don't have that many orbs." }, 400);
+            const sentToday = user.giftDay === today ? user.giftSent || 0 : 0;
+            if (sentToday + amount > GIFT_DAILY) {
+                return json({ error: `You can gift ${GIFT_DAILY} orbs a day. ${GIFT_DAILY - sentToday} left today.` }, 400);
+            }
+            user.orbs -= amount;
+            user.giftDay = today;
+            user.giftSent = sentToday + amount;
+            this.addOrbs(target, amount, false);
+            await this.ctx.storage.put({ [key]: user, [targetKey]: target });
+            return json({ ok: true, orbs: user.orbs, to: target.username });
+        }
+        return json({ error: "Unknown action." }, 400);
+    }
+
+    // ---------- orb tasks ----------
     /** Add to today's progress (resets automatically when the day changes). */
     async bumpTasks(lower, events) {
         const key = `tk:${lower}`;
@@ -1010,11 +1507,21 @@ export class ChatRoom extends DurableObject {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in first." }, 401);
         const state = await this.taskState(username);
+        const today = taskDay();
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const streak = state.user.streak || { last: "", count: 0 };
+        const claimable = streak.last !== today;
+        const nextCount = streak.last === yesterday ? streak.count + 1 : claimable ? 1 : streak.count;
         return json({
             daily: state.daily,
             achievements: state.achievements,
             resetsAt: nextMidnight(),
             orbs: state.user.orbs || 0,
+            bonus: {
+                claimable,
+                streak: claimable ? streak.count : streak.count,
+                reward: Math.min(STREAK_BASE + nextCount, STREAK_MAX),
+            },
         });
     }
 
@@ -1032,7 +1539,7 @@ export class ChatRoom extends DurableObject {
 
         if (daily) state.rec.claimed[task.id] = true;
         else state.rec.ach[task.id] = true;
-        state.user.orbs = (state.user.orbs || 0) + task.reward;
+        this.addOrbs(state.user, task.reward);
         await this.ctx.storage.put({ [`tk:${state.lower}`]: state.rec, [`u:${state.lower}`]: state.user });
         return json({ ok: true, reward: task.reward, orbs: state.user.orbs });
     }
@@ -1238,10 +1745,12 @@ export class ChatRoom extends DurableObject {
         const version = (await this.ctx.storage.get(`ver:${target.key}`)) || 0;
         const full = clientVersion !== version;
         const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        const me = username || (await this.sessionUser(request));
         return json({
             messages: full ? messages : messages.filter((m) => m.id > after),
             version,
             full,
+            typing: this.typingNames(target.key, me),
         });
     }
 
@@ -1256,9 +1765,32 @@ export class ChatRoom extends DurableObject {
         const text = String(body?.text ?? "").trim().slice(0, await this.textLimit(username));
         const gif = body?.gif == null ? "" : String(body.gif);
         if (gif && !GIF_RE.test(gif)) return json({ error: "Unknown GIF." }, 400);
-        if (!text && !gif) return json({ error: "Message is empty." }, 400);
+        const sticker = body?.sticker == null ? "" : String(body.sticker);
+        if (sticker && !STICKER_RE.test(sticker)) return json({ error: "Unknown sticker." }, 400);
+        if (!text && !gif && !sticker) return json({ error: "Message is empty." }, 400);
 
-        return this.storeMessage(username, target, text, gif ? { gif } : {});
+        const extra = {};
+        if (gif) extra.gif = gif;
+        if (sticker) extra.sticker = sticker;
+        const replyTo = await this.buildReply(target.key, body?.reply);
+        if (replyTo) extra.replyTo = replyTo;
+
+        const response = await this.storeMessage(username, target, text, extra);
+        if (response.status === 200 && !target.isDm && text.startsWith("/")) {
+            const stored = await response.clone().json();
+            await this.runCommand(username, target, text, stored.id);
+        }
+        return response;
+    }
+
+    async buildReply(key, id) {
+        const wanted = Number(id);
+        if (!wanted) return null;
+        const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
+        const found = messages.find((m) => m.id === wanted);
+        if (!found) return null;
+        const label = found.text || (found.image ? "[image]" : found.video ? "[video]" : found.gif ? "[GIF]" : found.sticker ? "[sticker]" : "");
+        return { id: found.id, name: found.name, text: label.replace(/\s+/g, " ").slice(0, 80) };
     }
 
     sourceFromQuery(searchParams) {
@@ -1295,10 +1827,12 @@ export class ChatRoom extends DurableObject {
 
         const imageId = toHex(crypto.getRandomValues(new Uint8Array(12)));
         await this.ctx.storage.put(`img:${imageId}`, { type, bytes: bytes.buffer });
+        const replyTo = await this.buildReply(target.key, searchParams.get("reply"));
         const response = await this.storeMessage(username, target, text, {
             image: imageId,
             w: dim("w"),
             h: dim("h"),
+            ...(replyTo ? { replyTo } : {}),
         });
         if (response.status !== 200) await this.ctx.storage.delete(`img:${imageId}`);
         return response;
@@ -1375,7 +1909,8 @@ export class ChatRoom extends DurableObject {
         if (total === 0) return abort(json({ error: "No video received." }, 400));
 
         await this.ctx.storage.put(`vm:${id}`, { type, size: total, chunks });
-        const response = await this.storeMessage(username, target, text, { video: id });
+        const videoReply = await this.buildReply(target.key, searchParams.get("reply"));
+        const response = await this.storeMessage(username, target, text, { video: id, ...(videoReply ? { replyTo: videoReply } : {}) });
         if (response.status !== 200) return abort(response);
 
         const videos = (await this.ctx.storage.get("videos")) || [];
@@ -1478,6 +2013,11 @@ export class ChatRoom extends DurableObject {
         const now = Date.now();
         const key = target.key;
         const mentions = target.isDm ? [] : await this.findMentions(text, username);
+        const repliedTo = extra.replyTo?.name;
+        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
+            mentions.push(repliedTo);
+        }
+        this.typing.get(key)?.delete(lower);
         const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
         const nextId = ((await this.ctx.storage.get(`n:${key}`)) || 0) + 1;
         messages.push({
@@ -1498,9 +2038,9 @@ export class ChatRoom extends DurableObject {
         let earned = false;
         if (user) {
             user.msgCount = (user.msgCount || 0) + 1;
-            const worthy = text.length >= MIN_ORB_TEXT || !!(extra.image || extra.video || extra.gif);
+            const worthy = text.length >= MIN_ORB_TEXT || !!(extra.image || extra.video || extra.gif || extra.sticker);
             if (worthy && now - (user.lastOrb || 0) >= ORB_COOLDOWN_MS) {
-                user.orbs = (user.orbs || 0) + (this.hasNitro(user, roleOf(username)) ? NITRO_ORBS : 1);
+                this.addOrbs(user, this.hasNitro(user, roleOf(username)) ? NITRO_ORBS : 1);
                 user.lastOrb = now;
                 earned = true;
             }
@@ -1510,7 +2050,7 @@ export class ChatRoom extends DurableObject {
         if (dropped.length) await this.purgeMessageAssets(dropped);
 
         const events = { msg: 1 };
-        if (extra.gif) events.gif = 1;
+        if (extra.gif || extra.sticker) events.gif = 1;
         if (extra.image || extra.video) events.media = 1;
         if (target.isDm) events.dm = 1;
         else events.channels = key;
@@ -1668,7 +2208,10 @@ export class ChatRoom extends DurableObject {
             const status = this.effectiveStatus(lower, presenceUsers.get(`u:${lower}`));
             if (status !== "offline") online.push({ user: seen.name, status });
         }
-        return json({ latest, mentions, dms, groups, incoming, online });
+        await this.loadMod();
+        const warning = username ? (this.modMap.get(username.toLowerCase())?.warnings || []).find((w) => !w.ack) : null;
+        const notice = warning ? { id: warning.id, by: warning.by, reason: warning.reason } : null;
+        return json({ latest, mentions, dms, groups, incoming, online, notice });
     }
 
     async searchUsers(request, searchParams) {

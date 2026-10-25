@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- two people hugging -->
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6d7bff"/>
+      <stop offset="1" stop-color="#4752c4"/>
+    </linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9ccb"/>
+      <stop offset="1" stop-color="#e5578f"/>
+    </linearGradient>
+  </defs>
+  <!-- bodies -->
+  <path d="M10 124 C10 88 24 70 46 70 C62 70 72 78 72 92 L72 124 Z" fill="url(#a)"/>
+  <path d="M118 124 C118 88 104 70 82 70 C66 70 56 78 56 92 L56 124 Z" fill="url(#b)"/>
+  <!-- heads -->
+  <circle cx="42" cy="46" r="19" fill="#ffd166"/>
+  <circle cx="86" cy="46" r="19" fill="#ffd166"/>
+  <!-- hair -->
+  <path d="M23 44 C23 28 35 22 44 22 C54 22 60 30 59 40 C52 34 40 33 30 40 Z" fill="#5b3a29"/>
+  <path d="M105 44 C105 28 93 22 84 22 C74 22 68 30 69 40 C76 34 88 33 98 40 Z" fill="#7a2f4a"/>
+  <!-- happy closed eyes and smiles -->
+  <path d="M33 47 q4 -5 8 0" stroke="#4a3220" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M91 47 q4 -5 8 0" stroke="#4a3220" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M35 56 q6 6 12 0" stroke="#4a3220" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M81 56 q6 6 12 0" stroke="#4a3220" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- cheeks -->
+  <circle cx="30" cy="54" r="4" fill="#ff8fa3" opacity="0.7"/>
+  <circle cx="98" cy="54" r="4" fill="#ff8fa3" opacity="0.7"/>
+  <!-- arms wrapped around each other's backs -->
+  <path d="M60 96 C76 88 92 92 104 102" stroke="#3a43a8" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <path d="M68 96 C52 88 36 92 24 102" stroke="#c63f78" stroke-width="11" fill="none" stroke-linecap="round"/>
+  <circle cx="106" cy="104" r="7" fill="#ffd166"/>
+  <circle cx="22" cy="104" r="7" fill="#ffd166"/>
+  <!-- heart -->
+  <path d="M64 26 C64 18 52 16 52 25 C52 32 64 40 64 40 C64 40 76 32 76 25 C76 16 64 18 64 26 Z" fill="#f23f42" transform="translate(0 -12) scale(1)"/>
+</svg>
