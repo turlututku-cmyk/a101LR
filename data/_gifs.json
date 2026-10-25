@@ -6,5 +6,21 @@
     {
         "name":  "crash",
         "file":  "crash.mp4"
+    },
+    {
+        "name":  "Zoink Rage",
+        "file":  "zoink_rage.mp4"
+    },
+    {
+        "name":  "Doggie Rage",
+        "file":  "doggie_rage.mp4"
+    },
+    {
+        "name":  "Vortrox Crazy",
+        "file":  "vortrox_crazy.mp4"
+    },
+    {
+        "name":  "Conix",
+        "file":  "conix.mp4"
     }
 ]

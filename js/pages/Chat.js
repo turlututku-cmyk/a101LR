@@ -20,6 +20,29 @@ const WEBP =
     typeof document !== "undefined" &&
     document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp");
 
+const STATUS_LABEL = { online: "Online", idle: "Idle", dnd: "Do Not Disturb", invisible: "Invisible", offline: "Offline" };
+const STATUS_MENU = [
+    { id: "online", label: "Online", note: "" },
+    { id: "idle", label: "Idle", note: "" },
+    { id: "dnd", label: "Do Not Disturb", note: "You will not hear any ping sounds." },
+    { id: "invisible", label: "Invisible", note: "You will appear offline." },
+];
+const BANNERS = [
+    "#5865f2", "#eb459e", "#f23f42", "#f0b232", "#23a559", "#00a8fc",
+    "#9b59b6", "#e67e22", "#1abc9c", "#e74c3c", "#4a5568", "#fd79a8",
+];
+const BADGES = {
+    owner: { icon: "\u{1F451}", label: "Owner", desc: "Runs the a101 List Reborn" },
+    nitro: { icon: "\u26A1", label: "Nitro", desc: "Has a101 Nitro" },
+    staff: { icon: "\u{1F6E1}️", label: "Staff", desc: "Chat moderator" },
+    early: { icon: "\u{1F331}", label: "Early Member", desc: "One of the first 100 members" },
+    chatter: { icon: "\u{1F4AC}", label: "Chatterbox", desc: "Sent 100 messages" },
+    orbs: { icon: "\u{1F52E}", label: "Orb Collector", desc: "Collected 50 orbs" },
+    orbmaster: { icon: "\u{1F31F}", label: "Orb Master", desc: "Collected 500 orbs" },
+    social: { icon: "\u{1F91D}", label: "Social Butterfly", desc: "Has 5 friends" },
+    veteran: { icon: "\u{1F3C5}", label: "Veteran", desc: "Member for 30 days" },
+};
+
 const CATEGORIES = [
     {
         name: "Important",
@@ -118,7 +141,11 @@ const youtubeId = (link) => {
 };
 
 const Avatar = {
-    props: { name: { type: String, default: "?" }, src: { type: String, default: "" } },
+    props: {
+        name: { type: String, default: "?" },
+        src: { type: String, default: "" },
+        frame: { type: String, default: "" },
+    },
     data: () => ({ failed: false }),
     watch: {
         src() {
@@ -131,7 +158,7 @@ const Avatar = {
         },
     },
     template: `
-        <div class="dc-avatar" :style="style">
+        <div class="dc-avatar" :class="frame ? 'frame-' + frame : ''" :style="style">
             <img v-if="src && !failed" :src="src" alt="" @error="failed = true">
             <template v-else>{{ (name[0] || '?').toUpperCase() }}</template>
             <slot></slot>
@@ -150,6 +177,22 @@ export default {
                         <span class="dc-chevron">&#9662;</span>
                     </div>
                     <nav class="dc-channels">
+                        <div v-if="username" class="dc-category">
+                            <button type="button" class="dc-channel" :class="{ active: view === 'friends' }" @click="openFriends">
+                                <span class="dc-hash">&#128101;</span>
+                                <span class="dc-channel-name">Friends</span>
+                                <span v-if="friendData.incoming.length" class="dc-badge">{{ friendData.incoming.length }}</span>
+                            </button>
+                            <button type="button" class="dc-channel" @click="openShop()">
+                                <span class="dc-hash">&#128722;</span>
+                                <span class="dc-channel-name">Orb Shop</span>
+                                <span v-if="me && me.nitro" class="dc-nitro-tag">&#9889;</span>
+                            </button>
+                            <button type="button" class="dc-channel" @click="openBoard">
+                                <span class="dc-hash">&#127942;</span>
+                                <span class="dc-channel-name">Orb Leaderboard</span>
+                            </button>
+                        </div>
                         <div v-for="cat in categories" :key="cat.name" class="dc-category">
                             <p class="dc-cat"><span class="dc-arrow">&#9662;</span> {{ cat.name }}</p>
                             <button
@@ -157,7 +200,7 @@ export default {
                                 :key="ch.id"
                                 type="button"
                                 class="dc-channel"
-                                :class="{ active: !dm && ch.id === channel, unread: isUnread(ch.id) }"
+                                :class="{ active: view === 'chat' && !inConvo && ch.id === channel, unread: isUnread(ch.id) }"
                                 @click="selectChannel(ch.id)"
                             >
                                 <span class="dc-hash">{{ ch.icon || '#' }}</span>
@@ -170,32 +213,53 @@ export default {
                         <div v-if="username" class="dc-category">
                             <p class="dc-cat dc-cat-row">
                                 <span><span class="dc-arrow">&#9662;</span> Direct Messages</span>
-                                <button type="button" class="dc-plus" title="New message" @click="openNewDm">+</button>
+                                <button type="button" class="dc-plus" title="New message" @click="openNewDm('new')">+</button>
                             </p>
                             <button
                                 v-for="d in dmList"
-                                :key="d.user"
+                                :key="'dm-' + d.user"
                                 type="button"
                                 class="dc-channel dc-dm"
-                                :class="{ active: dm.toLowerCase() === d.user.toLowerCase(), unread: isDmUnread(d) }"
+                                :class="{ active: view === 'chat' && dm.toLowerCase() === d.user.toLowerCase(), unread: isDmUnread(d) }"
                                 @click="openDm(d.user)"
                             >
-                                <Avatar class="dc-avatar-xs" :name="d.user" :src="avatarSrc(d.user)"></Avatar>
+                                <Avatar class="dc-avatar-xs" :name="d.user" :src="avatarSrc(d.user)"><span class="dc-status" :class="statusOf(d.user)"></span></Avatar>
                                 <span class="dc-channel-name">{{ d.user }}</span>
                                 <span v-if="isDmUnread(d)" class="dc-dot"></span>
                             </button>
-                            <p v-if="!dmList.length" class="dc-dm-empty">No conversations yet.</p>
+                            <button
+                                v-for="g in groups"
+                                :key="'g-' + g.id"
+                                type="button"
+                                class="dc-channel dc-dm"
+                                :class="{ active: view === 'chat' && groupId === g.id, unread: isGroupUnread(g) }"
+                                @click="openGroup(g.id)"
+                            >
+                                <div class="dc-avatar dc-avatar-xs dc-group-icon">{{ g.members.length }}</div>
+                                <span class="dc-channel-name">{{ groupLabel(g) }}</span>
+                                <span v-if="isGroupUnread(g)" class="dc-dot"></span>
+                            </button>
+                            <p v-if="!dmList.length && !groups.length" class="dc-dm-empty">No conversations yet.</p>
                         </div>
                     </nav>
                     <div class="dc-user">
                         <template v-if="username">
                             <button type="button" class="dc-user-btn" title="Your profile" @click="openProfile(username)">
-                                <Avatar class="dc-avatar-sm" :name="username" :src="avatarSrc(username)"><span class="dc-status"></span></Avatar>
+                                <Avatar class="dc-avatar-sm" :name="username" :src="avatarSrc(username)" :frame="frameOf(username)"><span class="dc-status" :class="myStatus"></span></Avatar>
                                 <div class="dc-user-info">
                                     <div class="dc-user-name">{{ username }}</div>
-                                    <div class="dc-user-sub">{{ roleLabel(role) }}</div>
+                                    <div class="dc-user-sub" :class="{ pop: orbPop }" :title="statusLabel(myStatus)">{{ me.statusText || shortStatus[myStatus] }} &middot; &#128302; {{ me.orbs || 0 }}<b v-if="orbPop"> +{{ orbGain }}</b></div>
                                 </div>
                             </button>
+                            <div class="dc-status-wrap">
+                                <button class="dc-icon-btn" type="button" title="Set status" @click.stop="statusMenu = !statusMenu"><span class="dc-dot-btn" :class="myStatus"></span></button>
+                                <div v-if="statusMenu" class="dc-status-menu" @click.stop>
+                                    <button v-for="s in statusOptions" :key="s.id" type="button" :class="{ active: myStatus === s.id }" @click="setStatus(s.id)">
+                                        <span class="dc-dot-btn" :class="s.id"></span>
+                                        <span class="dc-status-text"><b>{{ s.label }}</b><small v-if="s.note">{{ s.note }}</small></span>
+                                    </button>
+                                </div>
+                            </div>
                             <button class="dc-icon-btn" type="button" :title="muted ? 'Unmute ping sound' : 'Mute ping sound'" @click="toggleMute">{{ muted ? '&#x1F515;' : '&#x1F514;' }}</button>
                             <button class="dc-icon-btn" type="button" title="Log out" @click="logout">&#x23FB;</button>
                         </template>
@@ -209,12 +273,23 @@ export default {
                     </div>
                 </aside>
                 <section class="dc-main">
-                    <header class="dc-header">
-                        <template v-if="dm">
-                            <Avatar class="dc-avatar-xs" :name="dm" :src="avatarSrc(dm)"></Avatar>
+                    <header v-show="view === 'chat'" class="dc-header">
+                        <template v-if="groupId && group">
+                            <div class="dc-avatar dc-avatar-xs dc-group-icon">{{ group.members.length }}</div>
+                            <span class="dc-header-name">{{ groupLabel(group) }}</span>
+                            <span class="dc-divider"></span>
+                            <span class="dc-topic">{{ group.members.length }} members</span>
+                            <span class="dc-header-actions">
+                                <button v-if="group.owner === username" type="button" @click="openNewDm('add')">Add people</button>
+                                <button v-if="group.owner === username" type="button" @click="renameGroup">Rename</button>
+                                <button type="button" class="danger" @click="leaveGroup">Leave</button>
+                            </span>
+                        </template>
+                        <template v-else-if="dm">
+                            <Avatar class="dc-avatar-xs" :name="dm" :src="avatarSrc(dm)"><span class="dc-status" :class="statusOf(dm)"></span></Avatar>
                             <span class="dc-header-name">{{ dm }}</span>
                             <span class="dc-divider"></span>
-                            <span class="dc-topic">Direct message</span>
+                            <span class="dc-topic">{{ statusLabel(statusOf(dm)) }}</span>
                         </template>
                         <template v-else>
                             <span class="dc-hash">{{ current.icon || '#' }}</span>
@@ -223,22 +298,88 @@ export default {
                             <span class="dc-topic">{{ topic }}</span>
                         </template>
                     </header>
-                    <div class="dc-mobile-channels">
+                    <div v-show="view === 'chat'" class="dc-mobile-channels">
                         <button
                             v-for="ch in allChannels"
                             :key="ch.id"
                             type="button"
-                            :class="{ active: !dm && ch.id === channel }"
+                            :class="{ active: !inConvo && ch.id === channel }"
                             @click="selectChannel(ch.id)"
                         >{{ ch.icon || '#' }} {{ ch.id }}</button>
-                        <button v-for="d in dmList" :key="d.user" type="button" :class="{ active: dm.toLowerCase() === d.user.toLowerCase() }" @click="openDm(d.user)">@ {{ d.user }}</button>
+                        <button v-if="username" type="button" @click="openFriends">&#128101; Friends</button>
+                        <button v-for="d in dmList" :key="'m-' + d.user" type="button" :class="{ active: dm.toLowerCase() === d.user.toLowerCase() }" @click="openDm(d.user)">@ {{ d.user }}</button>
+                        <button v-for="g in groups" :key="'mg-' + g.id" type="button" :class="{ active: groupId === g.id }" @click="openGroup(g.id)">&#128101; {{ groupLabel(g) }}</button>
                     </div>
-                    <div class="dc-body">
+
+                    <section v-show="view === 'friends'" class="dc-friends">
+                        <header class="dc-header">
+                            <span class="dc-hash">&#128101;</span>
+                            <span class="dc-header-name">Friends</span>
+                            <span class="dc-divider"></span>
+                            <span class="dc-tabs">
+                                <button type="button" :class="{ active: friendTab === 'online' }" @click="friendTab = 'online'">Online</button>
+                                <button type="button" :class="{ active: friendTab === 'all' }" @click="friendTab = 'all'">All</button>
+                                <button type="button" :class="{ active: friendTab === 'pending' }" @click="friendTab = 'pending'">Pending<span v-if="friendData.incoming.length" class="dc-badge">{{ friendData.incoming.length }}</span></button>
+                                <button type="button" class="add" :class="{ active: friendTab === 'add' }" @click="friendTab = 'add'">Add Friend</button>
+                            </span>
+                        </header>
+                        <div class="dc-friends-body">
+                            <form v-if="friendTab === 'add'" class="dc-add-friend" @submit.prevent="sendFriendRequest">
+                                <h3>Add Friend</h3>
+                                <p>You can add friends with their a101 chat username.</p>
+                                <div class="dc-add-row">
+                                    <input type="text" v-model="friendName" maxlength="20" placeholder="Enter a username">
+                                    <button type="submit" class="dc-btn" :disabled="!friendName.trim()">Send Friend Request</button>
+                                </div>
+                                <p v-if="friendMsg" class="dc-friend-msg" :class="{ bad: friendMsgBad }">{{ friendMsg }}</p>
+                            </form>
+                            <template v-else-if="friendTab === 'pending'">
+                                <p class="dc-cat">Incoming &mdash; {{ friendData.incoming.length }}</p>
+                                <div v-for="f in friendData.incoming" :key="'in-' + f.user" class="dc-friend-row">
+                                    <button type="button" class="dc-friend-main" @click="openProfile(f.user)">
+                                        <Avatar class="dc-avatar-sm" :name="f.user" :src="avatarSrc(f.user)"></Avatar>
+                                        <span class="dc-friend-name">{{ f.user }}<small>Incoming friend request</small></span>
+                                    </button>
+                                    <button type="button" class="dc-round ok" title="Accept" @click="friendAct('accept', f.user)">&#10003;</button>
+                                    <button type="button" class="dc-round no" title="Ignore" @click="friendAct('decline', f.user)">&#10005;</button>
+                                </div>
+                                <p v-if="!friendData.incoming.length" class="dc-members-empty">No incoming requests.</p>
+                                <p class="dc-cat">Sent &mdash; {{ friendData.outgoing.length }}</p>
+                                <div v-for="f in friendData.outgoing" :key="'out-' + f.user" class="dc-friend-row">
+                                    <button type="button" class="dc-friend-main" @click="openProfile(f.user)">
+                                        <Avatar class="dc-avatar-sm" :name="f.user" :src="avatarSrc(f.user)"></Avatar>
+                                        <span class="dc-friend-name">{{ f.user }}<small>Outgoing friend request</small></span>
+                                    </button>
+                                    <button type="button" class="dc-round no" title="Cancel" @click="friendAct('cancel', f.user)">&#10005;</button>
+                                </div>
+                                <p v-if="!friendData.outgoing.length" class="dc-members-empty">No sent requests.</p>
+                            </template>
+                            <template v-else>
+                                <p class="dc-cat">{{ friendTab === 'online' ? 'Online' : 'All friends' }} &mdash; {{ shownFriends.length }}</p>
+                                <div v-for="f in shownFriends" :key="f.user" class="dc-friend-row">
+                                    <button type="button" class="dc-friend-main" @click="openProfile(f.user)">
+                                        <Avatar class="dc-avatar-sm" :name="f.user" :src="avatarSrc(f.user)"><span class="dc-status" :class="statusOf(f.user)"></span></Avatar>
+                                        <span class="dc-friend-name">{{ f.user }}<small>{{ f.statusText || statusLabel(statusOf(f.user)) }}</small></span>
+                                    </button>
+                                    <button type="button" class="dc-round" title="Message" @click="messageUser(f.user)">&#128172;</button>
+                                    <button type="button" class="dc-round no" title="Remove friend" @click="removeFriend(f.user)">&#10005;</button>
+                                </div>
+                                <p v-if="!shownFriends.length" class="dc-members-empty">{{ friendTab === 'online' ? 'None of your friends are online right now.' : 'No friends yet. Use Add Friend to send a request.' }}</p>
+                            </template>
+                        </div>
+                    </section>
+
+                    <div v-show="view === 'chat'" class="dc-body">
                         <div class="dc-chat" @dragover.prevent="dragging = true" @dragleave="onDragLeave" @drop.prevent="onDrop">
                             <div v-if="dragging" class="dc-drop">Drop an image or video to share it</div>
                             <div class="dc-messages" ref="box">
                                 <div class="dc-welcome">
-                                    <template v-if="dm">
+                                    <template v-if="groupId && group">
+                                        <div class="dc-avatar dc-avatar-xl dc-group-icon">{{ group.members.length }}</div>
+                                        <div class="dc-welcome-title">{{ groupLabel(group) }}</div>
+                                        <div class="dc-welcome-text">This is the beginning of the group chat with {{ group.members.join(', ') }}.</div>
+                                    </template>
+                                    <template v-else-if="dm">
                                         <Avatar class="dc-avatar-xl" :name="dm" :src="avatarSrc(dm)"></Avatar>
                                         <div class="dc-welcome-title">{{ dm }}</div>
                                         <div class="dc-welcome-text">This is the beginning of your direct message history with <b>{{ dm }}</b>.</div>
@@ -259,13 +400,14 @@ export default {
                                         </div>
                                     </div>
                                     <button v-if="!m.cont" type="button" class="dc-avatar-btn" @click="openProfile(m.name)">
-                                        <Avatar :name="m.name" :src="avatarSrc(m.name)"></Avatar>
+                                        <Avatar :name="m.name" :src="avatarSrc(m.name)" :frame="frameOf(m.name)"></Avatar>
                                     </button>
                                     <span v-else class="dc-msg-time">{{ time(m.time) }}</span>
                                     <div class="dc-msg-body">
                                         <div v-if="!m.cont" class="dc-msg-head">
-                                            <button type="button" class="dc-msg-name" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
+                                            <button type="button" class="dc-msg-name" :class="nameClass(m.name)" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
                                             <span v-if="roleOfName(m.name) !== 'member'" class="dc-role" :class="roleOfName(m.name)">{{ roleLabel(roleOfName(m.name)) }}</span>
+                                            <span v-for="b in topBadges(m.name)" :key="b" class="dc-badge-icon" :title="badgeInfo(b).label + ' - ' + badgeInfo(b).desc">{{ badgeInfo(b).icon }}</span>
                                             <span class="dc-msg-stamp">{{ stamp(m.time) }}</span>
                                         </div>
                                         <div v-if="m.text" class="dc-msg-text"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template></div>
@@ -359,8 +501,8 @@ export default {
                                     class="dc-text"
                                     type="text"
                                     v-model="text"
-                                    maxlength="300"
-                                    :placeholder="dm ? 'Message @' + dm : 'Message #' + channel"
+                                    :maxlength="maxText"
+                                    :placeholder="placeholder"
                                     autocomplete="off"
                                     @input="onInput"
                                     @click="onInput"
@@ -368,7 +510,7 @@ export default {
                                     @blur="suggest = []"
                                     @paste="onPaste"
                                 >
-                                <span class="dc-count" :class="{ warn: text.length > 270 }" v-if="text.length > 0">{{ 300 - text.length }}</span>
+                                <span class="dc-count" :class="{ warn: text.length > maxText - 30 }" v-if="text.length > 0">{{ maxText - text.length }}</span>
                                 <button type="button" class="dc-tool" :class="{ active: picker === 'gif' }" title="Pick a GIF" @click="togglePicker('gif')">GIF</button>
                                 <button type="button" class="dc-tool" :class="{ active: picker === 'emoji' }" title="Custom emoji" @click="togglePicker('emoji')">&#x263A;</button>
                             </form>
@@ -395,9 +537,9 @@ export default {
                         <aside class="dc-members">
                             <template v-for="group in memberGroups" :key="group.role">
                                 <p class="dc-cat">{{ group.label }} &mdash; {{ group.names.length }}</p>
-                                <button v-for="name in group.names" :key="name" type="button" class="dc-member" @click="openProfile(name)">
-                                    <Avatar class="dc-avatar-sm" :name="name" :src="avatarSrc(name)"></Avatar>
-                                    <span class="dc-member-name" :style="nameStyle(name)">{{ name }}</span>
+                                <button v-for="name in group.names" :key="name" type="button" class="dc-member" :class="{ offline: group.role === 'offline' }" @click="openProfile(name)">
+                                    <Avatar class="dc-avatar-sm" :name="name" :src="avatarSrc(name)" :frame="frameOf(name)"><span class="dc-status" :class="statusOf(name)"></span></Avatar>
+                                    <span class="dc-member-name" :class="nameClass(name)" :style="nameStyle(name)">{{ name }}</span>
                                 </button>
                             </template>
                             <p v-if="!memberGroups.length" class="dc-members-empty">Nobody yet.</p>
@@ -412,21 +554,41 @@ export default {
 
             <div v-if="card" class="dc-modal" @click.self="card = null">
                 <div class="dc-card">
-                    <div class="dc-card-banner" :style="{ background: 'hsl(' + hue(card.username) + ', 55%, 40%)' }"></div>
-                    <Avatar class="dc-avatar-xl dc-card-avatar" :name="card.username" :src="avatarSrc(card.username)"></Avatar>
+                    <div class="dc-card-banner" :class="{ animated: bannerAnimated(card) }" :style="bannerStyle(card)"></div>
+                    <Avatar class="dc-avatar-xl dc-card-avatar" :name="card.username" :src="avatarSrc(card.username)" :frame="frameOf(card.username)"><span class="dc-status big" :class="statusOf(card.username)"></span></Avatar>
                     <div class="dc-card-body">
-                        <div class="dc-card-name">{{ card.username }}</div>
-                        <span v-if="card.role !== 'member'" class="dc-role" :class="card.role">{{ roleLabel(card.role) }}</span>
-                        <span v-else class="dc-role member">Member</span>
+                        <div class="dc-card-top">
+                            <span class="dc-card-name" :class="nameClass(card.username)" :style="nameStyle(card.username)">{{ card.username }}</span>
+                            <span v-if="card.pronouns" class="dc-card-pronouns">{{ card.pronouns }}</span>
+                        </div>
+                        <span v-if="card.role !== 'member'" class="dc-role first" :class="card.role">{{ roleLabel(card.role) }}</span>
+                        <span v-else class="dc-role first member">Member</span>
+                        <div v-if="(card.badges || []).length" class="dc-badges">
+                            <span v-for="b in card.badges" :key="b" class="dc-badge-pill" :title="badgeInfo(b).desc"><i>{{ badgeInfo(b).icon }}</i>{{ badgeInfo(b).label }}</span>
+                        </div>
+                        <p v-if="card.statusText" class="dc-card-status">{{ card.statusText }}</p>
+                        <div class="dc-stats">
+                            <div><b>&#128302; {{ card.orbs || 0 }}</b><small>Orbs</small></div>
+                            <div><b>&#128172; {{ card.msgCount || 0 }}</b><small>Messages</small></div>
+                            <div><b>&#129309; {{ card.friends || 0 }}</b><small>Friends</small></div>
+                        </div>
                         <div class="dc-card-section">ABOUT ME</div>
                         <p class="dc-card-bio">{{ card.bio || 'This user has not written anything yet.' }}</p>
                         <div class="dc-card-section">MEMBER SINCE</div>
                         <p class="dc-card-bio">{{ formatDate(card.created) }}</p>
                         <div class="dc-card-actions">
-                            <button v-if="username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn" @click="messageUser(card.username)">Send Message</button>
+                            <template v-if="username && card.username.toLowerCase() !== username.toLowerCase()">
+                                <button type="button" class="dc-btn" @click="messageUser(card.username)">Send Message</button>
+                                <button v-if="cardRelation === 'none'" type="button" class="dc-btn alt" @click="friendAct('request', card.username)">Add Friend</button>
+                                <button v-else-if="cardRelation === 'incoming'" type="button" class="dc-btn alt" @click="friendAct('accept', card.username)">Accept Request</button>
+                                <button v-else-if="cardRelation === 'outgoing'" type="button" class="dc-btn ghost" @click="friendAct('cancel', card.username)">Cancel Request</button>
+                                <button v-else type="button" class="dc-btn ghost" @click="removeFriend(card.username)">Remove Friend</button>
+                            </template>
                             <button v-if="username && card.username.toLowerCase() === username.toLowerCase()" type="button" class="dc-btn" @click="startEdit">Edit Profile</button>
+                            <button v-if="role === 'a101' && username && card.username.toLowerCase() !== username.toLowerCase()" type="button" class="dc-btn nitro" @click="giftNitro(card.username)">&#9889; Gift Nitro</button>
                             <button type="button" class="dc-btn ghost" @click="card = null">Close</button>
                         </div>
+                        <p v-if="error" class="dc-error">{{ error }}</p>
                     </div>
                 </div>
             </div>
@@ -442,10 +604,23 @@ export default {
                             <input ref="avatarFile" type="file" accept="image/*" hidden @change="onAvatarFile">
                         </div>
                     </div>
+                    <p class="dc-hint">{{ me && me.nitro ? 'Nitro: animated GIF or WebP pictures up to 400 KB keep their animation.' : 'A GIF becomes a still picture. Animated pictures need Nitro (see the Orb Shop).' }}</p>
+                    <label>BANNER COLOR
+                        <span class="dc-swatches">
+                            <button v-for="(c, i) in banners" :key="c" type="button" class="dc-swatch" :class="{ active: draft.banner === i }" :style="{ background: c }" @click="draft.banner = i"></button>
+                        </span>
+                    </label>
+                    <label>PRONOUNS
+                        <input type="text" v-model="draft.pronouns" maxlength="20" placeholder="e.g. they/them">
+                    </label>
+                    <label>CUSTOM STATUS
+                        <input type="text" v-model="draft.statusText" maxlength="40" placeholder="What are you up to?">
+                    </label>
                     <label>ABOUT ME
                         <textarea v-model="draft.bio" maxlength="190" rows="4" placeholder="Tell people about yourself"></textarea>
                         <small>{{ 190 - draft.bio.length }} characters left</small>
                     </label>
+                    <label class="dc-check"><input type="checkbox" v-model="draft.dmFriendsOnly"> Only friends can send me direct messages</label>
                     <p v-if="error" class="dc-error">{{ error }}</p>
                     <div class="dc-card-actions">
                         <button type="submit" class="dc-btn" :disabled="busy">Save</button>
@@ -456,16 +631,92 @@ export default {
 
             <div v-if="newDm" class="dc-modal" @click.self="newDm = false">
                 <div class="dc-card dc-edit">
-                    <h3>New Message</h3>
+                    <h3>{{ dialogMode === 'add' ? 'Add people' : 'New Message' }}</h3>
+                    <p class="dc-hint">{{ dialogMode === 'add' ? 'Pick people to add to this group.' : 'Pick one person for a direct message, or several to start a group chat.' }}</p>
+                    <div v-if="picked.length" class="dc-chips">
+                        <button v-for="u in picked" :key="u" type="button" class="dc-chip" @click="picked = picked.filter((x) => x !== u)">{{ u }} &#10005;</button>
+                    </div>
                     <input class="dc-dm-search" type="text" v-model="dmSearch" maxlength="20" placeholder="Search for a username" @input="searchDm" ref="dmInput">
                     <div class="dc-dm-results">
-                        <button v-for="u in dmResults" :key="u" type="button" class="dc-member" @click="messageUser(u)">
+                        <button v-for="u in dmResults" :key="u" type="button" class="dc-member" @click="pickUser(u)">
                             <Avatar class="dc-avatar-sm" :name="u" :src="avatarSrc(u)"></Avatar>
                             <span class="dc-member-name">{{ u }}</span>
                         </button>
                         <p v-if="dmSearch && !dmResults.length" class="dc-members-empty">No users found.</p>
                     </div>
-                    <div class="dc-card-actions"><button type="button" class="dc-btn ghost" @click="newDm = false">Close</button></div>
+                    <input v-if="dialogMode === 'new' && picked.length > 1" class="dc-dm-search" type="text" v-model="groupName" maxlength="30" placeholder="Group name (optional)">
+                    <p v-if="error" class="dc-error">{{ error }}</p>
+                    <div class="dc-card-actions">
+                        <button type="button" class="dc-btn" :disabled="!picked.length || busy" @click="confirmDialog">{{ dialogMode === 'add' ? 'Add' : picked.length > 1 ? 'Create Group' : 'Open Chat' }}</button>
+                        <button type="button" class="dc-btn ghost" @click="newDm = false">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="shopOpen" class="dc-modal" @click.self="shopOpen = false">
+                <div class="dc-card dc-shop">
+                    <div class="dc-shop-head">
+                        <h3>&#128722; Orb Shop</h3>
+                        <span class="dc-balance">&#128302; {{ shop.orbs || 0 }}</span>
+                    </div>
+                    <div class="dc-shop-tabs">
+                        <button v-for="t in shopTabs" :key="t.id" type="button" :class="{ active: shopTab === t.id }" @click="shopTab = t.id; error = ''">{{ t.label }}</button>
+                    </div>
+
+                    <div v-if="shopTab === 'nitro'" class="dc-nitro">
+                        <div class="dc-nitro-hero">
+                            <span class="dc-nitro-bolt">&#9889;</span>
+                            <div>
+                                <b>a101 Nitro</b>
+                                <small v-if="shop.lifetime">You have Nitro forever as the owner.</small>
+                                <small v-else-if="shop.nitroActive">Active until {{ formatDate(shop.nitroUntil) }}</small>
+                                <small v-else>Not active</small>
+                            </div>
+                        </div>
+                        <ul class="dc-perks">
+                            <li>&#127912; <b>Animated profile pictures</b> (GIF or animated WebP, up to 400 KB)</li>
+                            <li>&#128302; <b>Double orbs</b> from every message ({{ shop.nitro.orbsPerMessage }} instead of 1)</li>
+                            <li>&#128172; <b>500-character messages</b> instead of 300</li>
+                            <li>&#128247; <b>Bigger image uploads</b> (1.5 MB instead of 500 KB)</li>
+                            <li>&#10024; <b>Nitro-only</b> animated name colours, frames and banners</li>
+                            <li>&#9889; A <b>Nitro badge</b> on your profile</li>
+                        </ul>
+                        <button v-if="!shop.lifetime" type="button" class="dc-btn nitro" :disabled="busy || (shop.orbs || 0) < shop.nitro.price" @click="buyNitro">
+                            {{ shop.nitroActive ? 'Add' : 'Get' }} {{ shop.nitro.days }} days of Nitro &mdash; &#128302; {{ shop.nitro.price }}
+                        </button>
+                        <p v-if="!shop.lifetime && (shop.orbs || 0) < shop.nitro.price" class="dc-hint">You need {{ shop.nitro.price - (shop.orbs || 0) }} more orbs. Send messages to earn them.</p>
+                    </div>
+
+                    <div v-else class="dc-shop-grid">
+                        <div v-for="it in shopItems" :key="it.id" class="dc-item" :class="{ owned: isOwned(it), worn: isWorn(it) }">
+                            <div class="dc-item-preview" :class="'slot-' + it.slot">
+                                <span v-if="it.slot === 'nameColor'" class="dc-preview-name" :class="itemNameClass(it)" :style="itemNameStyle(it)">{{ username || 'Username' }}</span>
+                                <Avatar v-else-if="it.slot === 'frame'" class="dc-avatar-sm" :name="username || 'U'" :src="avatarSrc(username)" :frame="it.id"></Avatar>
+                                <div v-else class="dc-preview-banner" :class="{ animated: it.style && it.style.animated }" :style="{ background: it.style.background }"></div>
+                            </div>
+                            <div class="dc-item-name">{{ it.name }}<span v-if="it.nitro" class="dc-nitro-tag" title="Needs Nitro">&#9889;</span></div>
+                            <button v-if="isWorn(it)" type="button" class="dc-btn ghost" @click="shopDo('unequip', it)">Unequip</button>
+                            <button v-else-if="isOwned(it)" type="button" class="dc-btn" :disabled="it.nitro && !shop.nitroActive" @click="shopDo('equip', it)">{{ it.nitro && !shop.nitroActive ? 'Needs Nitro' : 'Equip' }}</button>
+                            <button v-else type="button" class="dc-btn alt" :disabled="busy || (it.nitro && !shop.nitroActive) || (shop.orbs || 0) < it.price" @click="shopDo('buy', it)">{{ it.nitro && !shop.nitroActive ? 'Needs Nitro' : '&#128302; ' + it.price }}</button>
+                        </div>
+                    </div>
+                    <p v-if="error" class="dc-error">{{ error }}</p>
+                    <div class="dc-card-actions"><button type="button" class="dc-btn ghost" @click="shopOpen = false">Close</button></div>
+                </div>
+            </div>
+
+            <div v-if="board" class="dc-modal" @click.self="board = null">
+                <div class="dc-card dc-edit">
+                    <h3>&#127942; Orb Leaderboard</h3>
+                    <p class="dc-hint">Send messages to earn an orb (one per minute).</p>
+                    <div v-for="(l, i) in board" :key="l.username" class="dc-leader">
+                        <span class="dc-rank">{{ i + 1 }}</span>
+                        <Avatar class="dc-avatar-sm" :name="l.username" :src="avatarSrc(l.username)"></Avatar>
+                        <button type="button" class="dc-member-name dc-leader-name" @click="board = null; openProfile(l.username)">{{ l.username }}</button>
+                        <b>&#128302; {{ l.orbs }}</b>
+                    </div>
+                    <p v-if="!board.length" class="dc-members-empty">Nobody has earned an orb yet.</p>
+                    <div class="dc-card-actions"><button type="button" class="dc-btn ghost" @click="board = null">Close</button></div>
                 </div>
             </div>
         </main>
@@ -474,15 +725,31 @@ export default {
         const saved = load(CHANNEL_KEY);
         return {
             categories: CATEGORIES,
+            banners: BANNERS,
+            statusOptions: STATUS_MENU,
+            shortStatus: { online: "Online", idle: "Idle", dnd: "DND", invisible: "Invisible" },
+            view: "chat",
             channel: CHANNELS.some((c) => c.id === saved) ? saved : "general",
             dm: "",
+            groupId: "",
             messages: [],
             version: 0,
             latest: {},
             mentionLatest: {},
             dms: [],
             dmLatest: {},
+            groups: [],
+            groupLatest: {},
+            incomingSeen: 0,
+            presence: {},
+            friendData: { friends: [], incoming: [], outgoing: [] },
+            friendTab: "online",
+            friendName: "",
+            friendMsg: "",
+            friendMsgBad: false,
             muted: load(MUTE_KEY) === "1",
+            statusMenu: false,
+            orbPop: false,
             primed: false,
             seen: loadSeen(),
             profiles: {},
@@ -507,10 +774,24 @@ export default {
             dismissed: {},
             card: null,
             editing: false,
-            draft: { bio: "", blob: null, preview: "", remove: false },
+            draft: { bio: "", pronouns: "", statusText: "", banner: -1, dmFriendsOnly: false, blob: null, preview: "", remove: false },
             newDm: false,
+            dialogMode: "new",
             dmSearch: "",
             dmResults: [],
+            picked: [],
+            groupName: "",
+            board: null,
+            shopOpen: false,
+            shopTab: "nitro",
+            shopTabs: [
+                { id: "nitro", label: "\u26A1 Nitro" },
+                { id: "nameColor", label: "Name colours" },
+                { id: "frame", label: "Avatar frames" },
+                { id: "banner", label: "Banners" },
+            ],
+            shop: { items: [], nitro: { price: 400, days: 30, orbsPerMessage: 2 }, orbs: 0, owned: [], equipped: {}, nitroActive: false, nitroUntil: 0, lifetime: false },
+            orbGain: 1,
             token: load(TOKEN_KEY),
             me: null,
             form: { username: "", password: "", claim: "" },
@@ -534,6 +815,24 @@ export default {
         role() {
             return this.me?.role || "member";
         },
+        myStatus() {
+            return this.me?.chosenStatus || "online";
+        },
+        maxText() {
+            return this.me?.nitro ? 500 : 300;
+        },
+        catalogById() {
+            return Object.fromEntries(this.shop.items.map((i) => [i.id, i]));
+        },
+        shopItems() {
+            return this.shop.items.filter((i) => i.slot === this.shopTab);
+        },
+        inConvo() {
+            return !!(this.dm || this.groupId);
+        },
+        group() {
+            return this.groups.find((g) => g.id === this.groupId) || null;
+        },
         current() {
             return CHANNELS.find((c) => c.id === this.channel) || {};
         },
@@ -542,7 +841,11 @@ export default {
         },
         canPost() {
             if (!this.username) return false;
-            return this.dm ? true : this.canPostIn(this.current);
+            return this.inConvo ? true : this.canPostIn(this.current);
+        },
+        placeholder() {
+            if (this.groupId && this.group) return `Message ${this.groupLabel(this.group)}`;
+            return this.dm ? `Message @${this.dm}` : `Message #${this.channel}`;
         },
         reactionPalette() {
             return [...REACTIONS, ...this.emojis.slice(0, 12).map((e) => `:${e.name}:`)];
@@ -565,6 +868,13 @@ export default {
             }
             return list;
         },
+        shownFriends() {
+            const all = this.friendData.friends;
+            return this.friendTab === 'online' ? all.filter((f) => this.statusOf(f.user) !== 'offline') : all;
+        },
+        cardRelation() {
+            return this.card ? this.relationTo(this.card.username) : "none";
+        },
         grouped() {
             return this.messages.map((m, i) => {
                 const prev = this.messages[i - 1];
@@ -580,29 +890,49 @@ export default {
             return names;
         },
         memberGroups() {
-            const names = this.dm ? [this.username, this.dm].filter(Boolean) : [...this.members];
-            if (this.username && !this.dm && !names.includes(this.username)) names.push(this.username);
+            let pool;
+            if (this.groupId && this.group) pool = [...this.group.members];
+            else if (this.dm) pool = [this.username, this.dm].filter(Boolean);
+            else {
+                pool = [...Object.keys(this.presence).map((k) => this.presenceName[k] || k), ...this.members];
+                if (this.username) pool.push(this.username);
+            }
+            const names = [...new Map(pool.map((n) => [n.toLowerCase(), n])).values()];
+            const online = names.filter((n) => this.statusOf(n) !== "offline");
+            const offline = names.filter((n) => this.statusOf(n) === "offline");
             const groups = ROLE_ORDER.map((role) => ({
                 role,
-                label: ROLE_LABEL[role].toUpperCase(),
-                names: names.filter((n) => this.roleOfName(n) === role),
-            }));
-            return groups.filter((g) => g.names.length);
+                label: `${ROLE_LABEL[role].toUpperCase()}`,
+                names: online.filter((n) => this.roleOfName(n) === role),
+            })).filter((g) => g.names.length);
+            if (offline.length) groups.push({ role: "offline", label: "OFFLINE", names: offline });
+            return groups;
         },
         scope() {
+            if (this.groupId) return `group=${this.groupId}`;
             return this.dm ? `dm=${encodeURIComponent(this.dm)}` : `channel=${encodeURIComponent(this.channel)}`;
         },
         seenKey() {
+            if (this.groupId) return `g:${this.groupId}`;
             return this.dm ? `dm:${this.dm.toLowerCase()}` : this.channel;
         },
     },
     async mounted() {
+        if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+            // no Cloudflare here: run the Worker inside the page (see dev/local-api.js)
+            try {
+                await import("/dev/local-api.js");
+            } catch (e) {
+                console.warn("Local chat backend could not start", e);
+            }
+        }
         const manifest = (file) =>
             fetch(`/data/${file}.json`)
                 .then((r) => (r.ok ? r.json() : []))
                 .catch(() => []);
         manifest("_gifs").then((g) => (this.gifs = Array.isArray(g) ? g : []));
         manifest("_emojis").then((e) => (this.emojis = Array.isArray(e) ? e : []));
+        this.loadShop();
         if (this.token) await this.restoreSession();
         await this.poll();
         this.timer = setInterval(this.poll, POLL_MS);
@@ -615,11 +945,15 @@ export default {
         document.removeEventListener("click", this.closePops);
         this.clearPending();
     },
+    created() {
+        this.presenceName = {};
+    },
     methods: {
         hue,
         formatDate: (ms) => (ms ? new Date(ms).toLocaleDateString() : "Unknown"),
         closePops() {
             this.reactFor = 0;
+            this.statusMenu = false;
         },
         color(name) {
             return `hsl(${hue(name)}, 60%, 65%)`;
@@ -631,7 +965,49 @@ export default {
             return this.profileOf(name)?.role || "member";
         },
         roleLabel: (role) => ROLE_LABEL[role] || "Member",
+        statusLabel: (status) => STATUS_LABEL[status] || "Offline",
+        badgeInfo: (id) => BADGES[id] || { icon: "", label: id, desc: "" },
+        topBadges(name) {
+            return (this.profileOf(name)?.badges || []).slice(0, 3);
+        },
+        bannerColor(profile) {
+            return BANNERS[profile?.banner] || `hsl(${hue(profile?.username || "")}, 55%, 40%)`;
+        },
+        statusOf(name) {
+            const lower = String(name).toLowerCase();
+            if (this.username && lower === this.username.toLowerCase()) {
+                return this.myStatus === "invisible" ? "offline" : this.myStatus;
+            }
+            return this.presence[lower] || "offline";
+        },
+        equippedItem(name, slot) {
+            const id = this.profileOf(name)?.equipped?.[slot];
+            return id ? this.catalogById[id] || null : null;
+        },
+        frameOf(name) {
+            return this.equippedItem(name, "frame")?.id || "";
+        },
+        itemNameStyle(item) {
+            if (item.style?.gradient) return { backgroundImage: item.style.gradient };
+            return item.style?.color ? { color: item.style.color } : {};
+        },
+        itemNameClass(item) {
+            return item.style?.gradient ? { "dc-grad": true, animated: !!item.style.animated } : {};
+        },
+        nameClass(name) {
+            const item = this.equippedItem(name, "nameColor");
+            return item ? this.itemNameClass(item) : {};
+        },
+        bannerStyle(profile) {
+            const item = this.equippedItem(profile?.username || "", "banner");
+            return { background: item ? item.style.background : this.bannerColor(profile) };
+        },
+        bannerAnimated(profile) {
+            return !!this.equippedItem(profile?.username || "", "banner")?.style?.animated;
+        },
         nameStyle(name) {
+            const item = this.equippedItem(name, "nameColor");
+            if (item) return this.itemNameStyle(item);
             const role = this.roleOfName(name);
             if (role === "a101") return { color: "#f0b232" };
             if (role === "admin") return { color: "#f23f42" };
@@ -644,6 +1020,11 @@ export default {
         canPostIn(ch) {
             return !ch.post || (!!this.username && ch.post.includes(this.role));
         },
+        groupLabel(g) {
+            if (g.name) return g.name;
+            const others = g.members.filter((n) => n.toLowerCase() !== this.username.toLowerCase());
+            return others.join(", ") || "Group";
+        },
         time(ms) {
             return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         },
@@ -652,23 +1033,28 @@ export default {
             return `${today ? "Today" : new Date(ms).toLocaleDateString()} at ${this.time(ms)}`;
         },
         isUnread(id) {
-            return (this.dm || id !== this.channel) && (this.latest[id] || 0) > (this.seen[id] || 0);
+            return (this.inConvo || this.view !== "chat" || id !== this.channel) && (this.latest[id] || 0) > (this.seen[id] || 0);
         },
         isDmUnread(d) {
             const key = `dm:${d.user.toLowerCase()}`;
-            const active = this.dm.toLowerCase() === d.user.toLowerCase();
+            const active = this.view === "chat" && this.dm.toLowerCase() === d.user.toLowerCase();
             return !active && d.latest > (this.seen[key] || 0);
         },
+        isGroupUnread(g) {
+            const active = this.view === "chat" && this.groupId === g.id;
+            return !active && g.latest > (this.seen[`g:${g.id}`] || 0);
+        },
         isMentioned(id) {
-            return (this.dm || id !== this.channel) && (this.mentionLatest[id] || 0) > (this.seen[id] || 0);
+            return (this.inConvo || this.view !== "chat" || id !== this.channel) && (this.mentionLatest[id] || 0) > (this.seen[id] || 0);
         },
         toggleMute() {
             this.muted = !this.muted;
             save(MUTE_KEY, this.muted ? "1" : "");
-            if (!this.muted) playPing();
+            if (!this.muted && this.myStatus !== "dnd") playPing();
         },
         ping() {
-            if (!this.muted) playPing();
+            // Do Not Disturb silences everything
+            if (!this.muted && this.myStatus !== "dnd") playPing();
         },
         mentionsMe(m) {
             return (
@@ -775,7 +1161,7 @@ export default {
         canDelete(m) {
             if (!this.username) return false;
             if (m.name.toLowerCase() === this.username.toLowerCase()) return true;
-            return !this.dm && (this.role === "a101" || this.role === "admin");
+            return !this.inConvo && (this.role === "a101" || this.role === "admin");
         },
         async removeMessage(m) {
             if (!window.confirm("Delete this message? This can't be undone.")) return;
@@ -783,6 +1169,7 @@ export default {
             await this.poll();
         },
         target() {
+            if (this.groupId) return { group: this.groupId };
             return this.dm ? { dm: this.dm } : { channel: this.channel };
         },
         async post(url, body) {
@@ -791,14 +1178,14 @@ export default {
                 const res = await fetch(url, { method: "POST", headers: this.headers(), body: JSON.stringify(body) });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) this.error = data.error || "Something went wrong.";
-                return res.ok;
+                return res.ok ? data : null;
             } catch {
                 this.error = "Could not reach the chat.";
-                return false;
+                return null;
             }
         },
 
-        // ---------- profiles ----------
+        // ---------- profiles, status, orbs ----------
         async ensureProfiles(names, force = false) {
             const lower = [...new Set(names.map((n) => String(n).toLowerCase()))].filter(
                 (n) => /^[a-z0-9_]{3,20}$/.test(n) && (force || !(n in this.profileWanted)),
@@ -812,15 +1199,101 @@ export default {
                     for (const p of (await res.json()).profiles) this.profiles[p.username.toLowerCase()] = p;
                 } catch {}
             }
+            if (this.username && this.profiles[this.username.toLowerCase()] && lower.includes(this.username.toLowerCase())) {
+                this.me = { ...this.me, ...this.profiles[this.username.toLowerCase()] };
+            }
         },
         async openProfile(name) {
+            this.error = "";
             await this.ensureProfiles([name], true);
-            this.card = this.profileOf(name) || { username: name, role: "member", bio: "", created: 0 };
+            this.card = this.profileOf(name) || { username: name, role: "member", bio: "", created: 0, badges: [] };
+        },
+        async setStatus(status) {
+            this.statusMenu = false;
+            const data = await this.post(`${AUTH}/profile`, { status });
+            if (data) this.me = { ...this.me, ...data };
+        },
+        noteOrb(data) {
+            const before = this.me?.orbs || 0;
+            if (data?.orbs != null && this.me) this.me = { ...this.me, orbs: data.orbs };
+            if (data?.orb) {
+                this.orbGain = Math.max(1, (data.orbs || 0) - before);
+                this.orbPop = true;
+                setTimeout(() => (this.orbPop = false), 2200);
+            }
+        },
+        // ---------- shop & nitro ----------
+        async loadShop() {
+            try {
+                const res = await fetch(`${API}/shop`, { headers: this.headers() });
+                if (!res.ok) return;
+                this.shop = { ...this.shop, ...(await res.json()) };
+                if (this.me && this.shop.orbs != null) this.me = { ...this.me, orbs: this.shop.orbs };
+            } catch {}
+        },
+        async openShop(tab) {
+            this.error = "";
+            if (tab) this.shopTab = tab;
+            this.shopOpen = true;
+            this.card = null;
+            this.editing = false;
+            await this.loadShop();
+        },
+        isOwned(item) {
+            return (this.shop.owned || []).includes(item.id);
+        },
+        isWorn(item) {
+            return this.shop.equipped?.[item.slot] === item.id && (!item.nitro || this.shop.nitroActive);
+        },
+        async applyShopResult(data) {
+            if (!data) return;
+            if (data.profile) {
+                this.me = { ...this.me, ...data.profile };
+                this.profiles[this.username.toLowerCase()] = this.me;
+            }
+            await this.loadShop();
+        },
+        async shopDo(action, item) {
+            this.busy = true;
+            const body = action === "unequip" ? { action, slot: item.slot } : { action, item: item.id };
+            await this.applyShopResult(await this.post(`${API}/shop`, body));
+            this.busy = false;
+        },
+        async buyNitro() {
+            this.busy = true;
+            await this.applyShopResult(await this.post(`${API}/shop`, { action: "nitro" }));
+            this.busy = false;
+        },
+        async giftNitro(name) {
+            if (!window.confirm(`Gift 30 days of Nitro to ${name}?`)) return;
+            const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
+            if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
+        },
+        async openBoard() {
+            this.error = "";
+            try {
+                const res = await fetch(`${API}/leaderboard`);
+                const leaders = res.ok ? (await res.json()).leaders : [];
+                this.ensureProfiles(leaders.map((l) => l.username));
+                this.board = leaders;
+            } catch {
+                this.board = [];
+            }
         },
         startEdit() {
             this.card = null;
             this.error = "";
-            this.draft = { bio: this.me?.bio || "", blob: null, preview: "", remove: false };
+            const me = this.me || {};
+            this.draft = {
+                bio: me.bio || "",
+                pronouns: me.pronouns || "",
+                statusText: me.statusText || "",
+                banner: Number.isInteger(me.banner) ? me.banner : -1,
+                dmFriendsOnly: !!me.dmFriendsOnly,
+                blob: null,
+                preview: "",
+                remove: false,
+            };
             this.editing = true;
         },
         async onAvatarFile(e) {
@@ -828,6 +1301,16 @@ export default {
             e.target.value = "";
             if (!file) return;
             try {
+                // Nitro keeps GIF / animated WebP pictures as they are; everyone else gets a still crop
+                const animatedType = file.type === "image/gif" || file.type === "image/webp";
+                if (this.me?.nitro && animatedType && file.size <= 400 * 1024) {
+                    if (this.draft.preview) URL.revokeObjectURL(this.draft.preview);
+                    this.draft.blob = file;
+                    this.draft.preview = URL.createObjectURL(file);
+                    this.draft.remove = false;
+                    this.error = "";
+                    return;
+                }
                 const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
                 const size = Math.min(bitmap.width, bitmap.height);
                 const canvas = document.createElement("canvas");
@@ -872,13 +1355,19 @@ export default {
                 const res = await fetch(`${AUTH}/profile`, {
                     method: "POST",
                     headers: this.headers(),
-                    body: JSON.stringify({ bio: this.draft.bio }),
+                    body: JSON.stringify({
+                        bio: this.draft.bio,
+                        pronouns: this.draft.pronouns,
+                        statusText: this.draft.statusText,
+                        banner: this.draft.banner,
+                        dmFriendsOnly: this.draft.dmFriendsOnly,
+                    }),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || "Could not save your profile.");
                 if (this.draft.preview) URL.revokeObjectURL(this.draft.preview);
-                await this.ensureProfiles([this.username], true);
-                this.me = this.profileOf(this.username) || this.me;
+                this.me = { ...this.me, ...data };
+                this.profiles[this.username.toLowerCase()] = this.me;
                 this.editing = false;
             } catch (e) {
                 this.error = e.message || "Could not save your profile.";
@@ -886,11 +1375,67 @@ export default {
             this.busy = false;
         },
 
-        // ---------- direct messages ----------
-        openNewDm() {
+        // ---------- friends ----------
+        relationTo(name) {
+            const lower = String(name).toLowerCase();
+            const has = (list) => list.some((f) => f.user.toLowerCase() === lower);
+            if (has(this.friendData.friends)) return "friends";
+            if (has(this.friendData.incoming)) return "incoming";
+            if (has(this.friendData.outgoing)) return "outgoing";
+            return "none";
+        },
+        async loadFriends() {
+            if (!this.token) return;
+            try {
+                const res = await fetch(`${API}/friends`, { headers: this.headers() });
+                if (!res.ok) return;
+                this.friendData = await res.json();
+                this.ensureProfiles(
+                    [...this.friendData.friends, ...this.friendData.incoming, ...this.friendData.outgoing].map((f) => f.user),
+                );
+            } catch {}
+        },
+        async openFriends() {
+            this.view = "friends";
+            this.friendMsg = "";
+            await this.loadFriends();
+        },
+        async friendAct(action, name) {
+            const data = await this.post(`${API}/friends`, { action, user: name });
+            await this.loadFriends();
+            if (data && this.card && this.card.username.toLowerCase() === name.toLowerCase()) {
+                await this.ensureProfiles([name], true);
+                this.card = this.profileOf(name) || this.card;
+            }
+            return data;
+        },
+        async removeFriend(name) {
+            if (!window.confirm(`Remove ${name} from your friends?`)) return;
+            await this.friendAct("remove", name);
+        },
+        async sendFriendRequest() {
+            const name = this.friendName.trim();
+            if (!name) return;
+            const data = await this.friendAct("request", name);
+            this.friendMsgBad = !data;
+            this.friendMsg = data
+                ? data.relation === "friends"
+                    ? `You and ${name} are now friends!`
+                    : `Friend request sent to ${name}.`
+                : this.error;
+            if (data) this.friendName = "";
+            this.error = "";
+        },
+
+        // ---------- conversations ----------
+        openNewDm(mode) {
             this.newDm = true;
+            this.dialogMode = mode;
             this.dmSearch = "";
             this.dmResults = [];
+            this.picked = [];
+            this.groupName = "";
+            this.error = "";
             this.$nextTick(() => this.$refs.dmInput?.focus());
         },
         searchDm() {
@@ -904,12 +1449,60 @@ export default {
                 try {
                     const res = await fetch(`${API}/users?q=${encodeURIComponent(q)}`, { headers: this.headers() });
                     if (!res.ok) return;
-                    this.dmResults = (await res.json()).users.filter(
-                        (u) => u.toLowerCase() !== this.username.toLowerCase(),
-                    );
+                    const skip = new Set([this.username.toLowerCase(), ...this.picked.map((p) => p.toLowerCase())]);
+                    if (this.dialogMode === "add" && this.group) this.group.members.forEach((m) => skip.add(m.toLowerCase()));
+                    this.dmResults = (await res.json()).users.filter((u) => !skip.has(u.toLowerCase()));
                     this.ensureProfiles(this.dmResults);
                 } catch {}
             }, 200);
+        },
+        pickUser(name) {
+            if (!this.picked.includes(name) && this.picked.length < 9) this.picked.push(name);
+            this.dmSearch = "";
+            this.dmResults = [];
+            this.$nextTick(() => this.$refs.dmInput?.focus());
+        },
+        async confirmDialog() {
+            if (!this.picked.length) return;
+            this.busy = true;
+            this.error = "";
+            if (this.dialogMode === "add") {
+                const data = await this.post(`${API}/groups`, { action: "add", id: this.groupId, members: this.picked });
+                if (data) {
+                    this.newDm = false;
+                    await this.poll();
+                }
+            } else if (this.picked.length === 1) {
+                this.newDm = false;
+                await this.openDm(this.picked[0]);
+            } else {
+                const data = await this.post(`${API}/groups`, {
+                    action: "create",
+                    name: this.groupName,
+                    members: this.picked,
+                });
+                if (data?.group) {
+                    this.newDm = false;
+                    await this.poll();
+                    await this.openGroup(data.group.id);
+                }
+            }
+            this.busy = false;
+        },
+        async renameGroup() {
+            const name = window.prompt("Group name", this.group?.name || "");
+            if (name === null) return;
+            await this.post(`${API}/groups`, { action: "rename", id: this.groupId, name });
+            await this.poll();
+        },
+        async leaveGroup() {
+            if (!window.confirm("Leave this group chat?")) return;
+            const id = this.groupId;
+            const data = await this.post(`${API}/groups`, { action: "leave", id });
+            if (data) {
+                this.groups = this.groups.filter((g) => g.id !== id);
+                await this.selectChannel(this.channel, true);
+            }
         },
         async messageUser(name) {
             this.card = null;
@@ -918,15 +1511,27 @@ export default {
         },
         async openDm(name) {
             if (!this.username) return;
-            if (this.dm.toLowerCase() === name.toLowerCase()) return;
+            this.view = "chat";
+            if (this.dm.toLowerCase() === name.toLowerCase() && !this.groupId) return;
             this.dm = name;
+            this.groupId = "";
             this.resetConversation();
             await this.poll();
         },
-        async selectChannel(id) {
-            if (!this.dm && id === this.channel) return;
+        async openGroup(id) {
+            this.view = "chat";
+            if (this.groupId === id) return;
+            this.groupId = id;
+            this.dm = "";
+            this.resetConversation();
+            await this.poll();
+        },
+        async selectChannel(id, force = false) {
+            this.view = "chat";
+            if (!force && !this.inConvo && id === this.channel) return;
             this.channel = id;
             this.dm = "";
+            this.groupId = "";
             save(CHANNEL_KEY, id);
             this.resetConversation();
             await this.poll();
@@ -945,7 +1550,7 @@ export default {
         // ---------- composer: mentions + emoji autocomplete ----------
         insertMention(tag) {
             if (!this.canPost) return;
-            this.text = `${this.text}${this.text && !this.text.endsWith(" ") ? " " : ""}${tag} `.slice(0, 300);
+            this.text = `${this.text}${this.text && !this.text.endsWith(" ") ? " " : ""}${tag} `.slice(0, this.maxText);
             this.$nextTick(() => this.$refs.input?.focus());
         },
         onInput() {
@@ -968,7 +1573,7 @@ export default {
                 return;
             }
 
-            const match = this.dm ? null : before.match(/(^|\s)@([A-Za-z0-9_]{0,20})$/);
+            const match = this.inConvo ? null : before.match(/(^|\s)@([A-Za-z0-9_]{0,20})$/);
             if (!match) {
                 this.suggest = [];
                 this.suggestToken = null;
@@ -1016,7 +1621,7 @@ export default {
             const token = this.suggestToken;
             if (!token || !item) return;
             const insert = this.suggestKind === "emoji" ? `:${item.name}: ` : `@${item.name} `;
-            this.text = `${this.text.slice(0, token.start)}${insert}${this.text.slice(token.end)}`.slice(0, 300);
+            this.text = `${this.text.slice(0, token.start)}${insert}${this.text.slice(token.end)}`.slice(0, this.maxText);
             this.suggest = [];
             this.suggestToken = null;
             this.$nextTick(() => {
@@ -1032,7 +1637,7 @@ export default {
         },
         insertEmoji(e) {
             const space = this.text && !this.text.endsWith(" ") ? " " : "";
-            this.text = `${this.text}${space}:${e.name}: `.slice(0, 300);
+            this.text = `${this.text}${space}:${e.name}: `.slice(0, this.maxText);
             this.$nextTick(() => this.$refs.input?.focus());
         },
         async sendGif(g) {
@@ -1054,6 +1659,7 @@ export default {
                 } else {
                     this.text = "";
                     this.atBottom = true;
+                    this.noteOrb(data);
                     await this.poll();
                 }
             } catch {
@@ -1087,7 +1693,7 @@ export default {
                 ctx.drawImage(bitmap, 0, 0, w, h);
                 for (const quality of [0.85, 0.7, 0.55, 0.4]) {
                     const blob = await new Promise((r) => canvas.toBlob(r, mime, quality));
-                    if (blob && blob.size <= MAX_IMAGE_BYTES) {
+                    if (blob && blob.size <= (this.me?.nitro ? 1400 * 1024 : MAX_IMAGE_BYTES)) {
                         return { blob, w, h, url: URL.createObjectURL(blob), name: file.name || "image", size: formatSize(blob.size) };
                     }
                 }
@@ -1164,7 +1770,11 @@ export default {
             this.token = "";
             this.me = null;
             this.dm = "";
+            this.groupId = "";
             this.dms = [];
+            this.groups = [];
+            this.view = "chat";
+            this.friendData = { friends: [], incoming: [], outgoing: [] };
             save(TOKEN_KEY, "");
             this.error = message || "Please log in again.";
         },
@@ -1174,6 +1784,8 @@ export default {
                 if (res.ok) {
                     this.me = await res.json();
                     this.profiles[this.me.username.toLowerCase()] = this.me;
+                    this.loadFriends();
+                    this.loadShop();
                 } else if (res.status === 401) {
                     this.token = "";
                     save(TOKEN_KEY, "");
@@ -1202,6 +1814,8 @@ export default {
                     this.needClaim = false;
                     save(TOKEN_KEY, data.token);
                     this.primed = false;
+                    this.loadFriends();
+                    this.loadShop();
                     await this.poll();
                 }
             } catch {
@@ -1216,9 +1830,15 @@ export default {
             this.token = "";
             this.me = null;
             this.dms = [];
+            this.groups = [];
+            this.friendData = { friends: [], incoming: [], outgoing: [] };
+            this.view = "chat";
             save(TOKEN_KEY, "");
-            if (this.dm) {
+            this.shopOpen = false;
+            this.loadShop();
+            if (this.inConvo) {
                 this.dm = "";
+                this.groupId = "";
                 this.resetConversation();
                 await this.poll();
             }
@@ -1248,8 +1868,13 @@ export default {
                     }),
                     fetch(`${API}/summary`, { cache: "no-store", headers: this.headers() }).catch(() => null),
                 ]);
-                if (res.status === 401 && this.dm) {
+                if (res.status === 401 && this.inConvo) {
                     this.expire("Log in to use direct messages.");
+                    return;
+                }
+                if (res.status === 404 && this.groupId) {
+                    // the group is gone (or we left it)
+                    await this.selectChannel(this.channel, true);
                     return;
                 }
                 if (!res.ok) throw new Error(res.status);
@@ -1260,24 +1885,36 @@ export default {
                     const next = s.mentions || {};
                     if (this.primed) {
                         pinged = Object.keys(next).some(
-                            (c) => (this.dm || c !== this.channel) && next[c] > (this.mentionLatest[c] || 0),
+                            (c) => (this.inConvo || c !== this.channel) && next[c] > (this.mentionLatest[c] || 0),
                         );
                         for (const d of s.dms || []) {
                             const active = this.dm.toLowerCase() === d.user.toLowerCase();
                             if (!active && d.latest > (this.dmLatest[d.user.toLowerCase()] || 0)) pinged = true;
+                        }
+                        for (const g of s.groups || []) {
+                            if (g.id !== this.groupId && g.latest > (this.groupLatest[g.id] || 0)) pinged = true;
+                        }
+                        if ((s.incoming || []).length > this.incomingSeen) {
+                            pinged = true;
+                            this.loadFriends();
                         }
                     }
                     this.latest = s.latest || {};
                     this.mentionLatest = next;
                     this.dms = s.dms || [];
                     this.dmLatest = Object.fromEntries(this.dms.map((d) => [d.user.toLowerCase(), d.latest]));
+                    this.groups = s.groups || [];
+                    this.groupLatest = Object.fromEntries(this.groups.map((g) => [g.id, g.latest]));
+                    this.incomingSeen = (s.incoming || []).length;
+                    this.presence = Object.fromEntries((s.online || []).map((o) => [o.user.toLowerCase(), o.status]));
+                    this.presenceName = Object.fromEntries((s.online || []).map((o) => [o.user.toLowerCase(), o.user]));
                 }
                 this.offline = false;
                 if (scope !== this.scope) return;
 
                 const known = new Set(this.messages.map((m) => m.id));
                 const fresh = data.messages.filter((m) => !known.has(m.id));
-                if (this.primed && fresh.some((m) => this.mentionsMe(m) || (this.dm && m.name !== this.username))) {
+                if (this.primed && fresh.some((m) => this.mentionsMe(m) || (this.inConvo && m.name !== this.username))) {
                     pinged = true;
                 }
                 if (pinged) this.ping();
@@ -1296,11 +1933,15 @@ export default {
                     this.scanEmbeds(this.messages);
                     this.ensureProfiles([...this.messages.map((m) => m.name), ...(this.dm ? [this.dm] : [])]);
                 }
-                this.ensureProfiles(this.dms.map((d) => d.user));
+                this.ensureProfiles([...this.dms.map((d) => d.user), ...this.groups.flatMap((g) => g.members)]);
                 this.pollCount++;
                 if (this.pollCount % 10 === 0) {
                     this.ensureProfiles(
-                        [...new Set(this.messages.map((m) => m.name)), ...this.dms.map((d) => d.user)],
+                        [
+                            ...new Set(this.messages.map((m) => m.name)),
+                            ...this.dms.map((d) => d.user),
+                            ...(this.username ? [this.username] : []),
+                        ],
                         true,
                     );
                 }
@@ -1317,7 +1958,7 @@ export default {
             this.sending = true;
             try {
                 let res;
-                const where = this.dm ? { dm: this.dm } : { channel: this.channel };
+                const where = this.target();
                 if (this.pending?.kind === "video") {
                     const query = new URLSearchParams({ ...where, text: this.text.trim() });
                     this.uploadPct = 0;
@@ -1346,6 +1987,7 @@ export default {
                     this.text = "";
                     this.clearPending();
                     this.atBottom = true;
+                    this.noteOrb(data);
                     await this.poll();
                 }
             } catch {
@@ -1355,6 +1997,11 @@ export default {
             this.sending = false;
         },
         upload(url, blob) {
+            if (window.__devBackend) {
+                // the local backend answers through fetch, which has no upload progress
+                const headers = this.token ? { authorization: `Bearer ${this.token}` } : {};
+                return fetch(url, { method: "POST", headers, body: blob });
+            }
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open("POST", url);

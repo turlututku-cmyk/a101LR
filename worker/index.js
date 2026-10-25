@@ -33,6 +33,10 @@ const REACTIONS = [
 const CUSTOM_REACTION_RE = /^:[a-z0-9_]{2,32}:$/;
 const MAX_REACTION_TYPES = 12;
 
+const STATUSES = ["online", "idle", "dnd", "invisible"];
+const BANNER_COUNT = 12;
+const PRESENCE_MS = 75 * 1000;
+
 const MAX_IMAGE_BYTES = 500 * 1024;
 const MAX_AVATAR_BYTES = 100 * 1024;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
@@ -43,13 +47,87 @@ const GIF_RE = /^[A-Za-z0-9_-]{1,50}\.(gif|mp4)$/;
 const MAX_MESSAGES = 100;
 const MAX_TEXT = 300;
 const MAX_BIO = 190;
-const COOLDOWN_MS = 2000;
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const PBKDF2_ITERATIONS = 100000;
 const MAX_FAILS = 5;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 const EMBED_TTL_MS = 60 * 60 * 1000;
 const EMBED_PER_MINUTE = 30;
+
+// orbs
+const ORB_COOLDOWN_MS = 60 * 1000;
+const MIN_ORB_TEXT = 3;
+
+// Nitro: bought with orbs (or gifted by the owner), unlocks extras for 30 days at a time
+const NITRO_PRICE = 400;
+const NITRO_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_TEXT_NITRO = 500;
+const MAX_IMAGE_NITRO = 1536 * 1024;
+const MAX_AVATAR_NITRO = 400 * 1024;
+const NITRO_ORBS = 2;
+
+// Shop: slot -> what it changes. `nitro` items need an active Nitro to buy and to show.
+// The look of frames lives in the page's CSS (matched by id); colours and gradients live here.
+const SHOP = [
+    { id: "nc_crimson", slot: "nameColor", name: "Crimson", price: 25, style: { color: "#ff4d6d" } },
+    { id: "nc_ocean", slot: "nameColor", name: "Ocean", price: 25, style: { color: "#3aa3ff" } },
+    { id: "nc_mint", slot: "nameColor", name: "Mint", price: 25, style: { color: "#3ddc97" } },
+    { id: "nc_gold", slot: "nameColor", name: "Gold", price: 40, style: { color: "#f5c542" } },
+    { id: "nc_violet", slot: "nameColor", name: "Violet", price: 40, style: { color: "#b388ff" } },
+    { id: "nc_pink", slot: "nameColor", name: "Bubblegum", price: 40, style: { color: "#ff7ac8" } },
+    {
+        id: "nc_sunset", slot: "nameColor", name: "Sunset", price: 120, nitro: true,
+        style: { gradient: "linear-gradient(90deg, #ff512f, #f09819, #ff512f)", animated: true },
+    },
+    {
+        id: "nc_rainbow", slot: "nameColor", name: "Rainbow", price: 200, nitro: true,
+        style: { gradient: "linear-gradient(90deg, #ff4d4d, #ffd24d, #4dff88, #4dc3ff, #b84dff, #ff4d4d)", animated: true },
+    },
+    { id: "fr_gold", slot: "frame", name: "Gold Ring", price: 60 },
+    { id: "fr_neon", slot: "frame", name: "Neon Glow", price: 60 },
+    { id: "fr_emerald", slot: "frame", name: "Emerald Ring", price: 60 },
+    { id: "fr_rose", slot: "frame", name: "Rose Ring", price: 80 },
+    { id: "fr_flame", slot: "frame", name: "Flame", price: 150, nitro: true, style: { animated: true } },
+    { id: "fr_galaxy", slot: "frame", name: "Galaxy", price: 180, nitro: true, style: { animated: true } },
+    { id: "bn_sunset", slot: "banner", name: "Sunset", price: 50, style: { background: "linear-gradient(135deg, #ff7e5f, #feb47b)" } },
+    { id: "bn_ocean", slot: "banner", name: "Deep Ocean", price: 50, style: { background: "linear-gradient(135deg, #2193b0, #6dd5ed)" } },
+    { id: "bn_forest", slot: "banner", name: "Forest", price: 50, style: { background: "linear-gradient(135deg, #134e5e, #71b280)" } },
+    { id: "bn_candy", slot: "banner", name: "Candy", price: 50, style: { background: "linear-gradient(135deg, #ee9ca7, #ffdde1)" } },
+    { id: "bn_midnight", slot: "banner", name: "Midnight", price: 70, style: { background: "linear-gradient(135deg, #0f2027, #2c5364)" } },
+    {
+        id: "bn_aurora", slot: "banner", name: "Aurora", price: 150, nitro: true,
+        style: { background: "linear-gradient(120deg, #00c9ff, #92fe9d, #b388ff, #00c9ff)", animated: true },
+    },
+    {
+        id: "bn_lava", slot: "banner", name: "Lava", price: 150, nitro: true,
+        style: { background: "linear-gradient(120deg, #f12711, #f5af19, #f12711)", animated: true },
+    },
+];
+const SLOTS = ["nameColor", "frame", "banner"];
+
+// friends and groups
+const MAX_FRIENDS = 200;
+const MAX_OUTGOING = 30;
+const MAX_INCOMING = 100;
+const MAX_GROUP_MEMBERS = 10;
+const MAX_GROUPS = 30;
+
+// anti-spam
+const COOLDOWN_MS = 2000;
+const SPAM_WINDOW_MS = 30 * 1000;
+const SPAM_WINDOW_MAX = 8;
+const DUP_WINDOW_MS = 30 * 1000;
+const MAX_LINKS = 2;
+const MAX_MENTIONS = 5;
+const NEW_ACCOUNT_MS = 2 * 60 * 1000;
+const STRIKE_WINDOW_MS = 10 * 60 * 1000;
+const STRIKES_FOR_TIMEOUT = 3;
+const TIMEOUT_MS = 5 * 60 * 1000;
+const REGISTER_PER_HOUR = 3;
+const REACT_PER_10S = 20;
+const FRIEND_ACTIONS_PER_MIN = 10;
+const GROUPS_PER_HOUR = 3;
 
 const json = (body, status = 200) =>
     new Response(JSON.stringify(body), {
@@ -68,6 +146,7 @@ const roleOf = (name) => {
     return has(ROLES, lower) ? ROLES[lower] : "member";
 };
 const dmKey = (a, b) => `dm:${[a.toLowerCase(), b.toLowerCase()].sort().join("|")}`;
+const NAME_RE = /^[a-z0-9_]{3,20}$/;
 
 async function hashPassword(password, salt) {
     const key = await crypto.subtle.importKey(
@@ -126,6 +205,21 @@ function sniffImage(b) {
     return null;
 }
 
+function sniffGif(b) {
+    // "GIF87a" / "GIF89a"
+    return b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38 ? "image/gif" : null;
+}
+
+/** An animated WebP is a VP8X file with the animation flag (bit 1 of the flags byte) set. */
+function isAnimatedWebp(b) {
+    return (
+        b.length > 21 &&
+        b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+        b[12] === 0x56 && b[13] === 0x50 && b[14] === 0x38 && b[15] === 0x58 &&
+        (b[20] & 0x02) !== 0
+    );
+}
+
 function safeEqual(a, b) {
     if (a.length !== b.length) return false;
     let diff = 0;
@@ -139,13 +233,26 @@ const IMAGE_HEADERS = (type) => ({
     "content-security-policy": "default-src 'none'; sandbox",
 });
 
+const recent = (list, windowMs, now = Date.now()) => (list || []).filter((t) => now - t < windowMs);
+
 export class ChatRoom extends DurableObject {
     constructor(ctx, env) {
         super(ctx, env);
+        // in-memory only: resets if the object restarts, which is fine for rate limits and presence
         this.lastSent = new Map();
+        this.history = new Map();
+        this.lastText = new Map();
+        this.strikes = new Map();
+        this.timeouts = new Map();
         this.fails = new Map();
         this.embeds = new Map();
         this.embedHits = [];
+        this.presence = new Map();
+        this.registerHits = new Map();
+        this.reactHits = new Map();
+        this.friendHits = new Map();
+        this.groupHits = new Map();
+        this.board = { time: 0, data: [] };
     }
 
     async fetch(request) {
@@ -162,6 +269,14 @@ export class ChatRoom extends DurableObject {
             return this.searchUsers(request, searchParams);
         } else if (get && pathname === "/api/chat/profiles") {
             return this.profiles(searchParams);
+        } else if (get && pathname === "/api/chat/leaderboard") {
+            return this.leaderboard();
+        } else if (get && pathname === "/api/chat/friends") {
+            return this.friends(request);
+        } else if (post && pathname === "/api/chat/friends") {
+            return this.friendAction(request);
+        } else if (post && pathname === "/api/chat/groups") {
+            return this.groupAction(request);
         } else if (get && pathname === "/api/chat/embed") {
             return this.youtubeEmbed(searchParams);
         } else if (post && pathname === "/api/chat/image") {
@@ -172,6 +287,10 @@ export class ChatRoom extends DurableObject {
             return this.postVideo(request, searchParams);
         } else if (get && pathname.startsWith("/api/chat/video/")) {
             return this.getVideo(request, pathname.slice("/api/chat/video/".length));
+        } else if (get && pathname === "/api/chat/shop") {
+            return this.shop(request);
+        } else if (post && pathname === "/api/chat/shop") {
+            return this.shopAction(request);
         } else if (post && pathname === "/api/chat/react") {
             return this.react(request);
         } else if (post && pathname === "/api/chat/delete") {
@@ -191,6 +310,7 @@ export class ChatRoom extends DurableObject {
         } else if (get && pathname === "/api/auth/me") {
             const username = await this.sessionUser(request);
             if (!username) return json({ error: "Not logged in." }, 401);
+            this.touch(username);
             return json(await this.publicProfile(username));
         }
 
@@ -230,19 +350,121 @@ export class ChatRoom extends DurableObject {
         return session.username;
     }
 
-    async publicProfile(username) {
+    /** storage.get for any number of keys (a single call is limited to 128). */
+    async many(keys) {
+        const out = new Map();
+        for (let i = 0; i < keys.length; i += 100) {
+            const part = await this.ctx.storage.get(keys.slice(i, i + 100));
+            for (const [k, v] of part) out.set(k, v);
+        }
+        return out;
+    }
+
+    touch(username) {
+        this.presence.set(username.toLowerCase(), { time: Date.now(), name: username });
+        if (this.presence.size > 2000) {
+            const now = Date.now();
+            for (const [k, v] of this.presence) if (now - v.time > PRESENCE_MS) this.presence.delete(k);
+        }
+    }
+
+    /** online / idle / dnd, or "offline" when invisible or not seen recently. */
+    effectiveStatus(lower, user) {
+        const seen = this.presence.get(lower);
+        if (!seen || Date.now() - seen.time > PRESENCE_MS) return "offline";
+        const status = user?.status || "online";
+        return status === "invisible" ? "offline" : status;
+    }
+
+    async textLimit(username) {
         const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+        return this.hasNitro(user, roleOf(username)) ? MAX_TEXT_NITRO : MAX_TEXT;
+    }
+
+    async imageLimit(username) {
+        const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+        return this.hasNitro(user, roleOf(username)) ? MAX_IMAGE_NITRO : MAX_IMAGE_BYTES;
+    }
+
+    /** The owner always has Nitro; everyone else while their paid or gifted time lasts. */
+    hasNitro(user, role) {
+        return role === "a101" || (user?.nitroUntil || 0) > Date.now();
+    }
+
+    /** What is really worn: owned, in the right slot, and Nitro items only while Nitro is active. */
+    effectiveEquipped(user, nitro) {
+        const owned = user.owned || [];
+        const out = {};
+        for (const slot of SLOTS) {
+            const id = user.equipped?.[slot];
+            const item = SHOP.find((i) => i.id === id && i.slot === slot);
+            if (item && owned.includes(id) && (!item.nitro || nitro)) out[slot] = id;
+        }
+        return out;
+    }
+
+    badgesOf(user, role, friendCount) {
+        const badges = [];
+        if (role === "a101") badges.push("owner");
+        if (role === "admin") badges.push("staff");
+        if (this.hasNitro(user, role)) badges.push("nitro");
+        if (user.seq && user.seq <= 100) badges.push("early");
+        if ((user.msgCount || 0) >= 100) badges.push("chatter");
+        const orbs = user.orbs || 0;
+        if (orbs >= 500) badges.push("orbmaster");
+        else if (orbs >= 50) badges.push("orbs");
+        if (friendCount >= 5) badges.push("social");
+        if (user.created && Date.now() - user.created >= 30 * 24 * 60 * 60 * 1000) badges.push("veteran");
+        return badges;
+    }
+
+    makeProfile(user, fr) {
+        const lower = user.username.toLowerCase();
+        const role = roleOf(user.username);
+        const friendCount = (fr?.friends || []).length;
+        const nitro = this.hasNitro(user, role);
         return {
-            username: user?.username || username,
-            role: roleOf(username),
-            avatar: user?.avatar || 0,
-            bio: user?.bio || "",
-            created: user?.created || 0,
+            username: user.username,
+            role,
+            nitro,
+            nitroUntil: role === "a101" ? 0 : user.nitroUntil || 0,
+            equipped: this.effectiveEquipped(user, nitro),
+            avatarAnimated: !!user.avatarAnimated,
+            avatar: user.avatar || 0,
+            bio: user.bio || "",
+            created: user.created || 0,
+            pronouns: user.pronouns || "",
+            statusText: user.statusText || "",
+            banner: Number.isInteger(user.banner) ? user.banner : -1,
+            status: this.effectiveStatus(lower, user),
+            chosenStatus: user.status || "online",
+            orbs: user.orbs || 0,
+            msgCount: user.msgCount || 0,
+            friends: friendCount,
+            badges: this.badgesOf(user, role, friendCount),
+            dmFriendsOnly: !!user.dmFriendsOnly,
         };
     }
 
-    /** Turn { channel } or { dm } into a storage key, enforcing who may read or post. */
+    async publicProfile(username) {
+        const lower = username.toLowerCase();
+        const user = (await this.ctx.storage.get(`u:${lower}`)) || { username };
+        const fr = await this.ctx.storage.get(`fr:${lower}`);
+        return this.makeProfile(user, fr);
+    }
+
+    /** Turn { channel } / { dm } / { group } into a storage key, enforcing who may read or post. */
     async resolveTarget(username, source, forPost) {
+        const group = source.group ? String(source.group) : "";
+        if (group) {
+            if (!username) return { error: json({ error: "Log in to use group chats." }, 401) };
+            const meta = /^[0-9a-f]{8}$/.test(group) ? await this.ctx.storage.get(`gm:${group}`) : null;
+            if (!meta || !meta.members.includes(username.toLowerCase())) {
+                return { error: json({ error: "Group not found." }, 404) };
+            }
+            return { key: `g:${group}`, isDm: true, group: meta };
+        }
+
         const dm = source.dm ? String(source.dm).trim() : "";
         if (dm) {
             if (!username) return { error: json({ error: "Log in to use direct messages." }, 401) };
@@ -251,8 +473,15 @@ export class ChatRoom extends DurableObject {
             if (other.username.toLowerCase() === username.toLowerCase()) {
                 return { error: json({ error: "You can't message yourself." }, 400) };
             }
+            if (forPost && other.dmFriendsOnly) {
+                const fr = await this.ctx.storage.get(`fr:${other.username.toLowerCase()}`);
+                if (!(fr?.friends || []).includes(username.toLowerCase())) {
+                    return { error: json({ error: "This user only accepts messages from friends." }, 403) };
+                }
+            }
             return { key: dmKey(username, other.username), isDm: true };
         }
+
         const channel = String(source.channel || "general");
         if (!has(CHANNELS, channel)) return { error: json({ error: "Unknown channel." }, 404) };
         const allowed = CHANNELS[channel].post;
@@ -264,6 +493,89 @@ export class ChatRoom extends DurableObject {
 
     async bumpVersion(key) {
         await this.ctx.storage.put(`ver:${key}`, ((await this.ctx.storage.get(`ver:${key}`)) || 0) + 1);
+    }
+
+    // ---------- anti-spam ----------
+
+    addStrike(lower) {
+        const now = Date.now();
+        const list = recent(this.strikes.get(lower), STRIKE_WINDOW_MS, now);
+        list.push(now);
+        if (list.length >= STRIKES_FOR_TIMEOUT) {
+            this.timeouts.set(lower, now + TIMEOUT_MS);
+            this.strikes.delete(lower);
+        } else {
+            this.strikes.set(lower, list);
+        }
+    }
+
+    /** Cheap checks done before reading any upload: timeout, cooldown, burst limit. */
+    rateCheck(username) {
+        const lower = username.toLowerCase();
+        const now = Date.now();
+        const until = this.timeouts.get(lower) || 0;
+        if (until > now) {
+            return json(
+                { error: `You're timed out for spamming. Try again in ${Math.ceil((until - now) / 1000)}s.` },
+                429,
+            );
+        }
+        if (now - (this.lastSent.get(lower) || 0) < COOLDOWN_MS) {
+            return json({ error: "Slow down a little." }, 429);
+        }
+        if (recent(this.history.get(lower), SPAM_WINDOW_MS, now).length >= SPAM_WINDOW_MAX) {
+            this.addStrike(lower);
+            return json({ error: "You're sending messages too fast." }, 429);
+        }
+        return null;
+    }
+
+    /** Checks on what the message says: links, mentions, repeats. */
+    contentCheck(username, text, user) {
+        if (!text) return null;
+        const lower = username.toLowerCase();
+        const now = Date.now();
+        const links = (text.match(/https?:\/\//gi) || []).length;
+        if (links > MAX_LINKS) return json({ error: `Please keep it to ${MAX_LINKS} links per message.` }, 400);
+        if (links && user?.created && now - user.created < NEW_ACCOUNT_MS) {
+            return json({ error: "New accounts can't post links for a couple of minutes." }, 403);
+        }
+        if ((text.match(/@[A-Za-z0-9_]{3,20}/g) || []).length > MAX_MENTIONS) {
+            return json({ error: `You can mention at most ${MAX_MENTIONS} people per message.` }, 400);
+        }
+        const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+        const last = this.lastText.get(lower);
+        if (last && last.text === normalized && now - last.time < DUP_WINDOW_MS) {
+            this.addStrike(lower);
+            return json({ error: "Don't repeat yourself." }, 429);
+        }
+        return null;
+    }
+
+    recordSent(username, text) {
+        const lower = username.toLowerCase();
+        const now = Date.now();
+        this.lastSent.set(lower, now);
+        this.history.set(lower, [...recent(this.history.get(lower), SPAM_WINDOW_MS, now), now]);
+        if (text) this.lastText.set(lower, { text: text.toLowerCase().replace(/\s+/g, " ").trim(), time: now });
+        if (this.lastSent.size > 2000) {
+            this.lastSent.clear();
+            this.history.clear();
+            this.lastText.clear();
+        }
+    }
+
+    hitLimit(map, key, windowMs, max) {
+        const now = Date.now();
+        const list = recent(map.get(key), windowMs, now);
+        if (list.length >= max) {
+            map.set(key, list);
+            return true;
+        }
+        list.push(now);
+        map.set(key, list);
+        if (map.size > 2000) map.clear();
+        return false;
     }
 
     // ---------- auth ----------
@@ -321,16 +633,26 @@ export class ChatRoom extends DurableObject {
         if (await this.ctx.storage.get(key)) {
             return json({ error: "That username is taken." }, 409);
         }
+        if (this.hitLimit(this.registerHits, ip, 60 * 60 * 1000, REGISTER_PER_HOUR)) {
+            return json({ error: "Too many accounts created from your connection. Try again later." }, 429);
+        }
 
+        const seq = ((await this.ctx.storage.get("useq")) || 0) + 1;
         const salt = crypto.getRandomValues(new Uint8Array(16));
-        await this.ctx.storage.put(key, {
+        const user = {
             username,
             salt: toHex(salt),
             hash: await hashPassword(password, salt),
             created: Date.now(),
+            seq,
             bio: "",
             avatar: 0,
-        });
+            orbs: 0,
+            msgCount: 0,
+            status: "online",
+        };
+        await this.ctx.storage.put({ [key]: user, useq: seq });
+        this.touch(username);
         return json({ ...(await this.publicProfile(username)), token: await this.createSession(username) });
     }
 
@@ -355,6 +677,7 @@ export class ChatRoom extends DurableObject {
         }
 
         this.fails.delete(failId);
+        this.touch(user.username);
         return json({
             ...(await this.publicProfile(user.username)),
             token: await this.createSession(user.username),
@@ -371,11 +694,26 @@ export class ChatRoom extends DurableObject {
     async updateProfile(request) {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in first." }, 401);
-        const body = await this.readBody(request);
-        const bio = String(body?.bio ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_BIO);
+        const body = (await this.readBody(request)) || {};
         const key = `u:${username.toLowerCase()}`;
         const user = await this.ctx.storage.get(key);
-        await this.ctx.storage.put(key, { ...user, bio });
+        const clean = (value, max) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+
+        if ("bio" in body) user.bio = clean(body.bio, MAX_BIO);
+        if ("pronouns" in body) user.pronouns = clean(body.pronouns, 20);
+        if ("statusText" in body) user.statusText = clean(body.statusText, 40);
+        if ("banner" in body) {
+            const banner = Number(body.banner);
+            user.banner = Number.isInteger(banner) && banner >= 0 && banner < BANNER_COUNT ? banner : undefined;
+        }
+        if ("status" in body) {
+            if (!STATUSES.includes(body.status)) return json({ error: "Unknown status." }, 400);
+            user.status = body.status;
+        }
+        if ("dmFriendsOnly" in body) user.dmFriendsOnly = !!body.dmFriendsOnly;
+
+        await this.ctx.storage.put(key, user);
+        this.touch(username);
         return json(await this.publicProfile(username));
     }
 
@@ -387,23 +725,33 @@ export class ChatRoom extends DurableObject {
                 String(searchParams.get("names") ?? "")
                     .split(",")
                     .map((n) => n.trim().toLowerCase())
-                    .filter((n) => /^[a-z0-9_]{3,20}$/.test(n)),
+                    .filter((n) => NAME_RE.test(n)),
             ),
         ].slice(0, 40);
         if (!names.length) return json({ profiles: [] });
-        const found = await this.ctx.storage.get(names.map((n) => `u:${n}`));
+        const users = await this.many(names.map((n) => `u:${n}`));
+        const frs = await this.many(names.map((n) => `fr:${n}`));
         return json({
             profiles: names
-                .map((n) => found.get(`u:${n}`))
-                .filter(Boolean)
-                .map((u) => ({
-                    username: u.username,
-                    role: roleOf(u.username),
-                    avatar: u.avatar || 0,
-                    bio: u.bio || "",
-                    created: u.created || 0,
-                })),
+                .filter((n) => users.has(`u:${n}`))
+                .map((n) => this.makeProfile(users.get(`u:${n}`), frs.get(`fr:${n}`))),
         });
+    }
+
+    async leaderboard() {
+        const now = Date.now();
+        if (now - this.board.time > 30000) {
+            const list = await this.ctx.storage.list({ prefix: "u:", limit: 2000 });
+            this.board = {
+                time: now,
+                data: [...list.values()]
+                    .filter((u) => (u.orbs || 0) > 0)
+                    .sort((a, b) => (b.orbs || 0) - (a.orbs || 0))
+                    .slice(0, 10)
+                    .map((u) => ({ username: u.username, orbs: u.orbs || 0, avatar: u.avatar || 0 })),
+            };
+        }
+        return json({ leaders: this.board.data });
     }
 
     async postAvatar(request, searchParams) {
@@ -415,26 +763,33 @@ export class ChatRoom extends DurableObject {
 
         if (searchParams.get("remove")) {
             await this.ctx.storage.delete(`av:${lower}`);
-            await this.ctx.storage.put(key, { ...user, avatar: 0 });
+            await this.ctx.storage.put(key, { ...user, avatar: 0, avatarAnimated: false });
             return json({ avatar: 0 });
         }
 
+        const nitro = this.hasNitro(user, roleOf(username));
+        const max = nitro ? MAX_AVATAR_NITRO : MAX_AVATAR_BYTES;
         const declared = Number(request.headers.get("content-length")) || 0;
-        const bytes = declared > MAX_AVATAR_BYTES ? null : await readLimited(request, MAX_AVATAR_BYTES);
-        if (!bytes) return json({ error: "Profile picture is too large (max 100 KB)." }, 413);
+        const bytes = declared > max ? null : await readLimited(request, max);
+        if (!bytes) return json({ error: `Profile picture is too large (max ${max / 1024} KB).` }, 413);
         if (bytes.length === 0) return json({ error: "No image received." }, 400);
-        const type = sniffImage(bytes);
-        if (!type) return json({ error: "Only JPEG, PNG or WebP images are allowed." }, 415);
+        const type = sniffImage(bytes) || sniffGif(bytes);
+        if (!type) return json({ error: "Only JPEG, PNG, WebP or GIF images are allowed." }, 415);
+
+        const animated = type === "image/gif" || isAnimatedWebp(bytes);
+        if (animated && !nitro) {
+            return json({ error: "Animated profile pictures need Nitro.", nitro: true }, 403);
+        }
 
         const version = Date.now();
         await this.ctx.storage.put(`av:${lower}`, { type, bytes: bytes.buffer });
-        await this.ctx.storage.put(key, { ...user, avatar: version });
-        return json({ avatar: version });
+        await this.ctx.storage.put(key, { ...user, avatar: version, avatarAnimated: animated });
+        return json({ avatar: version, animated });
     }
 
     async getAvatar(name) {
         const lower = name.toLowerCase();
-        if (!/^[a-z0-9_]{3,20}$/.test(lower)) return json({ error: "Not found." }, 404);
+        if (!NAME_RE.test(lower)) return json({ error: "Not found." }, 404);
         const avatar = await this.ctx.storage.get(`av:${lower}`);
         if (!avatar) return json({ error: "Not found." }, 404);
         return new Response(avatar.bytes, {
@@ -442,11 +797,271 @@ export class ChatRoom extends DurableObject {
         });
     }
 
+    // ---------- shop & nitro ----------
+
+    async shop(request) {
+        const username = await this.sessionUser(request);
+        const out = { items: SHOP, nitro: { price: NITRO_PRICE, days: NITRO_DAYS, orbsPerMessage: NITRO_ORBS } };
+        if (username) {
+            const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+            const role = roleOf(username);
+            const nitro = this.hasNitro(user, role);
+            Object.assign(out, {
+                orbs: user.orbs || 0,
+                owned: user.owned || [],
+                equipped: user.equipped || {},
+                nitroActive: nitro,
+                nitroUntil: role === "a101" ? 0 : user.nitroUntil || 0,
+                lifetime: role === "a101",
+            });
+        }
+        return json(out);
+    }
+
+    async shopAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const lower = username.toLowerCase();
+        const role = roleOf(username);
+        const key = `u:${lower}`;
+        const user = await this.ctx.storage.get(key);
+        const body = (await this.readBody(request)) || {};
+        const action = String(body.action ?? "");
+        const nitro = this.hasNitro(user, role);
+        const item = SHOP.find((i) => i.id === body.item);
+        user.owned = user.owned || [];
+        user.equipped = user.equipped || {};
+
+        if (action === "buy") {
+            if (!item) return json({ error: "That item doesn't exist." }, 404);
+            if (user.owned.includes(item.id)) return json({ error: "You already own that." }, 400);
+            if (item.nitro && !nitro) return json({ error: "That item needs Nitro.", nitro: true }, 403);
+            if ((user.orbs || 0) < item.price) return json({ error: "Not enough orbs." }, 400);
+            user.orbs -= item.price;
+            user.owned.push(item.id);
+            user.equipped[item.slot] = item.id; // wear it straight away
+        } else if (action === "equip") {
+            if (!item || !user.owned.includes(item.id)) return json({ error: "You don't own that." }, 400);
+            if (item.nitro && !nitro) return json({ error: "That item needs Nitro.", nitro: true }, 403);
+            user.equipped[item.slot] = item.id;
+        } else if (action === "unequip") {
+            if (!SLOTS.includes(body.slot)) return json({ error: "Unknown slot." }, 400);
+            delete user.equipped[body.slot];
+        } else if (action === "nitro") {
+            if (role === "a101") return json({ error: "You already have Nitro forever." }, 400);
+            if ((user.orbs || 0) < NITRO_PRICE) return json({ error: "Not enough orbs." }, 400);
+            user.orbs -= NITRO_PRICE;
+            user.nitroUntil = Math.max(user.nitroUntil || 0, Date.now()) + NITRO_DAYS * DAY_MS;
+        } else if (action === "gift") {
+            if (role !== "a101") return json({ error: "Only the owner can gift Nitro." }, 403);
+            const targetKey = `u:${String(body.user ?? "").trim().toLowerCase()}`;
+            const target = await this.ctx.storage.get(targetKey);
+            if (!target) return json({ error: "No such user." }, 404);
+            const days = Math.min(Math.max(Math.round(Number(body.days) || NITRO_DAYS), 1), 365);
+            target.nitroUntil = Math.max(target.nitroUntil || 0, Date.now()) + days * DAY_MS;
+            await this.ctx.storage.put(targetKey, target);
+            return json({ ok: true, until: target.nitroUntil });
+        } else {
+            return json({ error: "Unknown action." }, 400);
+        }
+
+        await this.ctx.storage.put(key, user);
+        return json({ ok: true, profile: await this.publicProfile(username) });
+    }
+
+    // ---------- friends ----------
+    async loadFriends(lower) {
+        const fr = (await this.ctx.storage.get(`fr:${lower}`)) || {};
+        return { friends: fr.friends || [], incoming: fr.incoming || [], outgoing: fr.outgoing || [] };
+    }
+
+    async friends(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const fr = await this.loadFriends(username.toLowerCase());
+        const all = [...new Set([...fr.friends, ...fr.incoming, ...fr.outgoing])];
+        const users = await this.many(all.map((n) => `u:${n}`));
+        const info = (n) => {
+            const u = users.get(`u:${n}`);
+            return u
+                ? { user: u.username, status: this.effectiveStatus(n, u), statusText: u.statusText || "" }
+                : null;
+        };
+        return json({
+            friends: fr.friends.map(info).filter(Boolean),
+            incoming: fr.incoming.map(info).filter(Boolean),
+            outgoing: fr.outgoing.map(info).filter(Boolean),
+        });
+    }
+
+    async friendAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const me = username.toLowerCase();
+        const body = (await this.readBody(request)) || {};
+        const action = String(body.action ?? "");
+        const target = await this.ctx.storage.get(`u:${String(body.user ?? "").trim().toLowerCase()}`);
+        if (!target) return json({ error: "No such user." }, 404);
+        const other = target.username.toLowerCase();
+        if (other === me) return json({ error: "You can't do that to yourself." }, 400);
+        if (this.hitLimit(this.friendHits, me, 60 * 1000, FRIEND_ACTIONS_PER_MIN)) {
+            return json({ error: "You're doing that too fast." }, 429);
+        }
+
+        const mine = await this.loadFriends(me);
+        const theirs = await this.loadFriends(other);
+        const without = (list, n) => list.filter((x) => x !== n);
+        const save = () =>
+            this.ctx.storage.put({
+                [`fr:${me}`]: mine,
+                [`fr:${other}`]: theirs,
+            });
+        const makeFriends = () => {
+            mine.friends = [...without(mine.friends, other), other];
+            theirs.friends = [...without(theirs.friends, me), me];
+            mine.incoming = without(mine.incoming, other);
+            mine.outgoing = without(mine.outgoing, other);
+            theirs.incoming = without(theirs.incoming, me);
+            theirs.outgoing = without(theirs.outgoing, me);
+        };
+
+        if (action === "request") {
+            if (mine.friends.includes(other)) return json({ error: "You're already friends." }, 400);
+            if (mine.incoming.includes(other)) {
+                makeFriends();
+            } else {
+                if (mine.outgoing.includes(other)) return json({ error: "Request already sent." }, 400);
+                if (mine.outgoing.length >= MAX_OUTGOING) return json({ error: "Too many pending requests." }, 400);
+                if (theirs.incoming.length >= MAX_INCOMING) return json({ error: "That user has too many requests." }, 400);
+                mine.outgoing.push(other);
+                theirs.incoming.push(me);
+            }
+        } else if (action === "accept") {
+            if (!mine.incoming.includes(other)) return json({ error: "No request from that user." }, 404);
+            if (mine.friends.length >= MAX_FRIENDS || theirs.friends.length >= MAX_FRIENDS) {
+                return json({ error: "Friend list is full." }, 400);
+            }
+            makeFriends();
+        } else if (action === "decline") {
+            mine.incoming = without(mine.incoming, other);
+            theirs.outgoing = without(theirs.outgoing, me);
+        } else if (action === "cancel") {
+            mine.outgoing = without(mine.outgoing, other);
+            theirs.incoming = without(theirs.incoming, me);
+        } else if (action === "remove") {
+            mine.friends = without(mine.friends, other);
+            theirs.friends = without(theirs.friends, me);
+        } else {
+            return json({ error: "Unknown action." }, 400);
+        }
+
+        await save();
+        const relation = mine.friends.includes(other)
+            ? "friends"
+            : mine.incoming.includes(other)
+              ? "incoming"
+              : mine.outgoing.includes(other)
+                ? "outgoing"
+                : "none";
+        return json({ ok: true, relation });
+    }
+
+    // ---------- group chats ----------
+
+    async groupAction(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in first." }, 401);
+        const me = username.toLowerCase();
+        const body = (await this.readBody(request)) || {};
+        const action = String(body.action ?? "");
+        const cleanName = (value) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 30);
+
+        const lookup = async (names) => {
+            const lowers = [
+                ...new Set(
+                    (Array.isArray(names) ? names : [])
+                        .map((n) => String(n).trim().toLowerCase())
+                        .filter((n) => NAME_RE.test(n) && n !== me),
+                ),
+            ];
+            const found = await this.many(lowers.map((n) => `u:${n}`));
+            return lowers.filter((n) => found.has(`u:${n}`));
+        };
+        const addToUser = async (lower, id) => {
+            const ids = (await this.ctx.storage.get(`gx:${lower}`)) || [];
+            if (!ids.includes(id)) await this.ctx.storage.put(`gx:${lower}`, [...ids, id]);
+        };
+        const describe = async (meta) => {
+            const users = await this.many(meta.members.map((n) => `u:${n}`));
+            return {
+                id: meta.id,
+                name: meta.name,
+                owner: users.get(`u:${meta.owner}`)?.username || meta.owner,
+                members: meta.members.map((n) => users.get(`u:${n}`)?.username || n),
+            };
+        };
+
+        if (action === "create") {
+            if (this.hitLimit(this.groupHits, me, 60 * 60 * 1000, GROUPS_PER_HOUR)) {
+                return json({ error: "You're creating groups too fast." }, 429);
+            }
+            const members = await lookup(body.members);
+            if (members.length < 1 || members.length > MAX_GROUP_MEMBERS - 1) {
+                return json({ error: `Pick between 1 and ${MAX_GROUP_MEMBERS - 1} other people.` }, 400);
+            }
+            const mine = (await this.ctx.storage.get(`gx:${me}`)) || [];
+            if (mine.length >= MAX_GROUPS) return json({ error: "You're in too many groups." }, 400);
+            const id = toHex(crypto.getRandomValues(new Uint8Array(4)));
+            const meta = { id, name: cleanName(body.name), owner: me, members: [me, ...members], created: Date.now() };
+            await this.ctx.storage.put(`gm:${id}`, meta);
+            for (const n of meta.members) await addToUser(n, id);
+            return json({ ok: true, group: await describe(meta) });
+        }
+
+        const id = String(body.id ?? "");
+        const meta = /^[0-9a-f]{8}$/.test(id) ? await this.ctx.storage.get(`gm:${id}`) : null;
+        if (!meta || !meta.members.includes(me)) return json({ error: "Group not found." }, 404);
+
+        if (action === "rename") {
+            if (meta.owner !== me) return json({ error: "Only the group owner can rename it." }, 403);
+            meta.name = cleanName(body.name);
+        } else if (action === "add") {
+            if (meta.owner !== me) return json({ error: "Only the group owner can add people." }, 403);
+            const added = (await lookup(body.members)).filter((n) => !meta.members.includes(n));
+            if (!added.length) return json({ error: "Nobody to add." }, 400);
+            if (meta.members.length + added.length > MAX_GROUP_MEMBERS) {
+                return json({ error: `Groups can have at most ${MAX_GROUP_MEMBERS} people.` }, 400);
+            }
+            meta.members.push(...added);
+            for (const n of added) await addToUser(n, id);
+        } else if (action === "leave") {
+            meta.members = meta.members.filter((n) => n !== me);
+            const ids = ((await this.ctx.storage.get(`gx:${me}`)) || []).filter((g) => g !== id);
+            await this.ctx.storage.put(`gx:${me}`, ids);
+            if (!meta.members.length) {
+                const messages = (await this.ctx.storage.get(`m:g:${id}`)) || [];
+                await this.purgeMessageAssets(messages);
+                await this.ctx.storage.delete([`gm:${id}`, `m:g:${id}`, `n:g:${id}`, `ver:g:${id}`]);
+                return json({ ok: true });
+            }
+            if (meta.owner === me) meta.owner = meta.members[0];
+        } else {
+            return json({ error: "Unknown action." }, 400);
+        }
+
+        await this.ctx.storage.put(`gm:${id}`, meta);
+        return json({ ok: true, group: await describe(meta) });
+    }
+
     // ---------- messages ----------
 
     async getMessages(request, searchParams) {
-        const source = { channel: searchParams.get("channel"), dm: searchParams.get("dm") };
-        const username = source.dm ? await this.sessionUser(request) : null;
+        const source = {
+            channel: searchParams.get("channel"),
+            dm: searchParams.get("dm"),
+            group: searchParams.get("group"),
+        };
+        const username = source.dm || source.group ? await this.sessionUser(request) : null;
         const target = await this.resolveTarget(username, source, false);
         if (target.error) return target.error;
 
@@ -470,7 +1085,7 @@ export class ChatRoom extends DurableObject {
         const target = await this.resolveTarget(username, body || {}, true);
         if (target.error) return target.error;
 
-        const text = String(body?.text ?? "").trim().slice(0, MAX_TEXT);
+        const text = String(body?.text ?? "").trim().slice(0, await this.textLimit(username));
         const gif = body?.gif == null ? "" : String(body.gif);
         if (gif && !GIF_RE.test(gif)) return json({ error: "Unknown GIF." }, 400);
         if (!text && !gif) return json({ error: "Message is empty." }, 400);
@@ -478,21 +1093,29 @@ export class ChatRoom extends DurableObject {
         return this.storeMessage(username, target, text, gif ? { gif } : {});
     }
 
+    sourceFromQuery(searchParams) {
+        return {
+            channel: searchParams.get("channel"),
+            dm: searchParams.get("dm"),
+            group: searchParams.get("group"),
+        };
+    }
+
     async postImage(request, searchParams) {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in to send messages." }, 401);
 
-        const target = await this.resolveTarget(
-            username,
-            { channel: searchParams.get("channel"), dm: searchParams.get("dm") },
-            true,
-        );
+        const target = await this.resolveTarget(username, this.sourceFromQuery(searchParams), true);
         if (target.error) return target.error;
-        const text = String(searchParams.get("text") ?? "").trim().slice(0, MAX_TEXT);
+        const text = String(searchParams.get("text") ?? "").trim().slice(0, await this.textLimit(username));
 
+        const limited = this.rateCheck(username);
+        if (limited) return limited;
+
+        const maxImage = await this.imageLimit(username);
         const declared = Number(request.headers.get("content-length")) || 0;
-        const bytes = declared > MAX_IMAGE_BYTES ? null : await readLimited(request, MAX_IMAGE_BYTES);
-        if (!bytes) return json({ error: "Image is too large (max 500 KB)." }, 413);
+        const bytes = declared > maxImage ? null : await readLimited(request, maxImage);
+        if (!bytes) return json({ error: `Image is too large (max ${Math.round(maxImage / 1024)} KB).` }, 413);
         if (bytes.length === 0) return json({ error: "No image received." }, 400);
         const type = sniffImage(bytes);
         if (!type) return json({ error: "Only JPEG, PNG or WebP images are allowed." }, 415);
@@ -501,10 +1124,6 @@ export class ChatRoom extends DurableObject {
             const n = Math.round(Number(searchParams.get(name)));
             return n >= 1 && n <= 4096 ? n : 0;
         };
-
-        if (Date.now() - (this.lastSent.get(username) || 0) < COOLDOWN_MS) {
-            return json({ error: "Slow down a little." }, 429);
-        }
 
         const imageId = toHex(crypto.getRandomValues(new Uint8Array(12)));
         await this.ctx.storage.put(`img:${imageId}`, { type, bytes: bytes.buffer });
@@ -530,20 +1149,15 @@ export class ChatRoom extends DurableObject {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in to send messages." }, 401);
 
-        const target = await this.resolveTarget(
-            username,
-            { channel: searchParams.get("channel"), dm: searchParams.get("dm") },
-            true,
-        );
+        const target = await this.resolveTarget(username, this.sourceFromQuery(searchParams), true);
         if (target.error) return target.error;
-        const text = String(searchParams.get("text") ?? "").trim().slice(0, MAX_TEXT);
+        const text = String(searchParams.get("text") ?? "").trim().slice(0, await this.textLimit(username));
 
         const tooBig = () => json({ error: "Video is too large (max 25 MB)." }, 413);
         const declared = Number(request.headers.get("content-length")) || 0;
         if (declared > MAX_VIDEO_BYTES) return tooBig();
-        if (Date.now() - (this.lastSent.get(username) || 0) < COOLDOWN_MS) {
-            return json({ error: "Slow down a little." }, 429);
-        }
+        const limited = this.rateCheck(username);
+        if (limited) return limited;
         if (!request.body) return json({ error: "No video received." }, 400);
 
         const id = toHex(crypto.getRandomValues(new Uint8Array(12)));
@@ -684,13 +1298,16 @@ export class ChatRoom extends DurableObject {
     }
 
     async storeMessage(username, target, text, extra = {}) {
-        const now = Date.now();
-        if (now - (this.lastSent.get(username) || 0) < COOLDOWN_MS) {
-            return json({ error: "Slow down a little." }, 429);
-        }
-        this.lastSent.set(username, now);
-        if (this.lastSent.size > 500) this.lastSent.clear();
+        const lower = username.toLowerCase();
+        const limited = this.rateCheck(username);
+        if (limited) return limited;
+        const userKey = `u:${lower}`;
+        const user = await this.ctx.storage.get(userKey);
+        const spam = this.contentCheck(username, text, user);
+        if (spam) return spam;
+        this.recordSent(username, text);
 
+        const now = Date.now();
         const key = target.key;
         const mentions = target.isDm ? [] : await this.findMentions(text, username);
         const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
@@ -708,23 +1325,37 @@ export class ChatRoom extends DurableObject {
         const dropped = messages.slice(0, messages.length - kept.length);
         const writes = { [`m:${key}`]: kept, [`n:${key}`]: nextId };
         for (const name of mentions) writes[`mn:${key}:${name.toLowerCase()}`] = nextId;
+
+        // orbs: one per message, at most one a minute, and only for real messages
+        let earned = false;
+        if (user) {
+            user.msgCount = (user.msgCount || 0) + 1;
+            const worthy = text.length >= MIN_ORB_TEXT || !!(extra.image || extra.video || extra.gif);
+            if (worthy && now - (user.lastOrb || 0) >= ORB_COOLDOWN_MS) {
+                user.orbs = (user.orbs || 0) + (this.hasNitro(user, roleOf(username)) ? NITRO_ORBS : 1);
+                user.lastOrb = now;
+                earned = true;
+            }
+            writes[userKey] = user;
+        }
         await this.ctx.storage.put(writes);
         if (dropped.length) await this.purgeMessageAssets(dropped);
 
-        if (target.isDm) {
+        if (key.startsWith("dm:")) {
             const [a, b] = key.slice(3).split("|");
             for (const [me, other] of [[a, b], [b, a]]) {
                 const list = (await this.ctx.storage.get(`dmx:${me}`)) || [];
                 if (!list.includes(other)) await this.ctx.storage.put(`dmx:${me}`, [...list, other]);
             }
         }
-        return json({ ok: true, id: nextId });
+        this.touch(username);
+        return json({ ok: true, id: nextId, orb: earned, orbs: user?.orbs || 0 });
     }
 
     async findMentions(text, author) {
         const found = [...new Set((text.match(/@[A-Za-z0-9_]{3,20}/g) || []).map((s) => s.slice(1).toLowerCase()))]
             .filter((n) => n !== author.toLowerCase())
-            .slice(0, 10);
+            .slice(0, MAX_MENTIONS);
         if (!found.length) return [];
         const users = await this.ctx.storage.get(found.map((n) => `u:${n}`));
         return found.map((n) => users.get(`u:${n}`)?.username).filter(Boolean);
@@ -733,6 +1364,9 @@ export class ChatRoom extends DurableObject {
     async react(request) {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in to react." }, 401);
+        if (this.hitLimit(this.reactHits, username.toLowerCase(), 10 * 1000, REACT_PER_10S)) {
+            return json({ error: "You're reacting too fast." }, 429);
+        }
         const body = (await this.readBody(request)) || {};
         const target = await this.resolveTarget(username, body, false);
         if (target.error) return target.error;
@@ -798,23 +1432,62 @@ export class ChatRoom extends DurableObject {
 
         let mentions = {};
         let dms = [];
+        let groups = [];
+        let incoming = [];
         if (username) {
             const lower = username.toLowerCase();
+            this.touch(username);
             const found = await this.ctx.storage.get(ids.map((c) => `mn:${c}:${lower}`));
             mentions = Object.fromEntries(ids.map((c) => [c, found.get(`mn:${c}:${lower}`) || 0]));
 
             const partners = ((await this.ctx.storage.get(`dmx:${lower}`)) || []).slice(0, 50);
             if (partners.length) {
                 const keys = partners.map((p) => dmKey(lower, p));
-                const dmCounts = await this.ctx.storage.get(keys.map((k) => `n:${k}`));
-                const users = await this.ctx.storage.get(partners.map((p) => `u:${p}`));
+                const dmCounts = await this.many(keys.map((k) => `n:${k}`));
+                const users = await this.many(partners.map((p) => `u:${p}`));
                 dms = partners.map((p, i) => ({
                     user: users.get(`u:${p}`)?.username || p,
                     latest: dmCounts.get(`n:${keys[i]}`) || 0,
                 }));
             }
+
+            const groupIds = ((await this.ctx.storage.get(`gx:${lower}`)) || []).slice(0, MAX_GROUPS);
+            if (groupIds.length) {
+                const metas = await this.many(groupIds.map((g) => `gm:${g}`));
+                const gCounts = await this.many(groupIds.map((g) => `n:g:${g}`));
+                const memberNames = new Set();
+                for (const meta of metas.values()) meta.members.forEach((n) => memberNames.add(n));
+                const users = await this.many([...memberNames].map((n) => `u:${n}`));
+                groups = groupIds
+                    .filter((g) => metas.has(`gm:${g}`))
+                    .map((g) => {
+                        const meta = metas.get(`gm:${g}`);
+                        return {
+                            id: g,
+                            name: meta.name,
+                            owner: users.get(`u:${meta.owner}`)?.username || meta.owner,
+                            members: meta.members.map((n) => users.get(`u:${n}`)?.username || n),
+                            latest: gCounts.get(`n:g:${g}`) || 0,
+                        };
+                    });
+            }
+
+            const fr = await this.loadFriends(lower);
+            if (fr.incoming.length) {
+                const users = await this.many(fr.incoming.map((n) => `u:${n}`));
+                incoming = fr.incoming.map((n) => users.get(`u:${n}`)?.username || n);
+            }
         }
-        return json({ latest, mentions, dms });
+
+        const now = Date.now();
+        const fresh = [...this.presence].filter(([, seen]) => now - seen.time <= PRESENCE_MS).slice(0, 200);
+        const presenceUsers = await this.many(fresh.map(([lower]) => `u:${lower}`));
+        const online = [];
+        for (const [lower, seen] of fresh) {
+            const status = this.effectiveStatus(lower, presenceUsers.get(`u:${lower}`));
+            if (status !== "offline") online.push({ user: seen.name, status });
+        }
+        return json({ latest, mentions, dms, groups, incoming, online });
     }
 
     async searchUsers(request, searchParams) {
