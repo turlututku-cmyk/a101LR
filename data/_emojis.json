@@ -1,0 +1,82 @@
+[
+    {
+        "name":  "100_members",
+        "src":  "/assets/emojis/100_members.webp"
+    },
+    {
+        "name":  "easy_hard",
+        "src":  "/assets/difficulty/easy-hard.png"
+    },
+    {
+        "name":  "easy_low",
+        "src":  "/assets/difficulty/easy-low.png"
+    },
+    {
+        "name":  "easy_mid",
+        "src":  "/assets/difficulty/easy-mid.png"
+    },
+    {
+        "name":  "extreme_high",
+        "src":  "/assets/difficulty/extreme-high.png"
+    },
+    {
+        "name":  "extreme_low",
+        "src":  "/assets/difficulty/extreme-low.png"
+    },
+    {
+        "name":  "extreme_mid",
+        "src":  "/assets/difficulty/extreme-mid.png"
+    },
+    {
+        "name":  "free_demon",
+        "src":  "/assets/difficulty/free-demon.png"
+    },
+    {
+        "name":  "hard_high",
+        "src":  "/assets/difficulty/hard-high.png"
+    },
+    {
+        "name":  "hard_low",
+        "src":  "/assets/difficulty/hard-low.png"
+    },
+    {
+        "name":  "hard_mid",
+        "src":  "/assets/difficulty/hard-mid.png"
+    },
+    {
+        "name":  "insane_high",
+        "src":  "/assets/difficulty/insane-high.png"
+    },
+    {
+        "name":  "insane_low",
+        "src":  "/assets/difficulty/insane-low.png"
+    },
+    {
+        "name":  "insane_mid",
+        "src":  "/assets/difficulty/insane-mid.png"
+    },
+    {
+        "name":  "medium_high",
+        "src":  "/assets/difficulty/medium-high.png"
+    },
+    {
+        "name":  "medium_low",
+        "src":  "/assets/difficulty/medium-low.png"
+    },
+    {
+        "name":  "medium_mid",
+        "src":  "/assets/difficulty/medium-mid.png"
+    },
+    {
+        "name":  "nhp_plus",
+        "src":  "/assets/difficulty/not-humanly-possible-plus.png"
+    },
+    {
+        "name":  "nhp",
+        "src":  "/assets/difficulty/not-humanly-possible.png"
+    },
+    {
+        "name":  "osur",
+        "src":  "/osur.png"
+    }
+]
