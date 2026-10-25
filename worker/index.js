@@ -1844,6 +1844,18 @@ export class ChatRoom extends DurableObject {
             if (!who) return say("I don't know that user.");
             return say(`${who.username} has ${who.orbs || 0} orbs (${who.earned ?? who.orbs ?? 0} earned in total).`);
         }
+        if (name === "grant") {
+            // owner only and deliberately not in the command list: /grant <user> <orbs>
+            if (roleOf(username) !== "a101") return;
+            const [who, amountText] = args.split(/\s+/);
+            const amount = Math.round(Number(amountText));
+            const targetKey = `u:${String(who || "").replace(/^@/, "").toLowerCase()}`;
+            const receiver = who ? await this.ctx.storage.get(targetKey) : null;
+            if (!receiver || !(amount >= 1 && amount <= 100000)) return say("Use it like /grant cduking 500 (1 to 100000 orbs).");
+            this.addOrbs(receiver, amount, false);
+            await this.ctx.storage.put(targetKey, receiver);
+            return say(`Gave ${amount} orbs to ${receiver.username}. They now have ${receiver.orbs}.`);
+        }
         const custom = (await this.customCommands()).find((c) => c.name === name);
         if (custom) return say(custom.reply);
     }
