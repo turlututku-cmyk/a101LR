@@ -2915,3 +2915,14 @@
 .page-chat .dc-cmd-bot.casino {
     background-image: linear-gradient(135deg, #ff8a00, #e52e71);
 }
+
+/* bots in the member list */
+.page-chat .dc-bot-member {
+    cursor: help;
+}
+.page-chat .dc-bot-member .dc-role.bot {
+    margin-left: 0;
+}
+.page-chat .dc-bot-member .dc-bot-avatar {
+    font-size: 1rem;
+}

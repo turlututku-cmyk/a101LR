@@ -75,6 +75,10 @@ const CATEGORIES = [
     },
 ];
 const CHANNELS = CATEGORIES.flatMap((c) => c.channels);
+const BOT_MEMBERS = [
+    { name: "a101 Bot", icon: "\u{1F916}", desc: "Level info, polls, dice and fun commands. Type / to see them." },
+    { name: "a101 Casino", icon: "\u{1F3B0}", desc: "Play with your orbs in #casino: /cf, /roulette, /slots, /dice, /blackjack, /duel." },
+];
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
 const botOf = (name) => (CASINO_COMMANDS.includes(name) ? "a101 Casino" : "a101 Bot");
 
@@ -706,10 +710,19 @@ export default {
                         <aside class="dc-members">
                             <template v-for="group in memberGroups" :key="group.role">
                                 <p class="dc-cat">{{ group.label }} &mdash; {{ group.names.length }}</p>
-                                <button v-for="name in group.names" :key="name" type="button" class="dc-member" :class="{ offline: group.role === 'offline' }" @click="openProfile(name)">
-                                    <Avatar class="dc-avatar-sm" :name="name" :src="avatarSrc(name)" :frame="frameOf(name)"><span class="dc-status" :class="statusOf(name)"></span></Avatar>
-                                    <span class="dc-member-name" :class="nameClass(name)" :style="nameStyle(name)">{{ name }}</span>
-                                </button>
+                                <template v-if="group.role === 'bots'">
+                                    <div v-for="name in group.names" :key="name" class="dc-member dc-bot-member" :title="botInfo(name).desc">
+                                        <div class="dc-avatar dc-avatar-sm dc-bot-avatar" :class="{ owo: name === 'a101 Casino' }">{{ botInfo(name).icon }}<span class="dc-status online"></span></div>
+                                        <span class="dc-member-name dc-bot-name" :class="{ owo: name === 'a101 Casino' }">{{ name }}</span>
+                                        <span class="dc-role bot">BOT</span>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <button v-for="name in group.names" :key="name" type="button" class="dc-member" :class="{ offline: group.role === 'offline' }" @click="openProfile(name)">
+                                        <Avatar class="dc-avatar-sm" :name="name" :src="avatarSrc(name)" :frame="frameOf(name)"><span class="dc-status" :class="statusOf(name)"></span></Avatar>
+                                        <span class="dc-member-name" :class="nameClass(name)" :style="nameStyle(name)">{{ name }}</span>
+                                    </button>
+                                </template>
                             </template>
                             <p v-if="!memberGroups.length" class="dc-members-empty">Nobody yet.</p>
                         </aside>
@@ -1350,6 +1363,7 @@ export default {
                 label: `${ROLE_LABEL[role].toUpperCase()}`,
                 names: online.filter((n) => this.roleOfName(n) === role),
             })).filter((g) => g.names.length);
+            if (!this.inConvo) groups.push({ role: "bots", label: "BOTS", names: BOT_MEMBERS.map((b) => b.name) });
             if (offline.length) groups.push({ role: "offline", label: "OFFLINE", names: offline });
             return groups;
         },
@@ -1763,6 +1777,8 @@ export default {
             const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
             if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
         },
+        botInfo: (name) => BOT_MEMBERS.find((b) => b.name === name) || { icon: "", desc: "" },
+
         // ---------- command animations ----------
         animType(m) {
             if (!m.bot) return "";

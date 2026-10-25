@@ -8,6 +8,10 @@
         "src":  "/assets/emojis/hug.svg"
     },
     {
+        "name":  "end_racism",
+        "src":  "/assets/emojis/end_racism.svg"
+    },
+    {
         "name":  "easy_hard",
         "src":  "/assets/difficulty/easy-hard.png"
     },
