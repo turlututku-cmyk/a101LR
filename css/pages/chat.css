@@ -2935,3 +2935,19 @@
 .page-chat .dc-banner-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .page-chat .dc-banner-edit input[type="range"] { width: 100%; }
 .page-chat .dc-nitro-hero.plus { margin-top: 1.2rem; background: linear-gradient(120deg, #3a2a00, #6b4e00, #3a2a00); }
+
+/* a101 Zoo bot */
+.page-chat .dc-bot-avatar.zoo,
+.page-chat .dc-cmd-icon.zoo,
+.page-chat .dc-cmd-bot.zoo {
+    background-image: linear-gradient(135deg, #2ecc71, #f1c40f);
+}
+.page-chat .dc-cmd-bot.zoo { color: #1e1f22; }
+.page-chat .dc-bot-name.zoo { color: #7ee2a0; }
+.page-chat .dc-anim.anim-hunt .dc-anim-glyph {
+    animation: dc-jitter 0.18s linear infinite;
+}
+.page-chat .dc-anim.anim-battle .dc-anim-glyph {
+    display: inline-block;
+    animation: dc-shake 0.35s ease-in-out infinite;
+}

@@ -86,5 +86,373 @@
     {
         "name":  "osur",
         "src":  "/osur.png"
+    },
+    {
+        "name":  "rarity_c",
+        "src":  "/assets/emojis/rarity_c.svg"
+    },
+    {
+        "name":  "rarity_u",
+        "src":  "/assets/emojis/rarity_u.svg"
+    },
+    {
+        "name":  "rarity_r",
+        "src":  "/assets/emojis/rarity_r.svg"
+    },
+    {
+        "name":  "rarity_e",
+        "src":  "/assets/emojis/rarity_e.svg"
+    },
+    {
+        "name":  "rarity_l",
+        "src":  "/assets/emojis/rarity_l.svg"
+    },
+    {
+        "name":  "rarity_g",
+        "src":  "/assets/emojis/rarity_g.svg"
+    },
+    {
+        "name":  "rarity_cy",
+        "src":  "/assets/emojis/rarity_cy.svg"
+    },
+    {
+        "name":  "rarity_locked",
+        "src":  "/assets/emojis/rarity_locked.svg"
+    },
+    {
+        "name":  "gem_mouse",
+        "src":  "/assets/emojis/gem_mouse.svg"
+    },
+    {
+        "name":  "crystal_mouse",
+        "src":  "/assets/emojis/crystal_mouse.svg"
+    },
+    {
+        "name":  "gem_rabbit",
+        "src":  "/assets/emojis/gem_rabbit.svg"
+    },
+    {
+        "name":  "crystal_rabbit",
+        "src":  "/assets/emojis/crystal_rabbit.svg"
+    },
+    {
+        "name":  "gem_chicken",
+        "src":  "/assets/emojis/gem_chicken.svg"
+    },
+    {
+        "name":  "crystal_chicken",
+        "src":  "/assets/emojis/crystal_chicken.svg"
+    },
+    {
+        "name":  "gem_frog",
+        "src":  "/assets/emojis/gem_frog.svg"
+    },
+    {
+        "name":  "crystal_frog",
+        "src":  "/assets/emojis/crystal_frog.svg"
+    },
+    {
+        "name":  "gem_squirrel",
+        "src":  "/assets/emojis/gem_squirrel.svg"
+    },
+    {
+        "name":  "crystal_squirrel",
+        "src":  "/assets/emojis/crystal_squirrel.svg"
+    },
+    {
+        "name":  "gem_duck",
+        "src":  "/assets/emojis/gem_duck.svg"
+    },
+    {
+        "name":  "crystal_duck",
+        "src":  "/assets/emojis/crystal_duck.svg"
+    },
+    {
+        "name":  "gem_fox",
+        "src":  "/assets/emojis/gem_fox.svg"
+    },
+    {
+        "name":  "crystal_fox",
+        "src":  "/assets/emojis/crystal_fox.svg"
+    },
+    {
+        "name":  "gem_wolf",
+        "src":  "/assets/emojis/gem_wolf.svg"
+    },
+    {
+        "name":  "crystal_wolf",
+        "src":  "/assets/emojis/crystal_wolf.svg"
+    },
+    {
+        "name":  "gem_deer",
+        "src":  "/assets/emojis/gem_deer.svg"
+    },
+    {
+        "name":  "crystal_deer",
+        "src":  "/assets/emojis/crystal_deer.svg"
+    },
+    {
+        "name":  "gem_boar",
+        "src":  "/assets/emojis/gem_boar.svg"
+    },
+    {
+        "name":  "crystal_boar",
+        "src":  "/assets/emojis/crystal_boar.svg"
+    },
+    {
+        "name":  "gem_owl",
+        "src":  "/assets/emojis/gem_owl.svg"
+    },
+    {
+        "name":  "crystal_owl",
+        "src":  "/assets/emojis/crystal_owl.svg"
+    },
+    {
+        "name":  "gem_bear",
+        "src":  "/assets/emojis/gem_bear.svg"
+    },
+    {
+        "name":  "crystal_bear",
+        "src":  "/assets/emojis/crystal_bear.svg"
+    },
+    {
+        "name":  "gem_lion",
+        "src":  "/assets/emojis/gem_lion.svg"
+    },
+    {
+        "name":  "crystal_lion",
+        "src":  "/assets/emojis/crystal_lion.svg"
+    },
+    {
+        "name":  "gem_tiger",
+        "src":  "/assets/emojis/gem_tiger.svg"
+    },
+    {
+        "name":  "crystal_tiger",
+        "src":  "/assets/emojis/crystal_tiger.svg"
+    },
+    {
+        "name":  "gem_elephant",
+        "src":  "/assets/emojis/gem_elephant.svg"
+    },
+    {
+        "name":  "crystal_elephant",
+        "src":  "/assets/emojis/crystal_elephant.svg"
+    },
+    {
+        "name":  "gem_giraffe",
+        "src":  "/assets/emojis/gem_giraffe.svg"
+    },
+    {
+        "name":  "crystal_giraffe",
+        "src":  "/assets/emojis/crystal_giraffe.svg"
+    },
+    {
+        "name":  "gem_gorilla",
+        "src":  "/assets/emojis/gem_gorilla.svg"
+    },
+    {
+        "name":  "crystal_gorilla",
+        "src":  "/assets/emojis/crystal_gorilla.svg"
+    },
+    {
+        "name":  "gem_crocodile",
+        "src":  "/assets/emojis/gem_crocodile.svg"
+    },
+    {
+        "name":  "crystal_crocodile",
+        "src":  "/assets/emojis/crystal_crocodile.svg"
+    },
+    {
+        "name":  "gem_shark",
+        "src":  "/assets/emojis/gem_shark.svg"
+    },
+    {
+        "name":  "crystal_shark",
+        "src":  "/assets/emojis/crystal_shark.svg"
+    },
+    {
+        "name":  "gem_eagle",
+        "src":  "/assets/emojis/gem_eagle.svg"
+    },
+    {
+        "name":  "crystal_eagle",
+        "src":  "/assets/emojis/crystal_eagle.svg"
+    },
+    {
+        "name":  "gem_dragon",
+        "src":  "/assets/emojis/gem_dragon.svg"
+    },
+    {
+        "name":  "crystal_dragon",
+        "src":  "/assets/emojis/crystal_dragon.svg"
+    },
+    {
+        "name":  "legend_dragon",
+        "src":  "/assets/emojis/legend_dragon.svg"
+    },
+    {
+        "name":  "gem_unicorn",
+        "src":  "/assets/emojis/gem_unicorn.svg"
+    },
+    {
+        "name":  "crystal_unicorn",
+        "src":  "/assets/emojis/crystal_unicorn.svg"
+    },
+    {
+        "name":  "legend_unicorn",
+        "src":  "/assets/emojis/legend_unicorn.svg"
+    },
+    {
+        "name":  "gem_trex",
+        "src":  "/assets/emojis/gem_trex.svg"
+    },
+    {
+        "name":  "crystal_trex",
+        "src":  "/assets/emojis/crystal_trex.svg"
+    },
+    {
+        "name":  "legend_trex",
+        "src":  "/assets/emojis/legend_trex.svg"
+    },
+    {
+        "name":  "rare_bear",
+        "src":  "/assets/emojis/rare_bear.svg"
+    },
+    {
+        "name":  "rare_lion",
+        "src":  "/assets/emojis/rare_lion.svg"
+    },
+    {
+        "name":  "rare_tiger",
+        "src":  "/assets/emojis/rare_tiger.svg"
+    },
+    {
+        "name":  "rare_elephant",
+        "src":  "/assets/emojis/rare_elephant.svg"
+    },
+    {
+        "name":  "rare_giraffe",
+        "src":  "/assets/emojis/rare_giraffe.svg"
+    },
+    {
+        "name":  "epic_gorilla",
+        "src":  "/assets/emojis/epic_gorilla.svg"
+    },
+    {
+        "name":  "epic_crocodile",
+        "src":  "/assets/emojis/epic_crocodile.svg"
+    },
+    {
+        "name":  "epic_shark",
+        "src":  "/assets/emojis/epic_shark.svg"
+    },
+    {
+        "name":  "epic_eagle",
+        "src":  "/assets/emojis/epic_eagle.svg"
+    },
+    {
+        "name":  "common_mouse",
+        "src":  "/assets/emojis/common_mouse.svg"
+    },
+    {
+        "name":  "common_rabbit",
+        "src":  "/assets/emojis/common_rabbit.svg"
+    },
+    {
+        "name":  "common_chicken",
+        "src":  "/assets/emojis/common_chicken.svg"
+    },
+    {
+        "name":  "common_frog",
+        "src":  "/assets/emojis/common_frog.svg"
+    },
+    {
+        "name":  "common_squirrel",
+        "src":  "/assets/emojis/common_squirrel.svg"
+    },
+    {
+        "name":  "common_duck",
+        "src":  "/assets/emojis/common_duck.svg"
+    },
+    {
+        "name":  "uncommon_fox",
+        "src":  "/assets/emojis/uncommon_fox.svg"
+    },
+    {
+        "name":  "uncommon_wolf",
+        "src":  "/assets/emojis/uncommon_wolf.svg"
+    },
+    {
+        "name":  "uncommon_deer",
+        "src":  "/assets/emojis/uncommon_deer.svg"
+    },
+    {
+        "name":  "uncommon_boar",
+        "src":  "/assets/emojis/uncommon_boar.svg"
+    },
+    {
+        "name":  "uncommon_owl",
+        "src":  "/assets/emojis/uncommon_owl.svg"
+    },
+    {
+        "name":  "item_heart_c",
+        "src":  "/assets/emojis/item_heart_c.svg"
+    },
+    {
+        "name":  "item_heart_u",
+        "src":  "/assets/emojis/item_heart_u.svg"
+    },
+    {
+        "name":  "item_heart_r",
+        "src":  "/assets/emojis/item_heart_r.svg"
+    },
+    {
+        "name":  "item_heart_e",
+        "src":  "/assets/emojis/item_heart_e.svg"
+    },
+    {
+        "name":  "item_heart_l",
+        "src":  "/assets/emojis/item_heart_l.svg"
+    },
+    {
+        "name":  "item_power_c",
+        "src":  "/assets/emojis/item_power_c.svg"
+    },
+    {
+        "name":  "item_power_u",
+        "src":  "/assets/emojis/item_power_u.svg"
+    },
+    {
+        "name":  "item_power_r",
+        "src":  "/assets/emojis/item_power_r.svg"
+    },
+    {
+        "name":  "item_power_e",
+        "src":  "/assets/emojis/item_power_e.svg"
+    },
+    {
+        "name":  "item_power_l",
+        "src":  "/assets/emojis/item_power_l.svg"
+    },
+    {
+        "name":  "item_hunting_c",
+        "src":  "/assets/emojis/item_hunting_c.svg"
+    },
+    {
+        "name":  "item_hunting_u",
+        "src":  "/assets/emojis/item_hunting_u.svg"
+    },
+    {
+        "name":  "item_hunting_r",
+        "src":  "/assets/emojis/item_hunting_r.svg"
+    },
+    {
+        "name":  "item_hunting_e",
+        "src":  "/assets/emojis/item_hunting_e.svg"
+    },
+    {
+        "name":  "item_hunting_l",
+        "src":  "/assets/emojis/item_hunting_l.svg"
     }
 ]

@@ -72,6 +72,7 @@ const CATEGORIES = [
         channels: [
             { id: "minigames", topic: "Scores and chat about the site minigames." },
             { id: "casino", icon: "\u{1F3B0}", topic: "Orb casino: /cf, /roulette, /slots, /dice, /blackjack, /duel, /bal. Games only work in this channel." },
+            { id: "zoo", icon: "\u{1F981}", topic: "Zoo: /hunt costs 1 orb and catches a random animal. Tiers: C U R E, then secret L, G (gem) and CY (crystal) once you find them." },
         ],
     },
 ];
@@ -79,9 +80,13 @@ const CHANNELS = CATEGORIES.flatMap((c) => c.channels);
 const BOT_MEMBERS = [
     { name: "a101 Bot", icon: "\u{1F916}", desc: "Level info, polls, dice and fun commands. Type / to see them." },
     { name: "a101 Casino", icon: "\u{1F3B0}", desc: "Play with your orbs in #casino: /cf, /roulette, /slots, /dice, /blackjack, /duel." },
+    { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /gems, /team and /battle." },
 ];
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle"];
+const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : "");
+const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
-const botOf = (name) => (CASINO_COMMANDS.includes(name) ? "a101 Casino" : "a101 Bot");
+const botOf = (name) => (CASINO_COMMANDS.includes(name) ? "a101 Casino" : ZOO_COMMANDS.includes(name) ? "a101 Zoo" : "a101 Bot");
 
 const UNICODE_EMOJI = {
     smileys: "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤔 🤨 😐 😑 😶 🙄 😏 😬 😮 😯 😲 🥱 😴 😪 😷 🤒 🤕 🤢 🤮 🥵 🥶 😵 🤯 🥳 😎 🤓 😕 😟 🙁 😢 😭 😤 😠 😡 🤬 😱 😨 😰 😥 😓 🥺 😳 🤐 🤫 🤭 🧐",
@@ -91,8 +96,10 @@ const UNICODE_EMOJI = {
     food: "🍎 🍌 🍉 🍇 🍓 🍒 🍑 🍍 🥑 🌽 🥕 🍞 🧀 🍔 🍟 🍕 🌭 🌮 🍣 🍜 🍝 🍰 🎂 🍩 🍪 🍫 🍿 ☕ 🍵 🍺 🥤 🧋",
     play: "🎮 🕹️ 🎯 🎲 ♟️ 🎵 🎶 🎧 🎤 🎸 🥁 ⚽ 🏀 🏈 🎾 🏓 🥊 🚀 ✈️ 🚗 🏁 🧩 🎬 📸 💻 📱 ⌨️ 🖱️ 💡 🔧 🔨 📌 📝 📚",
 };
+const ZOO_EMOJI_RE = /^(rarity_|item_|common_|uncommon_|rare_|epic_|legend_|gem_|crystal_)/;
 const EMOJI_CATS = [
     { id: "custom", icon: "⭐", label: "Server emoji" },
+    { id: "zoo", icon: "🦁", label: "a101 zoo" },
     { id: "smileys", icon: "😀", label: "Smileys" },
     { id: "people", icon: "👋", label: "People and gestures" },
     { id: "hearts", icon: "❤️", label: "Hearts and symbols" },
@@ -475,14 +482,14 @@ export default {
                                             <button v-for="r in reactionPalette" :key="r" type="button" @click="react(m, r)"><span v-if="r.startsWith(':')"><img class="dc-emoji" :src="emojiMap[r.slice(1, -1)]" :alt="r"></span><span v-else>{{ r }}</span></button>
                                         </div>
                                     </div>
-                                    <div v-if="!m.cont && m.bot" class="dc-avatar dc-bot-avatar" :class="{ owo: m.name === 'a101 Casino' }">{{ m.name === 'a101 Casino' ? '\u{1F3B0}' : '\u{1F916}' }}</div>
+                                    <div v-if="!m.cont && m.bot" class="dc-avatar dc-bot-avatar" :class="botKind(m.name)">{{ botIcon(m.name) }}</div>
                                     <button v-else-if="!m.cont" type="button" class="dc-avatar-btn" @click="openProfile(m.name)">
                                         <Avatar :name="m.name" :src="avatarSrc(m.name)" :frame="frameOf(m.name)"></Avatar>
                                     </button>
                                     <span v-else class="dc-msg-time">{{ time(m.time) }}</span>
                                     <div class="dc-msg-body">
                                         <div v-if="!m.cont" class="dc-msg-head">
-                                            <span v-if="m.bot" class="dc-msg-name dc-bot-name" :class="{ owo: m.name === 'a101 Casino' }">{{ m.name }}</span>
+                                            <span v-if="m.bot" class="dc-msg-name dc-bot-name" :class="botKind(m.name)">{{ m.name }}</span>
                                             <span v-if="m.bot" class="dc-role bot">BOT</span>
                                             <button v-else type="button" class="dc-msg-name" :class="nameClass(m.name)" :style="nameStyle(m.name)" @click="openProfile(m.name)">{{ m.name }}</button>
                                             <span v-if="roleOfName(m.name) !== 'member'" class="dc-role" :class="roleOfName(m.name)">{{ roleLabel(roleOfName(m.name)) }}</span>
@@ -640,7 +647,7 @@ export default {
                                     <div class="dc-emoji-cats">
                                         <button v-for="c in emojiCats" :key="c.id" type="button" :class="{ active: emojiCat === c.id && !pickerSearch.trim() }" :title="c.label" @click="emojiCat = c.id; pickerSearch = ''">{{ c.icon }}</button>
                                     </div>
-                                    <template v-if="emojiCat !== 'custom' && !pickerSearch.trim()">
+                                    <template v-if="emojiCat !== 'custom' && emojiCat !== 'zoo' && !pickerSearch.trim()">
                                         <button v-for="ch in unicodeList" :key="ch" type="button" class="dc-emoji-btn dc-uni" @click="insertUnicode(ch)">{{ ch }}</button>
                                     </template>
                                     <template v-else>
@@ -648,7 +655,7 @@ export default {
                                         <img :src="e.src" :alt="e.name">
                                     </button>
                                     <p v-if="!filteredEmojis.length" class="dc-picker-empty">No emoji found.</p>
-                                    <button type="button" class="dc-emoji-btn dc-submit" title="Suggest an emoji for the library" @click="startSubmit('emoji')"><b>+</b></button>
+                                    <button v-if="emojiCat !== 'zoo'" type="button" class="dc-emoji-btn dc-submit" title="Suggest an emoji for the library" @click="startSubmit('emoji')"><b>+</b></button>
                                     </template>
                                 </div>
                             </div>
@@ -661,10 +668,10 @@ export default {
                                         :class="{ active: i === suggestIndex }"
                                         @mousedown.prevent="pickSuggest(item)"
                                     >
-                                        <span v-if="item.cmd" class="dc-cmd-icon" :class="{ casino: item.bot === 'a101 Casino' }" :title="item.bot">{{ item.bot === 'a101 Casino' ? '\u{1F3B0}' : '\u{1F916}' }}</span>
+                                        <span v-if="item.cmd" class="dc-cmd-icon" :class="{ casino: item.bot === 'a101 Casino', zoo: item.bot === 'a101 Zoo' }" :title="item.bot">{{ botIcon(item.bot) }}</span>
                                         <img v-else-if="item.src" class="dc-emoji" :src="item.src" alt="">
                                         <Avatar v-else class="dc-avatar-xs" :name="item.name" :src="avatarSrc(item.name)"></Avatar>
-                                        {{ item.cmd ? '/' + item.name : item.src ? ':' + item.name + ':' : item.name }} <small v-if="item.desc" class="dc-cmd-desc">{{ item.desc }}</small><small v-if="item.bot" class="dc-cmd-bot" :class="{ casino: item.bot === 'a101 Casino' }">{{ item.bot }}</small>
+                                        {{ item.cmd ? '/' + item.name : item.src ? ':' + item.name + ':' : item.name }} <small v-if="item.desc" class="dc-cmd-desc">{{ item.desc }}</small><small v-if="item.bot" class="dc-cmd-bot" :class="{ casino: item.bot === 'a101 Casino', zoo: item.bot === 'a101 Zoo' }">{{ item.bot }}</small>
                                     </li>
                                 </ul>
                                 <button type="button" class="dc-attach" title="Share an image or video" @click="$refs.file.click()">+</button>
@@ -713,8 +720,8 @@ export default {
                                 <p class="dc-cat">{{ group.label }} &mdash; {{ group.names.length }}</p>
                                 <template v-if="group.role === 'bots'">
                                     <div v-for="name in group.names" :key="name" class="dc-member dc-bot-member" :title="botInfo(name).desc">
-                                        <div class="dc-avatar dc-avatar-sm dc-bot-avatar" :class="{ owo: name === 'a101 Casino' }">{{ botInfo(name).icon }}<span class="dc-status online"></span></div>
-                                        <span class="dc-member-name dc-bot-name" :class="{ owo: name === 'a101 Casino' }">{{ name }}</span>
+                                        <div class="dc-avatar dc-avatar-sm dc-bot-avatar" :class="botKind(name)">{{ botInfo(name).icon }}<span class="dc-status online"></span></div>
+                                        <span class="dc-member-name dc-bot-name" :class="botKind(name)">{{ name }}</span>
                                         <span class="dc-role bot">BOT</span>
                                     </div>
                                 </template>
@@ -1357,7 +1364,8 @@ export default {
         },
         filteredEmojis() {
             const q = this.pickerSearch.trim().toLowerCase();
-            return this.allEmojis.filter((e) => !q || e.name.toLowerCase().includes(q));
+            // the zoo emoji live in their own "a101 zoo" section; searching still finds them anywhere
+            return this.allEmojis.filter((e) => (q ? e.name.toLowerCase().includes(q) : ZOO_EMOJI_RE.test(e.name) === (this.emojiCat === "zoo")));
         },
         dmList() {
             const list = this.dms.map((d) => ({ ...d }));
@@ -1828,6 +1836,8 @@ export default {
             const data = await this.post(`${API}/shop`, { action: "gift", user: name, days: 30 });
             if (data) await this.ensureProfiles([name], true), (this.card = this.profileOf(name) || this.card);
         },
+        botKind,
+        botIcon,
         botInfo: (name) => BOT_MEMBERS.find((b) => b.name === name) || { icon: "", desc: "" },
 
         // ---------- command animations ----------
@@ -1842,6 +1852,7 @@ export default {
                 return "";
             }
             const cmd = m.replyTo?.text || "";
+            if (m.name === "a101 Zoo") return text.startsWith("\u{1F3F9}") ? "hunt" : text.startsWith("\u2694") ? "battle" : "";
             if (/^\/flip/i.test(cmd)) return "coin";
             if (/^\/roll/i.test(cmd)) return "dice";
             if (/^\/8ball/i.test(cmd)) return "ball";
@@ -1873,7 +1884,7 @@ export default {
         scrollDownIfNeeded() {
             if (this.atBottom) this.scrollDown();
         },
-        animLabel: (type) => ({ coin: "Flipping...", roulette: "The ball is rolling...", slots: "Spinning...", dice: "Rolling...", ball: "Shaking..." }[type] || ""),
+        animLabel: (type) => ({ coin: "Flipping...", roulette: "The ball is rolling...", slots: "Spinning...", dice: "Rolling...", ball: "Shaking...", hunt: "Hunting...", battle: "Fighting..." }[type] || ""),
         animGlyph(m) {
             const type = this.anims[m.id]?.type;
             const pick = (list, offset = 0) => list[Math.abs(this.animTick * 7 + m.id * 3 + offset * 5) % list.length];
@@ -1887,6 +1898,8 @@ export default {
             }
             if (type === "roulette") return `\u{1F3A1} ${Math.abs(this.animTick * 11 + m.id) % 37}`;
             if (type === "ball") return "\u{1F3B1}";
+            if (type === "battle") return pick(["\u2694\uFE0F", "\u{1F4A5}", "\u{1F6E1}\uFE0F"], 0);
+            if (type === "hunt") return pick(["\u{1F42D}", "\u{1F98A}", "\u{1F43B}", "\u{1F981}", "\u{1F418}", "\u{1F98D}", "\u{1F409}", "\u{1F984}"], 0);
             return "\u{1FA99}";
         },
 
@@ -2666,6 +2679,11 @@ export default {
                     accept: "accept a duel",
                     decline: "decline a duel",
                     bal: "see your orbs",
+                    hunt: "hunt an animal for 1 orb (in #zoo)",
+                    inventory: "see the animals you have caught (in #zoo)",
+                    gems: "gem shop: hunting, heart and power gems (in #zoo)",
+                    team: "see or set your battle team (in #zoo)",
+                    battle: "fight a wild team with your animals (in #zoo)",
                     roll: "roll dice, e.g. /roll 2d6",
                     flip: "flip a coin (no bet)",
                     "8ball": "ask the magic 8 ball",

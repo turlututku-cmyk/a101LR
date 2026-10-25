@@ -11,6 +11,7 @@ const CHANNELS = {
     "level-requests": {},
     minigames: {},
     casino: {},
+    zoo: {},
 };
 
 // Roles are assigned by username. Everyone else is a "member".
@@ -181,9 +182,61 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
 // a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
 const CASINO_NAME = "a101 Casino";
+// a101 Zoo: /hunt costs 1 orb and catches a random animal. Only in #zoo.
+const ZOO_NAME = "a101 Zoo";
+const HUNT_COST = 1;
+const RARITIES = [
+    { id: "common", code: "C", label: "Common", weight: 620 },
+    { id: "uncommon", code: "U", label: "Uncommon", weight: 240 },
+    { id: "rare", code: "R", label: "Rare", weight: 95 },
+    { id: "epic", code: "E", label: "Epic", weight: 35 },
+    // these tiers stay hidden (shown as ??) until the player catches one for the first time
+    { id: "legendary", code: "L", label: "Legendary", weight: 10, secret: true },
+    { id: "gem", code: "G", label: "Gem", weight: 3, secret: true },
+    { id: "crystal", code: "CY", label: "Crystal", weight: 1, secret: true },
+];
+const BASE_ANIMALS = [
+    ["mouse", "\u{1F42D}", "Mouse", "common"], ["rabbit", "\u{1F430}", "Rabbit", "common"], ["chicken", "\u{1F414}", "Chicken", "common"],
+    ["frog", "\u{1F438}", "Frog", "common"], ["squirrel", "\u{1F43F}\uFE0F", "Squirrel", "common"], ["duck", "\u{1F986}", "Duck", "common"],
+    ["fox", "\u{1F98A}", "Fox", "uncommon"], ["wolf", "\u{1F43A}", "Wolf", "uncommon"], ["deer", "\u{1F98C}", "Deer", "uncommon"],
+    ["boar", "\u{1F417}", "Boar", "uncommon"], ["owl", "\u{1F989}", "Owl", "uncommon"],
+    ["bear", "\u{1F43B}", "Bear", "rare"], ["lion", "\u{1F981}", "Lion", "rare"], ["tiger", "\u{1F42F}", "Tiger", "rare"],
+    ["elephant", "\u{1F418}", "Elephant", "rare"], ["giraffe", "\u{1F992}", "Giraffe", "rare"],
+    ["gorilla", "\u{1F98D}", "Gorilla", "epic"], ["crocodile", "\u{1F40A}", "Crocodile", "epic"], ["shark", "\u{1F988}", "Shark", "epic"], ["eagle", "\u{1F985}", "Eagle", "epic"],
+    ["dragon", "\u{1F409}", "Dragon", "legendary"], ["unicorn", "\u{1F984}", "Unicorn", "legendary"], ["trex", "\u{1F996}", "T-Rex", "legendary"],
+].map(([id, emoji, name, rarity]) => ({ id, emoji: `:${rarity === "legendary" ? "legend" : rarity}_${id}:`, plain: emoji, name, rarity }));
+// every animal also exists as a Gem and a Crystal version
+const ANIMALS = [
+    ...BASE_ANIMALS,
+    ...BASE_ANIMALS.map((a) => ({ id: `gem_${a.id}`, emoji: `:gem_${a.id}:`, plain: `\u{1F48E}${a.plain}`, name: `Gem ${a.name}`, rarity: "gem" })),
+    ...BASE_ANIMALS.map((a) => ({ id: `crystal_${a.id}`, emoji: `:crystal_${a.id}:`, plain: `\u{1F52E}${a.plain}`, name: `Crystal ${a.name}`, rarity: "crystal" })),
+];
+const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle"];
+// gems are items with the same rarity tiers as the animals (C U R E L). They are bought with orbs and use up one charge per hunt / battle.
+// You can own several tiers of a gem; the best one that still has charges is used first.
+const GEM_TIERS = ["common", "uncommon", "rare", "epic", "legendary"];
+const GEMS = {
+    hunting: { name: "Hunting Gem", desc: (v) => `+${v} animal${v > 1 ? "s" : ""} on every hunt`, price: [15, 30, 60, 110, 200], uses: [20, 35, 35, 40, 50], power: [1, 1, 2, 3, 4] },
+    heart: { name: "Heart Gem", desc: (v) => `${v}x better chance of Gem animals`, price: [25, 40, 80, 150, 300], uses: [20, 25, 30, 35, 40], power: [5, 10, 20, 35, 60] },
+    power: { name: "Power Gem", desc: (v) => `+${v}% attack in battles`, price: [15, 25, 50, 90, 160], uses: [10, 10, 15, 15, 20], power: [15, 25, 40, 60, 100] },
+};
+const gemIcon = (type, tier) => `:item_${type}_${["c", "u", "r", "e", "l"][tier]}:`;
+/** The best gem of a type that still has charges: { key, tier, value } or null. */
+const activeGem = (gems, type) => {
+    for (let t = GEM_TIERS.length - 1; t >= 0; t--) {
+        const key = `${type}_${GEM_TIERS[t]}`;
+        if ((gems?.[key] || 0) > 0) return { key, tier: t, value: GEMS[type].power[t] };
+    }
+    return null;
+};const TEAM_SIZE = 3;
+const MAX_PET_LEVEL = 50;
+const MAX_TURNS = 30;
+// [hp, attack, defence] at level 1; every level adds 10%
+const TIER_STATS = { common: [60, 10, 4], uncommon: [80, 14, 6], rare: [110, 20, 9], epic: [150, 28, 13], legendary: [210, 40, 20], gem: [260, 48, 26], crystal: [330, 60, 34] };
+const ENEMY_TIERS = [["common", 40], ["uncommon", 28], ["rare", 16], ["epic", 9], ["legendary", 4], ["gem", 2], ["crystal", 1]];
 const GAME_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
 const GAME_USAGE = { cf: "/cf 10", roulette: "/roulette red 10", slots: "/slots 10", dice: "/dice 10 high", blackjack: "/blackjack 10", duel: "/duel @user 10" };
 const MAX_BET = 200;
@@ -832,7 +885,8 @@ export class ChatRoom extends DurableObject {
         }
         const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
         const last = this.lastText.get(lower);
-        if (!editing && last && last.text === normalized && now - last.time < DUP_WINDOW_MS) {
+        // bot commands (/hunt, /cf ...) are meant to be repeated; they have their own cooldowns
+        if (!editing && !normalized.startsWith("/") && last && last.text === normalized && now - last.time < DUP_WINDOW_MS) {
             this.addStrike(lower);
             return json({ error: "Don't repeat yourself." }, 429);
         }
@@ -1305,7 +1359,7 @@ export class ChatRoom extends DurableObject {
         const message = messages.find((m) => m.id === Number(body.id));
         if (!message) return json({ error: "Message not found." }, 404);
         if (message.name.toLowerCase() === lower) return json({ error: "You can't report your own message." }, 400);
-        if (message.name === BOT_NAME || message.name === CASINO_NAME) return json({ error: "That is a bot." }, 400);
+        if (message.name === BOT_NAME || message.name === CASINO_NAME || message.name === ZOO_NAME) return json({ error: "That is a bot." }, 400);
 
         const reports = (await this.ctx.storage.get("reports")) || [];
         if (reports.some((r) => r.reporter === lower && r.key === target.key && r.msgId === message.id)) {
@@ -1498,7 +1552,7 @@ export class ChatRoom extends DurableObject {
         if (!target.isDm) {
             const mentions = await this.findMentions(text, username);
             const replied = message.replyTo?.name;
-            if (replied && replied !== BOT_NAME && replied !== CASINO_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
+            if (replied && replied !== BOT_NAME && replied !== CASINO_NAME && replied !== ZOO_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
             if (mentions.length) message.mentions = mentions;
             else delete message.mentions;
         }
@@ -1716,15 +1770,18 @@ export class ChatRoom extends DurableObject {
 
     async runCommand(username, target, text, messageId) {
         const lower = username.toLowerCase();
-        if (this.hitLimit(this.commandHits, lower, 60 * 1000, 8)) return;
         const [head, ...rest] = text.slice(1).trim().split(/\s+/);
         const name = (head || "").toLowerCase();
+        // game and zoo commands have their own cooldown, so they are not held to the 8-a-minute limit
+        if (!GAME_COMMANDS.includes(name) && !ZOO_COMMANDS.includes(name) && this.hitLimit(this.commandHits, lower, 60 * 1000, 8)) return;
         const args = rest.join(" ").trim();
         if (!name) return;
         const replyTo = { id: messageId, name: username, text: text.slice(0, 80) };
         const say = (content) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo });
         const casino = (content, extra = {}) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo, name: CASINO_NAME, ...extra });
         if (GAME_COMMANDS.includes(name)) return this.runGame(username, target, name, args, casino);
+        if (ZOO_COMMANDS.includes(name)) return this.runZoo(username, target, name, args, (content, extra = {}) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo, name: ZOO_NAME, ...extra }));
+
         if (name === "rules") return say(`Chat rules:\n${rulesText()}`);
         if (name === "poll") {
             const parts = args.split("|").map((p) => p.trim()).filter(Boolean);
@@ -1746,7 +1803,7 @@ export class ChatRoom extends DurableObject {
         }
         if (name === "help") {
             const custom = (await this.customCommands()).map((c) => `/${c.name}`);
-            return say(`Commands: /rules, /poll q | a | b, games in #casino (/cf /roulette /slots /dice /blackjack /duel /bal), /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
+            return say(`Commands: /rules, /poll q | a | b, games in #casino (/cf /roulette /slots /dice /blackjack /duel /bal), /hunt in #zoo, /roll [2d6], /flip, /8ball <question>, /choose a | b | c, /rank <level>, /level <level>, /top, /orbs [user]${custom.length ? ", " + custom.join(", ") : ""}`);
         }
         if (name === "roll") {
             const m = /^(\d{1,2})?d(\d{1,4})$/i.exec(args || "d6");
@@ -1836,6 +1893,224 @@ export class ChatRoom extends DurableObject {
         return null;
     }
 
+    // ---------- a101 Zoo: /hunt ----------
+
+    async runInventory(username, target, say) {
+        if (target.key !== "zoo") return say("Your inventory is in #zoo. Head over there!");
+        const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+        const zoo = user.zoo || {};
+        const sup = (n) => String(n).replace(/\d/g, (d) => "\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079"[d]);
+        // one row per tier: the animals with how many you own (0 when none), hidden tiers stay "?" until you catch one
+        const rows = RARITIES.map((r) => {
+            const tier = ANIMALS.filter((a) => a.rarity === r.id);
+            const found = tier.some((a) => zoo[a.id]);
+            const icon = `:rarity_${r.code.toLowerCase()}:`;
+            if (r.secret && !found) return `:rarity_locked: ${Array(4).fill("\u2753\u2070").join(" ")}`;
+            return `${icon} ${tier.map((a) => `${a.emoji}${sup(zoo[a.id] || 0)}`).join(" ")}`;
+        });
+        const owned = ANIMALS.filter((a) => zoo[a.id]);
+        const gemLine = Object.entries(user.gems || {}).filter(([, n]) => n > 0).map(([key, n]) => `${gemIcon(key.split("_")[0], GEM_TIERS.indexOf(key.split("_")[1]))}${n}`).join(" ");
+        return say(`\u{1F33F}\u{1F331}\u{1F333} ${username}'s zoo! \u{1F333}\u{1F331}\u{1F33F}\n${rows.join("\n")}\n${owned.length}/${ANIMALS.length} species, ${owned.reduce((n, a) => n + zoo[a.id], 0)} animals${gemLine ? "\nGems: " + gemLine : ""}`);
+    }
+    async runHunt(username, target, say) {
+        if (target.key !== "zoo") return say("Hunting only works in #zoo. Head over there!");
+        const lower = username.toLowerCase();
+        const now = Date.now();
+        if (now - (this.gameLast.get(lower) || 0) < GAME_COOLDOWN_MS) return;
+        this.gameLast.set(lower, now);
+        if (this.gameLast.size > 2000) this.gameLast.clear();
+
+        const userKey = `u:${lower}`;
+        const user = await this.ctx.storage.get(userKey);
+        if ((user.orbs || 0) < HUNT_COST) return say(`A hunt costs ${HUNT_COST} orb and you have ${user.orbs || 0}. Chat in other channels to earn more.`);
+
+        // gems: Hunting Gem catches one extra animal, Heart Gem makes Gem animals much more likely
+        const gems = (user.gems = user.gems || {});
+        const hunt = activeGem(gems, "hunting");
+        const heart = activeGem(gems, "heart");
+        const catches = 1 + (hunt ? hunt.value : 0);
+        const weights = RARITIES.map((r) => (r.id === "gem" && heart ? r.weight * heart.value : r.weight));
+        const total = weights.reduce((n, w) => n + w, 0);
+        const draw = () => {
+            let roll = (crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296) * total;
+            let pick = 0;
+            for (let n = 0; n < weights.length; n++) {
+                roll -= weights[n];
+                if (roll < 0) {
+                    pick = n;
+                    break;
+                }
+            }
+            const rarity = RARITIES[pick];
+            const pool = ANIMALS.filter((a) => a.rarity === rarity.id);
+            return { animal: pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length], rarity };
+        };
+
+        this.addOrbs(user, -HUNT_COST, false);
+        user.zoo = user.zoo || {};
+        const tierOf = (id) => ANIMALS.find((a) => a.id === id)?.rarity;
+        const tierSeen = (id) => Object.keys(user.zoo).some((k) => tierOf(k) === id);
+        const results = [];
+        for (let n = 0; n < catches; n++) {
+            const { animal, rarity } = draw();
+            const isNew = !user.zoo[animal.id];
+            const newTier = !tierSeen(rarity.id);
+            user.zoo[animal.id] = (user.zoo[animal.id] || 0) + 1;
+            results.push({
+                id: animal.id,
+                text: `${animal.emoji} ${animal.name} :rarity_${rarity.code.toLowerCase()}: ${rarity.label}`,
+                notes: `${isNew ? " NEW!" : ""}${newTier && rarity.secret ? ` \u{1F513} ${rarity.label} tier unlocked!` : ""}`,
+            });
+        }
+        if (hunt) gems[hunt.key] -= 1;
+        if (heart) gems[heart.key] -= 1;
+        await this.ctx.storage.put(userKey, user);
+
+        const species = Object.keys(user.zoo).length;
+        const tiers = RARITIES.map((r) => (!r.secret || tierSeen(r.id) ? `:rarity_${r.code.toLowerCase()}:` : ":rarity_locked:")).join(" ");
+        const gemNote = [hunt ? `${RARITIES[hunt.tier].label} Hunting Gem: ${gems[hunt.key]} left` : "", heart ? `${RARITIES[heart.tier].label} Heart Gem: ${gems[heart.key]} left` : ""].filter(Boolean).join(", ");
+        const head = results.length === 1
+            ? `catches a ${results[0].text}!${results[0].notes}\nYou own ${user.zoo[results[0].id]} of them and `
+            : `catches ${results.length} animals!\n${results.map((r) => `\u203A ${r.text}${r.notes}`).join("\n")}\nYou have `;
+        return say(`\u{1F3F9} ${username} goes hunting... ${head}${species}/${ANIMALS.length} species. Tiers: ${tiers}. Balance: ${user.orbs}${gemNote ? ` (${gemNote})` : ""}`);
+    }
+
+    // ---------- a101 Zoo: gems, team and battles ----------
+
+    petLevel(xp) {
+        return Math.min(MAX_PET_LEVEL, 1 + Math.floor(Math.sqrt((xp || 0) / 20)));
+    }
+
+    petStats(animal, level) {
+        const [hp, atk, def] = TIER_STATS[animal.rarity];
+        const k = 1 + 0.1 * (level - 1);
+        return { hp: Math.round(hp * k), atk: Math.round(atk * k), def: Math.round(def * k) };
+    }
+
+    /** The saved team (or the best three animals you own when none is set). */
+    zooTeam(user) {
+        const zoo = user.zoo || {};
+        const rank = (a) => RARITIES.findIndex((r) => r.id === a.rarity);
+        let team = (user.team || []).map((id) => ANIMALS.find((a) => a.id === id)).filter((a) => a && zoo[a.id]);
+        if (!team.length) team = ANIMALS.filter((a) => zoo[a.id]).sort((a, b) => rank(b) - rank(a) || zoo[b.id] - zoo[a.id]).slice(0, TEAM_SIZE);
+        return team.slice(0, TEAM_SIZE);
+    }
+
+    async runZoo(username, target, name, args, say) {
+        if (name === "hunt") return this.runHunt(username, target, say);
+        if (name === "inventory" || name === "inv") return this.runInventory(username, target, say);
+        if (target.key !== "zoo") return say("The zoo commands only work in #zoo. Head over there!");
+        const lower = username.toLowerCase();
+        const userKey = `u:${lower}`;
+        const user = await this.ctx.storage.get(userKey);
+        user.gems = user.gems || {};
+
+        if (name === "gems") {
+            const words = args.toLowerCase().split(/\s+/).filter(Boolean);
+            if (words[0] === "buy") {
+                const type = words[1];
+                const gem = GEMS[type];
+                if (!gem) return say("Gems: hunting, heart or power. Example: /gems buy hunting rare");
+                const wanted = words[2] || "common";
+                const tier = GEM_TIERS.findIndex((t) => t === wanted || t[0] === wanted);
+                if (tier < 0) return say("Tiers: common, uncommon, rare, epic or legendary (or c u r e l). Example: /gems buy hunting rare");
+                const price = gem.price[tier];
+                if ((user.orbs || 0) < price) return say(`A ${RARITIES[tier].label} ${gem.name} costs ${price} orbs and you have ${user.orbs || 0}.`);
+                this.addOrbs(user, -price, false);
+                const key = `${type}_${GEM_TIERS[tier]}`;
+                user.gems[key] = (user.gems[key] || 0) + gem.uses[tier];
+                await this.ctx.storage.put(userKey, user);
+                return say(`${gemIcon(type, tier)} ${username} bought a ${RARITIES[tier].label} ${gem.name}! ${user.gems[key]} uses left. Balance: ${user.orbs}`);
+            }
+            const lines = Object.entries(GEMS).flatMap(([type, g]) => [
+                g.name,
+                ...GEM_TIERS.map((t, i) => `${gemIcon(type, i)} ${RARITIES[i].label} - ${g.price[i]} orbs, ${g.uses[i]} uses - ${g.desc(g.power[i])}${user.gems[`${type}_${t}`] ? ` (you have ${user.gems[`${type}_${t}`]} left)` : ""}`),
+            ]);
+            return say(`\u{1F48E} Gem shop (you have ${user.orbs || 0} orbs)\n${lines.join("\n")}\nBuy with /gems buy <hunting|heart|power> <common|uncommon|rare|epic|legendary>. The best gem you own is used first.`);
+        }
+        const xp = user.zooXp || {};
+        const row = (a) => {
+            const lvl = this.petLevel(xp[a.id]);
+            const st = this.petStats(a, lvl);
+            return `L. ${lvl} ${a.emoji} ${a.name} - HP ${st.hp} ATK ${st.atk} DEF ${st.def}`;
+        };
+
+        if (name === "team") {
+            if (args) {
+                const zoo = user.zoo || {};
+                const picked = [];
+                for (const word of args.split(/[,|]/).map((w) => w.trim().toLowerCase()).filter(Boolean)) {
+                    const found = ANIMALS.find((a) => a.name.toLowerCase() === word);
+                    if (!found || !zoo[found.id]) return say(`You don't own "${word.slice(0, 30)}". Use names from /inventory, like /team Fox, Gem Lion, Tiger`);
+                    if (!picked.includes(found.id)) picked.push(found.id);
+                }
+                if (!picked.length) return say("Pick up to 3 animals, like /team Fox, Gem Lion, Tiger");
+                user.team = picked.slice(0, TEAM_SIZE);
+                await this.ctx.storage.put(userKey, user);
+            }
+            const team = this.zooTeam(user);
+            if (!team.length) return say("You don't have any animals yet. Use /hunt first!");
+            return say(`\u{1F43E} ${username}'s team\n${team.map(row).join("\n")}\nChange it with /team Fox, Gem Lion, Tiger. Fight with /battle.`);
+        }
+
+        if (name === "battle") {
+            const now = Date.now();
+            if (now - (this.gameLast.get(lower) || 0) < GAME_COOLDOWN_MS) return;
+            this.gameLast.set(lower, now);
+            const team = this.zooTeam(user);
+            if (!team.length) return say("You need at least one animal to fight. Use /hunt first!");
+            user.zooXp = xp;
+            const pg = activeGem(user.gems, "power");
+            const unit = (a, lvl, side, boost = 1) => {
+                const st = this.petStats(a, lvl);
+                return { a, lvl, side, hp: st.hp, max: st.hp, atk: Math.round(st.atk * boost), def: st.def };
+            };
+            const mine = team.map((a) => unit(a, this.petLevel(xp[a.id]), 0, pg ? 1 + pg.value / 100 : 1));
+            const avg = Math.round(mine.reduce((n, u) => n + u.lvl, 0) / mine.length);
+            const pickTier = () => {
+                let roll = Math.random() * ENEMY_TIERS.reduce((n, t) => n + t[1], 0);
+                for (const [id, weight] of ENEMY_TIERS) {
+                    roll -= weight;
+                    if (roll < 0) return id;
+                }
+                return "common";
+            };
+            const foes = mine.map(() => {
+                const pool = ANIMALS.filter((a) => a.rarity === pickTier());
+                const lvl = Math.min(MAX_PET_LEVEL, Math.max(1, avg + Math.floor(Math.random() * 6) - 2));
+                return unit(pool[Math.floor(Math.random() * pool.length)], lvl, 1);
+            });
+            const order = mine.flatMap((u, i) => [u, foes[i]]);
+            const alive = (side) => (side ? foes : mine).filter((u) => u.hp > 0);
+            let turns = 0;
+            while (turns < MAX_TURNS && alive(0).length && alive(1).length) {
+                turns += 1;
+                for (const u of order) {
+                    if (u.hp <= 0) continue;
+                    const targets = alive(u.side ? 0 : 1);
+                    if (!targets.length) break;
+                    const t = targets[Math.floor(Math.random() * targets.length)];
+                    t.hp = Math.max(0, t.hp - Math.max(1, Math.round(u.atk * (0.85 + Math.random() * 0.3) - t.def * 0.5)));
+                }
+            }
+            const won = alive(1).length === 0 && alive(0).length > 0;
+            const draw = alive(0).length > 0 && alive(1).length > 0;
+            const foeAvg = Math.round(foes.reduce((n, u) => n + u.lvl, 0) / foes.length);
+            const gain = won ? 50 + 8 * foeAvg : 15;
+            const ups = [];
+            for (const u of mine) {
+                const before = u.lvl;
+                xp[u.a.id] = (xp[u.a.id] || 0) + gain;
+                const after = this.petLevel(xp[u.a.id]);
+                if (after > before) ups.push(`${u.a.name} is now level ${after}!`);
+            }
+            if (pg) user.gems[pg.key] -= 1;
+            await this.ctx.storage.put(userKey, user);
+            const show = (u) => `L. ${u.lvl} ${u.a.emoji} ${u.a.name} ${u.hp}/${u.max} HP`;
+            const result = won ? `You won in ${turns} turns!` : draw ? `Nobody won in ${MAX_TURNS} turns, it's a draw.` : `You lost in ${turns} turns!`;
+            return say(`\u2694\uFE0F ${username} goes into battle!\n${username}'s team\n${mine.map(show).join("\n")}\nWild team\n${foes.map(show).join("\n")}\n${result} | +${gain} xp${pg ? ` (${RARITIES[pg.tier].label} Power Gem: ${user.gems[pg.key]} left)` : ""}${ups.length ? "\n\u2B06\uFE0F " + ups.join(" ") : ""}`);
+        }
+    }
     async runGame(username, target, name, args, say) {
         if (target.key !== "casino") return say("Games only work in #casino. Head over there to play!");
         const lower = username.toLowerCase();
@@ -2750,7 +3025,7 @@ export class ChatRoom extends DurableObject {
         const key = target.key;
         const mentions = target.isDm ? [] : await this.findMentions(text, username);
         const repliedTo = extra.replyTo?.name;
-        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo !== CASINO_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
+        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo !== CASINO_NAME && repliedTo !== ZOO_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
             mentions.push(repliedTo);
         }
         this.typing.get(key)?.delete(lower);
