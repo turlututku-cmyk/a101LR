@@ -78,7 +78,7 @@ const MAX_IMAGE_PLUS = 1900 * 1024;
 const MAX_AVATAR_PLUS = 1900 * 1024;
 const MAX_BANNER_PLUS = 1900 * 1024;
 const BANNER_H_MIN = 80;
-const BANNER_H_MAX = 260;
+const BANNER_H_MAX = 400;
 
 // Shop: slot -> what it changes. `nitro` items need an active Nitro to buy and to show.
 // The look of frames lives in the page's CSS (matched by id); colours and gradients live here.

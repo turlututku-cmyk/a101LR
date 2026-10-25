@@ -819,7 +819,7 @@ export default {
                                 <input ref="bannerFile" type="file" accept="image/*" hidden @change="onBannerFile">
                             </div>
                             <label>BANNER HEIGHT: {{ draft.bannerH || 140 }}px <button type="button" class="dc-btn ghost" @click.prevent="draft.bannerH = 0">Default size</button>
-                                <input type="range" min="80" max="260" step="4" :value="draft.bannerH || 140" @input="draft.bannerH = Number($event.target.value)">
+                                <input type="range" min="80" max="400" step="4" :value="draft.bannerH || 140" @input="draft.bannerH = Number($event.target.value)">
                             </label>
                             <p class="dc-hint">Nitro Plus: upload a JPEG, PNG, WebP or GIF (up to 1.9 MB) and pick how tall it is.</p>
                         </template>
@@ -1055,7 +1055,7 @@ export default {
                         <ul class="dc-perks">
                             <li>&#9889; <b>Everything in Nitro</b> (it includes it)</li>
                             <li>&#128444; <b>Upload your own banner</b> (GIF, PNG, JPEG, WebP up to 1.9 MB)</li>
-                            <li>&#128208; <b>Custom banner size</b> (80 to 260 px tall)</li>
+                            <li>&#128208; <b>Custom banner size</b> (80 to 400 px tall)</li>
                             <li>&#128302; <b>Triple orbs</b> from every message ({{ shop.plus.orbsPerMessage }})</li>
                             <li>&#128172; <b>1000-character messages</b></li>
                             <li>&#128247; <b>Biggest uploads</b> (1.9 MB images and animated pictures)</li>
