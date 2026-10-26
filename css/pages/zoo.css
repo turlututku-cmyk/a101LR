@@ -577,3 +577,41 @@
         animation: none;
     }
 }
+/* ranked */
+.page-zoo .zoo-rankcard {
+    display: flex;
+    gap: 1.2rem;
+    align-items: center;
+    padding: 1rem 1.2rem;
+    border-radius: 0.7rem;
+    background: linear-gradient(90deg, #2a2f4a, #2b2d31);
+    border-left: 4px solid #5865f2;
+}
+.page-zoo .zoo-rankicon {
+    font-size: 4rem;
+    line-height: 1;
+}
+.page-zoo .zoo-rankcard h2 {
+    margin-top: 0;
+}
+.page-zoo .zoo-fightlog {
+    margin: 0.8rem 0;
+    padding: 0.8rem 1rem;
+    border-radius: 0.5rem;
+    background: #1e1f22;
+    color: #dbdee1;
+    font: inherit;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}
+.page-zoo .zoo-form select {
+    padding: 0.5rem 0.7rem;
+    border: 1px solid #4e5058;
+    border-radius: 0.4rem;
+    background: #1e1f22;
+    color: #dbdee1;
+    font: inherit;
+}
+.page-zoo .zoo-form input[type="number"] {
+    width: 6rem;
+}

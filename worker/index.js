@@ -182,7 +182,7 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "feed", "candy", "guild", "gboss", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "feed", "candy", "guild", "gboss", "ranked", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
 // a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
 const CASINO_NAME = "a101 Casino";
 // a101 Zoo: /hunt costs 1 orb and catches a random animal. Only in #zoo.
@@ -194,6 +194,20 @@ const GUILD_BOSS_MS = 60 * 60 * 1000;
 const GUILD_BOSS_BASE_HP = 500000;
 const GUILD_BOSS_HP_PER_MEMBER = 0;
 const WORLD_BOSS_HP = 60000;
+// guild gifting: what a member can give to guild mates per day
+const GUILD_GIFT_LIMITS = { coins: 300, food: 30, candy: 3 };
+// ranked PvP: a rating per month (Elo), fought against players near your rating. Gems do not count in ranked.
+const RANK_START = 900; // everybody starts in Bronze
+const RANK_K = 32;
+const RANKED_COOLDOWN_MS = 30 * 1000;
+const RANK_TIERS = [
+    { name: "Bronze", icon: "\u{1F949}", min: 0, reward: 0 },
+    { name: "Silver", icon: "\u{1F948}", min: 1000, reward: 50 },
+    { name: "Gold", icon: "\u{1F947}", min: 1200, reward: 150 },
+    { name: "Platinum", icon: "\u{1F4A0}", min: 1400, reward: 300 },
+    { name: "Diamond", icon: "\u{1F48E}", min: 1600, reward: 600 },
+    { name: "Master", icon: "\u{1F451}", min: 1800, reward: 1000 },
+];
 // Auto delete: in these channels slash commands and the bot answers to them disappear after this many minutes (staff change it with /autodelete)
 const AUTO_DELETE_DEFAULTS = { zoo: 10, casino: 10 };
 // a101 Giveaways: /giveaway <orbs> <time> [winners]. Hosts put the orbs in up front (staff giveaways are free); winners are drawn when the time is up.
@@ -255,7 +269,7 @@ const DEFAULT_SPECIALS = [
     { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
     { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss"];
+const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
 const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000, boss: 1500 };
 const COIN_PRICE_X = 3;
@@ -266,10 +280,11 @@ const ZOO_EVENT_TIERS = ["uncommon", "rare", "epic", "legendary", "gem"];
 // items that make animals better: Pet Food gives xp, Level-Up Candy gives one level. Bought with orbs (or coins at 3x), also found while hunting and as boss rewards.
 const ZOO_ITEMS = {
     food: { name: "Pet Food", icon: ":item_food:", price: 5, xp: 150, desc: "+150 xp for one animal" },
-    candy: { name: "Level-Up Candy", icon: ":item_candy:", price: 40, desc: "raises one animal by 1 level" },
+    candy: { name: "Level-Up Candy", icon: ":item_candy:", price: 100, desc: "raises one animal by 1 level", orbsOnly: true },
 };
 const xpForLevel = (level) => 20 * (level - 1) ** 2;
 const ITEM_DROP = { food: 0.1, candy: 0.015 };
+const MAX_PET_XP = xpForLevel(50);
 // every hunt has a small chance to turn up a gem (a part of its normal uses); Luck Gems raise the chance
 const GEM_DROP_CHANCE = 0.06;
 const GEM_DROP_TIERS = [62, 25, 9, 3.5, 0.5];
@@ -329,8 +344,10 @@ const activeGem = (gems, type) => {
     return null;
 };
 const TEAM_SIZE = 3;
-const MAX_PET_LEVEL = 50;
+const MAX_PET_LEVEL = 50; // no animal goes past level 50
 const MAX_TURNS = 30;
+// burn takes 6% of the target's max HP each turn, but never more than this (otherwise it would melt 500,000 HP bosses)
+const BURN_CAP = 250;
 // [hp, attack, defence] at level 1; every level adds 10%
 const TIER_STATS = { common: [60, 10, 4], uncommon: [80, 14, 6], rare: [110, 20, 9], epic: [150, 28, 13], legendary: [210, 40, 20], gem: [260, 48, 26], crystal: [330, 60, 34], special: [300, 55, 30], boss: [340, 62, 36] };
 const ENEMY_TIERS = [["common", 40], ["uncommon", 28], ["rare", 16], ["epic", 9], ["legendary", 4], ["gem", 2], ["crystal", 1]];
@@ -575,6 +592,7 @@ export class ChatRoom extends DurableObject {
         this.commandHits = new Map();
         this.botHits = [];
         this.pollHits = new Map();
+        this.rankedLast = new Map();
         this.gameLast = new Map();
         this.openDuels = new Map();
         this.openRuns = new Map();
@@ -2545,7 +2563,7 @@ export class ChatRoom extends DurableObject {
             }
             for (const u of order) {
                 if (u.hp > 0 && u.burn > 0) {
-                    u.hp = Math.max(0, u.hp - Math.round(u.max * 0.06));
+                    u.hp = Math.max(0, u.hp - Math.min(BURN_CAP, Math.round(u.max * 0.06)));
                     u.burn -= 1;
                 }
             }
@@ -2612,7 +2630,7 @@ export class ChatRoom extends DurableObject {
                 await this.ctx.storage.put(userKey, user);
                 return say(`\u{1F36C} ${username} bought ${result.amount} \u00D7 ${ZOO_ITEMS[key].icon} ${ZOO_ITEMS[key].name} for ${result.price} ${words.includes("coins") ? "coins" : "orbs"}. You have ${user.items[key]}.`);
             }
-            const lines = Object.entries(ZOO_ITEMS).map(([key, it]) => `${it.icon} ${it.name} - ${it.price} orbs or ${it.price * COIN_PRICE_X} coins - ${it.desc} (you have ${user.items?.[key] || 0})`);
+            const lines = Object.entries(ZOO_ITEMS).map(([key, it]) => `${it.icon} ${it.name} - ${it.orbsOnly ? `${it.price} orbs (orbs only)` : `${it.price} orbs or ${it.price * COIN_PRICE_X} coins`} - ${it.desc} (you have ${user.items?.[key] || 0})`);
             return say(`\u{1F36C} Zoo items (you have ${user.orbs || 0} orbs and ${user.zooCoins || 0} coins)\n${lines.join("\n")}\nBuy: /items buy food 5. Use: /feed Fox 3 or /candy Gem Lion. They are also found while hunting and as boss rewards.`);
         }
 
@@ -2653,6 +2671,10 @@ export class ChatRoom extends DurableObject {
             if (sub === "join") return done(await this.guildJoin(username, user, userKey, rest));
             if (sub === "leave") return done(await this.guildLeave(username, user, userKey));
             if (sub === "kick") return done(await this.guildKick(username, user, rest));
+            if (sub === "gift") {
+                const [who, kind, amount] = rest.split(/\s+/);
+                return done(await this.guildGift(username, user, userKey, who, kind, amount));
+            }
             if (sub === "disband") return done(await this.guildDisband(username, user, userKey));
             if (sub === "list" || sub === "top") {
                 const rows = await this.guildList();
@@ -2668,6 +2690,23 @@ export class ChatRoom extends DurableObject {
                 return say(`\u{1F6E1}\uFE0F [${panel.tag}] guild boss: :${panel.boss.emoji}: ${panel.boss.title}\n${panel.boss.dead ? "DEFEATED! The next one arrives in " : `HP ${panel.boss.hp}/${panel.boss.max} ${"\u2588".repeat(filled)}${"\u2591".repeat(10 - filled)} | it leaves in `}${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s${top.length ? "\nTop fighters:\n" + top.map((m, i) => `${i + 1}. ${m.name} - ${m.damage} damage`).join("\n") : ""}\nAttack with /guild attack (every ${ZOO_BOSS_COOLDOWN_MS / 60000} minutes). A new boss arrives every hour.`);
             }
             return say(`\u{1F6E1}\uFE0F [${panel.tag}] ${panel.name} - owner ${panel.owner}, ${panel.members.length}/${panel.max} members, ${panel.kills} boss kills\nMembers: ${panel.members.map((m) => m.name).join(", ")}\n/guild boss shows this hour's guild boss, /guild attack fights it, /guild leave leaves.`);
+        }
+
+        if (name === "ranked") {
+            const sub = args.toLowerCase().trim();
+            if (sub === "fight" || sub === "play" || sub === "battle") {
+                const result = await this.rankedFight(username, user, userKey);
+                return say(result.error || result.text);
+            }
+            if (sub === "top") {
+                const rows = await this.rankedTop();
+                return say(rows.length ? `\u{1F3C5} Ranked top (season ${this.seasonKey()})\n${rows.map((p, i) => `${i + 1}. ${p.name} - ${RANK_TIERS.find((t) => t.name === p.tier).icon} ${p.rating} (${p.wins}W ${p.losses}L)`).join("\n")}` : "Nobody has played ranked this season yet. Start with /ranked fight");
+            }
+            const { r, reward } = this.rankedOf(user);
+            if (reward) await this.ctx.storage.put(userKey, user);
+            const tier = this.rankTier(r.rating);
+            const next = RANK_TIERS.find((t) => t.min > r.rating);
+            return say(`\u{1F3C5} ${username}'s ranked (season ${r.season}): ${tier.icon} ${tier.name}, rating ${r.rating} (best ${r.peak || r.rating}), ${r.wins}W ${r.losses}L${next ? `\nNext tier: ${next.icon} ${next.name} in ${next.min - r.rating} points` : "\nTop tier!"}\n/ranked fight finds a player near your rating (no gems), /ranked top shows the ladder. The month's reward is paid when the season changes.${reward ? `\n\u{1F381} Season ${reward.season} reward: ${reward.tier.icon} ${reward.tier.name} paid ${reward.coins} coins!` : ""}`);
         }
 
         if (name === "autohunt") {
@@ -2893,7 +2932,7 @@ export class ChatRoom extends DurableObject {
             const ups = [];
             for (const u of mine) {
                 const before = u.lvl;
-                xp[u.a.id] = (xp[u.a.id] || 0) + gain;
+                xp[u.a.id] = Math.min(MAX_PET_XP, (xp[u.a.id] || 0) + gain);
                 const after = this.petLevel(xp[u.a.id]);
                 if (after > before) ups.push(`${u.a.name} is now level ${after}!`);
             }
@@ -2948,7 +2987,7 @@ export class ChatRoom extends DurableObject {
             const ups = [];
             for (const u of mine) {
                 const before = u.lvl;
-                xp[u.a.id] = (xp[u.a.id] || 0) + gain;
+                xp[u.a.id] = Math.min(MAX_PET_XP, (xp[u.a.id] || 0) + gain);
                 const after = this.petLevel(xp[u.a.id]);
                 if (after > before) ups.push(`${u.a.name} is now level ${after}!`);
             }
@@ -3183,7 +3222,7 @@ export class ChatRoom extends DurableObject {
         const ups = [];
         for (const u of mine) {
             const before = u.lvl;
-            xp[u.a.id] = (xp[u.a.id] || 0) + gain;
+            xp[u.a.id] = Math.min(MAX_PET_XP, (xp[u.a.id] || 0) + gain);
             const after = this.petLevel(xp[u.a.id]);
             if (after > before) ups.push(`${u.a.name} is now level ${after}!`);
         }
@@ -3193,7 +3232,7 @@ export class ChatRoom extends DurableObject {
     }
 
     /** A guild member attacks the boss of their guild. Returns { error } or { text, dealt, hpAfter, defeated }. */
-    async guildAttack(username, user, userKey) {
+    async guildAttack(username, user, userKey, announce = false) {
         const guild = await this.guildOfUser(user);
         if (!guild) return { error: "You are not in a guild. Join one with /guild join <name> or start one with /guild create <name>." };
         const { key, boss, def, animal, ends } = await this.guildBossFor(guild);
@@ -3213,6 +3252,7 @@ export class ChatRoom extends DurableObject {
         boss.names[lower] = username;
 
         let finale = "";
+        let rewards = null;
         const defeated = boss.hp <= 0;
         if (defeated) {
             boss.dead = true;
@@ -3220,24 +3260,32 @@ export class ChatRoom extends DurableObject {
             const everyone = Object.entries(boss.damage).sort((a, b) => b[1] - a[1]);
             const total = everyone.reduce((n, [, v]) => n + v, 0) || 1;
             const lines = [];
+            rewards = [];
             for (let i = 0; i < everyone.length; i++) {
                 const [who, dmg] = everyone[i];
                 const receiver = who === lower ? user : await this.ctx.storage.get(`u:${who}`);
                 if (!receiver) continue;
-                const coins = 80 + Math.round((400 * dmg) / total);
+                // everybody who fought is paid by their share of the damage; the top two also get Level-Up Candy
+                const coins = 300 + Math.round((1500 * dmg) / total);
+                const food = 10;
+                const candy = i === 0 ? 2 : i === 1 ? 1 : 0;
                 receiver.zooCoins = (receiver.zooCoins || 0) + coins;
                 receiver.items = receiver.items || {};
-                receiver.items.food = (receiver.items.food || 0) + 5;
-                if (i === 0) receiver.items.candy = (receiver.items.candy || 0) + 1;
+                receiver.items.food = (receiver.items.food || 0) + food;
+                if (candy) receiver.items.candy = (receiver.items.candy || 0) + candy;
                 const bossPet = this.bossPetDrop(receiver, i, animal);
                 if (who !== lower) await this.ctx.storage.put(`u:${who}`, receiver);
-                lines.push(`${i + 1}. ${boss.names[who] || who} - ${dmg} damage: +${coins} coins + 5 × ${ZOO_ITEMS.food.icon}${i === 0 ? ` + 1 × ${ZOO_ITEMS.candy.icon}` : ""}${bossPet}`);
+                rewards.push({ name: boss.names[who] || who, damage: dmg, coins, food, candy, pet: bossPet ? animal.name : "" });
+                lines.push(`${i + 1}. ${boss.names[who] || who} - ${dmg} damage: +${coins} coins + ${food} × ${ZOO_ITEMS.food.icon}${candy ? ` + ${candy} × ${ZOO_ITEMS.candy.icon}` : ""}${bossPet}`);
             }
-            finale = `\n\u{1F3C6} [${guild.tag}] ${guild.name} defeated ${def.title}! (guild boss kills: ${guild.kills})\n${lines.slice(0, 5).join("\n")}`;
+            boss.rewards = rewards;
+            finale = `\n\u{1F3C6} [${guild.tag}] ${guild.name} defeated ${def.title}! (guild boss kills: ${guild.kills})\n${lines.slice(0, 8).join("\n")}`;
             await this.ctx.storage.put(`gd:${guild.id}`, guild);
         }
         await this.ctx.storage.put(key, boss);
         await this.ctx.storage.put(userKey, user);
+        // a kill from the Zoo page is announced in #zoo too, so everybody sees the rewards
+        if (defeated && announce) await this.botMessage("zoo", { text: finale.trim() }, { name: ZOO_NAME });
         const bar = (hp, max) => {
             const filled = Math.round((10 * hp) / max);
             return `${"█".repeat(filled)}${"░".repeat(10 - filled)} ${Math.ceil((100 * hp) / max)}%`;
@@ -3249,6 +3297,8 @@ export class ChatRoom extends DurableObject {
             dealt: fight.dealt,
             hpAfter: boss.hp,
             defeated,
+            rewards,
+            mine: rewards ? rewards.find((r) => r.name.toLowerCase() === lower) || null : null,
             text: `\u{1F6E1}️ ${username} attacks the guild boss ${animal.emoji} ${def.title}!\n${fight.mine.map(show).join("\n")}\nYou dealt ${fight.dealt} damage! Boss HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)} | +${fight.gain} xp${gemNote}${fight.ups.length ? "\n⬆️ " + fight.ups.join(" ") : ""}${finale}`,
         };
     }
@@ -3267,6 +3317,7 @@ export class ChatRoom extends DurableObject {
             members: guild.members.map((name) => ({ name, damage: boss.damage[name.toLowerCase()] || 0, hits: boss.hits[name.toLowerCase()] || 0 })),
             max: GUILD_MAX_MEMBERS,
             boss: { title: def.title, emoji: animal.emoji.slice(1, -1), ability: abilityOf(animal), hp: boss.hp, max: boss.max, dead: boss.dead, ends },
+            rewards: boss.dead ? boss.rewards || null : null,
         };
     }
 
@@ -3281,6 +3332,184 @@ export class ChatRoom extends DurableObject {
     async bossPetEmoji() {
         await this.loadSpecials();
         return json({ emojis: ANIMALS.filter((a) => a.rarity === "boss" && a.emoji.startsWith(":")).map((a) => a.emoji.slice(1, -1)) });
+    }
+
+    // ---------- guild gifting ----------
+
+    /** A guild member gives coins, Pet Food or Level-Up Candy to another member (with daily limits). */
+    async guildGift(username, user, userKey, to, kind, amount) {
+        const guild = await this.guildOfUser(user);
+        if (!guild) return { error: "You are not in a guild." };
+        const target = String(to || "").replace(/^@/, "").toLowerCase();
+        const member = guild.members.find((m) => m.toLowerCase() === target);
+        if (!member) return { error: "Name a member of your guild: /guild gift @user coins 50" };
+        if (member.toLowerCase() === username.toLowerCase()) return { error: "You can't gift yourself." };
+        const word = String(kind || "").toLowerCase();
+        const key = word === "pet" || word === "petfood" ? "food" : word;
+        if (!GUILD_GIFT_LIMITS[key]) return { error: `You can gift: ${Object.keys(GUILD_GIFT_LIMITS).join(", ")}. Example: /guild gift @user coins 50` };
+        const count = Math.round(Number(amount));
+        if (!(count >= 1)) return { error: "Say how many, like /guild gift @user food 5" };
+        const today = taskDay();
+        const log = user.giftLog?.day === today ? user.giftLog : { day: today, coins: 0, food: 0, candy: 0 };
+        if (log[key] + count > GUILD_GIFT_LIMITS[key]) {
+            return { error: `You can gift ${GUILD_GIFT_LIMITS[key]} ${key} a day to guild mates (${Math.max(0, GUILD_GIFT_LIMITS[key] - log[key])} left today).` };
+        }
+        const have = key === "coins" ? user.zooCoins || 0 : user.items?.[key] || 0;
+        if (have < count) return { error: `You only have ${have} ${key}.` };
+        const receiverKey = `u:${target}`;
+        const receiver = await this.ctx.storage.get(receiverKey);
+        if (!receiver) return { error: "That member could not be found." };
+        if (key === "coins") {
+            user.zooCoins = have - count;
+            receiver.zooCoins = (receiver.zooCoins || 0) + count;
+        } else {
+            user.items = user.items || {};
+            user.items[key] = have - count;
+            receiver.items = receiver.items || {};
+            receiver.items[key] = (receiver.items[key] || 0) + count;
+        }
+        log[key] += count;
+        user.giftLog = log;
+        await this.ctx.storage.put({ [userKey]: user, [receiverKey]: receiver });
+        const what = key === "coins" ? "\u{1FA99} coins" : `${ZOO_ITEMS[key].icon} ${ZOO_ITEMS[key].name}`;
+        return { ok: true, text: `\u{1F381} ${username} gifted ${count} × ${what} to ${member}!` };
+    }
+
+    // ---------- ranked PvP ----------
+
+    seasonKey() {
+        return new Date().toISOString().slice(0, 7);
+    }
+
+    rankTier(rating) {
+        return [...RANK_TIERS].reverse().find((t) => rating >= t.min) || RANK_TIERS[0];
+    }
+
+    /** Your ranked record for this season. A new month soft-resets the rating and pays the old season's reward. */
+    rankedOf(user) {
+        const season = this.seasonKey();
+        let r = user.ranked;
+        let reward = null;
+        if (!r) r = user.ranked = { season, rating: RANK_START, wins: 0, losses: 0, peak: RANK_START };
+        if (r.season !== season) {
+            const tier = this.rankTier(r.rating);
+            if (r.wins + r.losses > 0 && tier.reward > 0) {
+                user.zooCoins = (user.zooCoins || 0) + tier.reward;
+                reward = { season: r.season, tier, coins: tier.reward };
+            }
+            r = user.ranked = { season, rating: Math.round(RANK_START + (r.rating - RANK_START) / 2), wins: 0, losses: 0, peak: RANK_START };
+        }
+        return { r, reward };
+    }
+
+    /** Players who can be fought on the ladder (a team and some animals), cached for a minute. */
+    async rankedPool() {
+        if (!this.rankedCache || Date.now() - this.rankedCache.time > 60 * 1000) {
+            const rows = [];
+            for (const [key, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+                if (!u.username || !u.zoo || !ANIMALS.some((a) => u.zoo[a.id])) continue;
+                rows.push({ key, name: u.username, rating: u.ranked?.season === this.seasonKey() ? u.ranked.rating : RANK_START });
+            }
+            this.rankedCache = { time: Date.now(), rows };
+        }
+        return this.rankedCache.rows;
+    }
+
+    async rankedTop(limit = 10) {
+        const season = this.seasonKey();
+        const rows = [];
+        for (const [, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+            if (u.ranked?.season === season && u.ranked.wins + u.ranked.losses > 0) {
+                rows.push({ name: u.username, rating: u.ranked.rating, wins: u.ranked.wins, losses: u.ranked.losses, tier: this.rankTier(u.ranked.rating).name });
+            }
+        }
+        return rows.sort((a, b) => b.rating - a.rating).slice(0, limit);
+    }
+
+    /** A ranked fight against a player near your rating. Gems do not count in ranked. Returns { error } or { text, ... }. */
+    async rankedFight(username, user, userKey) {
+        const lower = username.toLowerCase();
+        const now = Date.now();
+        if (now - (this.rankedLast.get(lower) || 0) < RANKED_COOLDOWN_MS) {
+            return { error: `Your animals are resting. Ranked again in ${Math.ceil((RANKED_COOLDOWN_MS - (now - this.rankedLast.get(lower))) / 1000)}s.` };
+        }
+        const team = this.zooTeam(user);
+        if (!team.length) return { error: "You need at least one animal on your team. Use /hunt first!" };
+        const { r, reward } = this.rankedOf(user);
+        const pool = (await this.rankedPool()).filter((p) => p.key !== userKey);
+        if (!pool.length) return { error: "Nobody else has a zoo yet, so there is nobody to fight." };
+        // one of the five players closest to your rating
+        const near = pool.slice().sort((a, b) => Math.abs(a.rating - r.rating) - Math.abs(b.rating - r.rating)).slice(0, 5);
+        const pick = near[Math.floor(Math.random() * near.length)];
+        const opponent = await this.ctx.storage.get(pick.key);
+        if (!opponent) return { error: "Your opponent left. Try again." };
+        const oppRank = this.rankedOf(opponent);
+        const oppTeam = this.zooTeam(opponent);
+        if (!oppTeam.length) return { error: "That opponent has no team. Try again." };
+        this.rankedLast.set(lower, now);
+        if (this.rankedLast.size > 2000) this.rankedLast.clear();
+
+        const xp = (user.zooXp = user.zooXp || {});
+        const mine = team.map((a) => this.makeUnit(a, this.petLevel(xp[a.id]), 0));
+        const foes = oppTeam.map((a) => this.makeUnit(a, this.petLevel((opponent.zooXp || {})[a.id]), 1));
+        const { turns, won, draw } = this.simulate(mine, foes);
+        const score = won ? 1 : draw ? 0.5 : 0;
+        const expected = 1 / (1 + 10 ** ((oppRank.r.rating - r.rating) / 400));
+        const delta = Math.round(RANK_K * (score - expected));
+        const before = r.rating;
+        r.rating = Math.max(0, r.rating + delta);
+        r.peak = Math.max(r.peak || 0, r.rating);
+        oppRank.r.rating = Math.max(0, oppRank.r.rating - delta);
+        if (won) {
+            r.wins += 1;
+            oppRank.r.losses += 1;
+        } else if (!draw) {
+            r.losses += 1;
+            oppRank.r.wins += 1;
+        }
+        const gain = won ? 60 : 15;
+        const coins = won ? 15 : 3;
+        const ups = [];
+        for (const u of mine) {
+            const level = u.lvl;
+            xp[u.a.id] = Math.min(MAX_PET_XP, (xp[u.a.id] || 0) + gain);
+            const after = this.petLevel(xp[u.a.id]);
+            if (after > level) ups.push(`${u.a.name} is now level ${after}!`);
+        }
+        user.zooCoins = (user.zooCoins || 0) + coins;
+        await this.ctx.storage.put({ [userKey]: user, [pick.key]: opponent });
+        const tierNow = this.rankTier(r.rating);
+        const tierBefore = this.rankTier(before);
+        const show = (u) => `L. ${u.lvl} ${u.a.emoji} ${u.a.name}${u.ab ? ` [${ABILITIES[u.ab].name}]` : ""} ${u.hp}/${u.max} HP`;
+        const result = won ? `You won in ${turns} turns!` : draw ? "It's a draw." : `You lost in ${turns} turns!`;
+        const moved = tierNow.name !== tierBefore.name ? ` ${tierNow.min > tierBefore.min ? "\u{1F4C8} Promoted to" : "\u{1F4C9} Dropped to"} ${tierNow.icon} ${tierNow.name}!` : "";
+        const line = `${result} Rating ${before} → ${r.rating} (${delta >= 0 ? "+" : ""}${delta}) ${tierNow.icon} ${tierNow.name} | +${gain} xp, +${coins} coins`;
+        return {
+            ok: true,
+            won,
+            delta,
+            rating: r.rating,
+            line,
+            text: `\u{1F3C5} Ranked: ${username} (${tierBefore.icon} ${before}) vs ${opponent.username} (${this.rankTier(oppRank.r.rating + delta).icon} ${oppRank.r.rating + delta})\n${username}'s team\n${mine.map(show).join("\n")}\n${opponent.username}'s team\n${foes.map(show).join("\n")}\n${line}${moved}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}${reward ? `\n\u{1F381} Season ${reward.season} reward: ${reward.tier.icon} ${reward.tier.name} paid ${reward.coins} coins!` : ""}`,
+        };
+    }
+
+    /** What the Ranked tab shows. */
+    async rankedPanel(user) {
+        const { r } = this.rankedOf(user);
+        const tier = this.rankTier(r.rating);
+        const next = RANK_TIERS.find((t) => t.min > r.rating);
+        return {
+            season: r.season,
+            rating: r.rating,
+            peak: r.peak || r.rating,
+            wins: r.wins,
+            losses: r.losses,
+            tier: { name: tier.name, icon: tier.icon, reward: tier.reward },
+            next: next ? { name: next.name, icon: next.icon, need: next.min - r.rating } : null,
+            tiers: RANK_TIERS,
+            top: await this.rankedTop(),
+        };
     }
 
     /** Boss-tier pets only drop from boss kills: 5% for the top damager, 3% for the second, 1% for the third. */
@@ -3347,7 +3576,7 @@ export class ChatRoom extends DurableObject {
         for (let n = 0; n < want; n++) {
             xp = key === "food" ? xp + ZOO_ITEMS.food.xp : Math.max(xp, xpForLevel(this.petLevel(xp) + 1));
         }
-        user.zooXp[animal.id] = xp;
+        user.zooXp[animal.id] = Math.min(xp, MAX_PET_XP);
         user.items[key] = have - want;
         return { ok: true, used: want, before, after: this.petLevel(xp) };
     }
@@ -3356,6 +3585,7 @@ export class ChatRoom extends DurableObject {
     buyItem(user, key, count, coins) {
         const item = ZOO_ITEMS[key];
         if (!item) return { error: "Items: food, candy." };
+        if (coins && item.orbsOnly) return { error: `${item.name} can only be bought with orbs.` };
         const amount = Math.round(count);
         if (!(amount >= 1 && amount <= 100)) return { error: "Buy 1 to 100 at a time." };
         const price = item.price * amount * (coins ? COIN_PRICE_X : 1);
@@ -3392,14 +3622,18 @@ export class ChatRoom extends DurableObject {
             result = await this.guildJoin(username, user, userKey, String(body.name || ""));
         } else if (action === "guildLeave") {
             result = await this.guildLeave(username, user, userKey);
+        } else if (action === "guildGift") {
+            result = await this.guildGift(username, user, userKey, String(body.to || ""), String(body.kind || ""), Number(body.amount));
+        } else if (action === "rankedFight") {
+            result = await this.rankedFight(username, user, userKey);
         } else if (action === "guildAttack") {
-            result = await this.guildAttack(username, user, userKey);
+            result = await this.guildAttack(username, user, userKey, true);
         } else {
             return json({ error: "Unknown action." }, 400);
         }
         if (result.error) return json({ error: result.error }, 400);
         await this.ctx.storage.put(userKey, user);
-        return json({ ok: true, me: this.zooMe(username, user, (await this.zooBoss()).boss), guild: await this.guildPanel(user), guilds: await this.guildList(), result });
+        return json({ ok: true, me: this.zooMe(username, user, (await this.zooBoss()).boss), guild: await this.guildPanel(user), guilds: await this.guildList(), ranked: await this.rankedPanel(user), result });
     }
 
     /** Everything the zoo page on the site shows. */
@@ -3444,6 +3678,9 @@ export class ChatRoom extends DurableObject {
             await this.syncUser(userKey, user);
             out.me = this.zooMe(username, user, boss);
             out.guild = await this.guildPanel(user);
+            out.ranked = await this.rankedPanel(user);
+        } else {
+            out.ranked = { tiers: RANK_TIERS, top: await this.rankedTop() };
         }
         out.guilds = await this.guildList();
         out.guildRules = { cost: GUILD_COST, max: GUILD_MAX_MEMBERS };

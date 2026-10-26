@@ -83,7 +83,7 @@ const BOT_MEMBERS = [
     { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /daily, /sell, /fuse, /gems, /team, /battle and /zooboard. Full collection on the Zoo page." },
     { name: "a101 Giveaways", icon: "\u{1F389}", desc: "Give orbs away with /giveaway 100 10m. Everyone can enter with a button." },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss"];
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked"];
 const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : name === "a101 Giveaways" ? "gw" : "");
 const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
@@ -2744,8 +2744,9 @@ export default {
                     boss: "the shared boss: /boss, /boss attack (in #zoo)",
                     autohunt: "hunt automatically while away: /autohunt start 20 (in #zoo)",
                     items: "Pet Food and Level-Up Candy shop (in #zoo)",
-                    guild: "guilds: /guild create Name | TAG, join, leave, attack (in #zoo)",
+                    guild: "guilds: create, join, leave, attack, gift @user coins 50 (in #zoo)",
                     gboss: "your guild boss: /gboss, /guild attack (resets every hour)",
+                    ranked: "ranked PvP: /ranked, /ranked fight, /ranked top (in #zoo)",
                     feed: "feed an animal: /feed Fox 3 (+150 xp each)",
                     candy: "give Level-Up Candy: /candy Gem Lion (+1 level)",
                     use: "use an item: /use candy Fox",
