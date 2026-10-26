@@ -254,12 +254,12 @@ const abilityOf = (animal) => {
 // You can own several tiers of a gem; the best one that still has charges is used first.
 const GEM_TIERS = ["common", "uncommon", "rare", "epic", "legendary"];
 const GEMS = {
-    hunting: { name: "Hunting Gem", desc: (v) => `+${v} animal${v > 1 ? "s" : ""} on every hunt`, price: [15, 30, 60, 110, 200], uses: [20, 40, 80, 150, 300], power: [1, 1, 1, 2, 2] },
+    hunting: { name: "Hunting Gem", desc: (v) => `+${v} animal${v > 1 ? "s" : ""} on every hunt`, price: [15, 30, 60, 110, 200], uses: [20, 40, 80, 150, 300], power: [1, 1, 2, 3, 4] },
     heart: { name: "Heart Gem", desc: (v) => `${v}x better chance of Gem animals`, price: [25, 40, 80, 150, 300], uses: [20, 40, 80, 150, 300], power: [1.5, 2, 3, 4, 5] },
-    power: { name: "Power Gem", desc: (v) => `+${v}% attack in battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [10, 15, 20, 30, 40] },
-    luck: { name: "Luck Gem", desc: (v) => `+${v}% chance of every tier above Common`, price: [20, 35, 70, 130, 250], uses: [20, 40, 80, 150, 300], power: [5, 10, 15, 25, 35] },
-    xp: { name: "XP Gem", desc: (v) => `+${v}% xp from battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [10, 20, 30, 50, 75] },
-    shield: { name: "Shield Gem", desc: (v) => `+${v}% HP in battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [10, 15, 25, 35, 50] },
+    power: { name: "Power Gem", desc: (v) => `+${v}% attack in battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [15, 25, 40, 60, 100] },
+    luck: { name: "Luck Gem", desc: (v) => `+${v}% chance of Uncommon up to Legendary animals`, price: [20, 35, 70, 130, 250], uses: [20, 40, 80, 150, 300], power: [20, 40, 70, 110, 160] },
+    xp: { name: "XP Gem", desc: (v) => `+${v}% xp from battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [25, 50, 75, 100, 150] },
+    shield: { name: "Shield Gem", desc: (v) => `+${v}% HP in battles`, price: [15, 25, 50, 90, 160], uses: [10, 20, 40, 75, 150], power: [20, 40, 70, 100, 150] },
 };
 // durations before rarer gems lasted longer, used once to scale up gems people already own
 const OLD_GEM_USES = { hunting: [20, 35, 35, 40, 50], heart: [20, 25, 30, 35, 40], power: [10, 10, 15, 15, 20] };
@@ -2027,7 +2027,7 @@ export class ChatRoom extends DurableObject {
         const luck = activeGem(gems, "luck");
         const event = this.zooEventTier();
         const weights = RARITIES.map(
-            (r) => r.weight * (r.id === event ? 3 : 1) * (r.id === "gem" && heart ? heart.value : 1) * (r.id !== "common" && luck ? 1 + luck.value / 100 : 1),
+            (r) => r.weight * (r.id === event ? 3 : 1) * (r.id === "gem" && heart ? heart.value : 1) * (r.id !== "common" && r.id !== "gem" && r.id !== "crystal" && luck ? 1 + luck.value / 100 : 1),
         );
         const total = weights.reduce((n, w) => n + w, 0);
         const rnd = () => crypto.getRandomValues(new Uint32Array(1))[0];
