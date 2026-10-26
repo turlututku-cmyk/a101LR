@@ -30,6 +30,23 @@ export default {
                         <span><b>Event this hour:</b> {{ eventTier.label }} animals are 3x more likely!</span>
                     </div>
 
+                    <section v-if="data.boss" class="zoo-boss" :class="{ dead: data.boss.dead }">
+                        <img :src="'/assets/emojis/' + data.boss.emoji + '.svg'" :alt="data.boss.title">
+                        <div class="zoo-boss-info">
+                            <h2>&#128121; Boss: {{ data.boss.title }}<small v-if="data.boss.ability">{{ data.abilities[data.boss.ability].name }}</small></h2>
+                            <div class="zoo-hp"><span :style="{ width: (100 * data.boss.hp / data.boss.max) + '%' }"></span></div>
+                            <p>
+                                <b>{{ data.boss.hp }}/{{ data.boss.max }} HP</b>
+                                <span v-if="data.boss.dead"> - defeated! A new boss arrives in {{ bossLeft }}.</span>
+                                <span v-else> - leaves in {{ bossLeft }}. Everyone fights the same boss with <code>/boss attack</code> in #zoo.</span>
+                            </p>
+                            <p v-if="me" class="zoo-muted">Your damage: {{ me.bossDamage }}</p>
+                            <ol v-if="data.boss.top.length" class="zoo-boss-top">
+                                <li v-for="r in data.boss.top" :key="r.name"><span>{{ r.name }}</span><b>{{ r.damage }}</b></li>
+                            </ol>
+                        </div>
+                    </section>
+
                     <section v-if="me" class="zoo-me">
                         <div class="zoo-stat"><b>{{ owned }}/{{ data.animals.length }}</b><span>Species</span></div>
                         <div class="zoo-stat"><b>{{ me.coins }}</b><span>Coins</span></div>
@@ -144,6 +161,7 @@ export default {
                 { id: "wins", label: "Battle wins", fmt: (r) => r.wins + " wins" },
             ],
             timer: null,
+            now: Date.now(),
         };
     },
     computed: {
@@ -152,6 +170,10 @@ export default {
         },
         eventTier() {
             return this.data?.tiers.find((t) => t.id === this.data.event) || null;
+        },
+        bossLeft() {
+            const left = Math.max(0, (this.data?.boss?.ends || 0) - this.now);
+            return `${Math.floor(left / 3600000)}h ${Math.floor((left % 3600000) / 60000)}m`;
         },
         owned() {
             return this.me ? this.data.animals.filter((a) => this.me.zoo[a.id]).length : 0;
@@ -209,7 +231,10 @@ export default {
             }
         }
         this.load();
-        this.timer = setInterval(() => this.load(), 60000);
+        this.timer = setInterval(() => {
+            this.now = Date.now();
+            this.load();
+        }, 60000);
     },
     beforeUnmount() {
         clearInterval(this.timer);

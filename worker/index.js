@@ -182,7 +182,7 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
 // a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
 const CASINO_NAME = "a101 Casino";
 // a101 Zoo: /hunt costs 1 orb and catches a random animal. Only in #zoo.
@@ -214,7 +214,7 @@ const ANIMALS = [
     ...BASE_ANIMALS.map((a) => ({ id: `gem_${a.id}`, emoji: `:gem_${a.id}:`, plain: `\u{1F48E}${a.plain}`, name: `Gem ${a.name}`, rarity: "gem" })),
     ...BASE_ANIMALS.map((a) => ({ id: `crystal_${a.id}`, emoji: `:crystal_${a.id}:`, plain: `\u{1F52E}${a.plain}`, name: `Crystal ${a.name}`, rarity: "crystal" })),
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard"];
+const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
 const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400 };
 const COIN_PRICE_X = 3;
@@ -222,6 +222,17 @@ const COIN_PRICE_X = 3;
 const FUSE_COST = { common: 5, uncommon: 5, rare: 5, epic: 5, legendary: 8, gem: 10 };
 // every hour one of these tiers is 3x more likely
 const ZOO_EVENT_TIERS = ["uncommon", "rare", "epic", "legendary", "gem"];
+// a boss appears every 6 hours and everybody fights the same one (/boss attack, once every 2 minutes per player)
+const ZOO_BOSS_MS = 6 * 3600 * 1000;
+const ZOO_BOSS_COOLDOWN_MS = 2 * 60 * 1000;
+const ZOO_BOSSES = [
+    { animal: "dragon", title: "Elder Dragon", hp: 60000, atk: 90, def: 35 },
+    { animal: "crystal_gorilla", title: "Crystal Titan", hp: 60000, atk: 85, def: 38 },
+    { animal: "gem_lion", title: "Emerald Lion King", hp: 60000, atk: 95, def: 32 },
+    { animal: "trex", title: "Ancient T-Rex", hp: 60000, atk: 100, def: 30 },
+    { animal: "crystal_shark", title: "Abyss Shark", hp: 60000, atk: 90, def: 34 },
+    { animal: "crystal_eagle", title: "Storm Eagle", hp: 60000, atk: 80, def: 40 },
+];
 // battle abilities: rare animals and above have one (Gem and Crystal versions share the animal's ability)
 const ABILITIES = {
     crit: { name: "Crit", desc: "25% chance to hit for 1.8x damage" },
@@ -2354,6 +2365,103 @@ export class ChatRoom extends DurableObject {
             const gemNote = used.length ? ` (${used.map((g) => `${RARITIES[g.tier].label} ${GEMS[g.key.split("_")[0]].name}: ${user.gems[g.key]} left`).join(", ")})` : "";
             return say(`⚔️ ${intro}\n${username}'s team\n${mine.map(show).join("\n")}\n${foeLabel}\n${foes.map(show).join("\n")}\n${result} | +${gain} xp${gemNote}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}`);
         }
+
+        if (name === "boss") {
+            const { key: bossKey, boss, def, animal, ends } = await this.zooBoss();
+            const left = Math.max(0, ends - Date.now());
+            const timeLeft = `${Math.floor(left / 3600000)}h ${Math.floor((left % 3600000) / 60000)}m`;
+            const sub = args.toLowerCase().trim();
+            const bar = (hp, max) => {
+                const filled = Math.round((10 * hp) / max);
+                return `${"█".repeat(filled)}${"░".repeat(10 - filled)} ${Math.ceil((100 * hp) / max)}%`;
+            };
+            const ranking = Object.entries(boss.damage).sort((a, b) => b[1] - a[1]);
+            const ab = abilityOf(animal);
+            if (sub !== "attack" && sub !== "fight") {
+                const top = ranking.slice(0, 5).map(([who, dmg], i) => `${i + 1}. ${boss.names[who] || who} - ${dmg} damage`);
+                return say(
+                    `\u{1F479} Boss: ${animal.emoji} ${def.title}${ab ? ` [${ABILITIES[ab].name}]` : ""}\n${boss.dead ? "DEFEATED! The next boss arrives in " + timeLeft : `HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)}\nIt leaves in ${timeLeft}`}\nYour damage: ${boss.damage[lower] || 0} (${boss.hits[lower] || 0} attacks)${top.length ? "\nTop fighters:\n" + top.join("\n") : ""}\nEveryone fights the same boss: use /boss attack every ${ZOO_BOSS_COOLDOWN_MS / 60000} minutes. Beat it for coins and gems.`,
+                );
+            }
+            if (boss.dead) return say(`${def.title} is already defeated! The next boss arrives in ${timeLeft}.`);
+            const wait = (boss.last[lower] || 0) + ZOO_BOSS_COOLDOWN_MS - Date.now();
+            if (wait > 0) return say(`Your animals are resting. Attack again in ${Math.ceil(wait / 1000)}s.`);
+            const team = this.zooTeam(user);
+            if (!team.length) return say("You need at least one animal to fight. Use /hunt first!");
+            user.zooXp = xp;
+            const pg = activeGem(user.gems, "power");
+            const sg = activeGem(user.gems, "shield");
+            const xg = activeGem(user.gems, "xp");
+            const mine = team.map((a) => this.makeUnit(a, this.petLevel(xp[a.id]), 0, pg ? 1 + pg.value / 100 : 1, sg ? 1 + sg.value / 100 : 1));
+            const bossUnit = { a: animal, lvl: MAX_PET_LEVEL, side: 1, ab, hp: boss.hp, max: boss.max, atk: def.atk, def: def.def, stunned: false, burn: 0 };
+            this.simulate(mine, [bossUnit]);
+            const dealt = Math.max(0, boss.hp - Math.max(0, bossUnit.hp));
+            boss.hp = Math.max(0, bossUnit.hp);
+            boss.damage[lower] = (boss.damage[lower] || 0) + dealt;
+            boss.hits[lower] = (boss.hits[lower] || 0) + 1;
+            boss.last[lower] = Date.now();
+            boss.names[lower] = username;
+
+            const gain = Math.round(25 * (xg ? 1 + xg.value / 100 : 1));
+            const ups = [];
+            for (const u of mine) {
+                const before = u.lvl;
+                xp[u.a.id] = (xp[u.a.id] || 0) + gain;
+                const after = this.petLevel(xp[u.a.id]);
+                if (after > before) ups.push(`${u.a.name} is now level ${after}!`);
+            }
+            const used = [pg, sg, xg].filter(Boolean);
+            for (const g of used) user.gems[g.key] -= 1;
+
+            let finale = "";
+            if (boss.hp <= 0) {
+                boss.dead = true;
+                const everyone = Object.entries(boss.damage).sort((a, b) => b[1] - a[1]);
+                const total = everyone.reduce((n, [, v]) => n + v, 0) || 1;
+                const lines = [];
+                for (let i = 0; i < everyone.length; i++) {
+                    const [who, dmg] = everyone[i];
+                    const receiver = who === lower ? user : await this.ctx.storage.get(`u:${who}`);
+                    if (!receiver) continue;
+                    const coins = 100 + Math.round((600 * dmg) / total) + (who === lower ? 200 : 0);
+                    receiver.zooCoins = (receiver.zooCoins || 0) + coins;
+                    receiver.gems = receiver.gems || {};
+                    let extra = "";
+                    if (i === 0) {
+                        receiver.gems.luck_epic = (receiver.gems.luck_epic || 0) + GEMS.luck.uses[3];
+                        extra = ` + ${gemIcon("luck", 3)} Epic Luck Gem`;
+                    } else if (i < 3) {
+                        receiver.gems.hunting_rare = (receiver.gems.hunting_rare || 0) + GEMS.hunting.uses[2];
+                        extra = ` + ${gemIcon("hunting", 2)} Rare Hunting Gem`;
+                    }
+                    if (who !== lower) await this.ctx.storage.put(`u:${who}`, receiver);
+                    if (i < 3) lines.push(`${i + 1}. ${boss.names[who] || who} - ${dmg} damage: +${coins} coins${extra}`);
+                }
+                finale = `\n\u{1F3C6} ${def.title} is DEFEATED by ${username}'s final blow (+200 coins)! Everyone who fought got coins:\n${lines.join("\n")}`;
+            }
+            await this.ctx.storage.put(bossKey, boss);
+            await this.ctx.storage.put(userKey, user);
+            const show = (u) => `L. ${u.lvl} ${u.a.emoji} ${u.a.name}${u.ab ? ` [${ABILITIES[u.ab].name}]` : ""} ${u.hp}/${u.max} HP`;
+            const gemNote = used.length ? ` (${used.map((g) => `${RARITIES[g.tier].label} ${GEMS[g.key.split("_")[0]].name}: ${user.gems[g.key]} left`).join(", ")})` : "";
+            return say(
+                `\u{1F479} ${username} attacks ${animal.emoji} ${def.title}!\n${mine.map(show).join("\n")}\nYou dealt ${dealt} damage! Boss HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)} | +${gain} xp${gemNote}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}${finale}`,
+            );
+        }
+    }
+
+    /** The boss of the current 6 hour slot (created the first time somebody looks). */
+    async zooBoss() {
+        const slot = Math.floor(Date.now() / ZOO_BOSS_MS);
+        const key = `zb:${slot}`;
+        let boss = await this.ctx.storage.get(key);
+        if (!boss) {
+            const index = slot % ZOO_BOSSES.length;
+            boss = { slot, def: index, hp: ZOO_BOSSES[index].hp, max: ZOO_BOSSES[index].hp, damage: {}, hits: {}, last: {}, names: {}, dead: false };
+            await this.ctx.storage.put(key, boss);
+            await this.ctx.storage.delete(`zb:${slot - 2}`);
+        }
+        const def = ZOO_BOSSES[boss.def];
+        return { key, boss, def, animal: ANIMALS.find((a) => a.id === def.animal), ends: (slot + 1) * ZOO_BOSS_MS };
     }
 
     /** Leaderboards, cached for 30 seconds. */
@@ -2382,6 +2490,17 @@ export class ChatRoom extends DurableObject {
             event: this.zooEventTier(),
             board: await this.zooBoard(),
         };
+        const { boss, def, animal, ends } = await this.zooBoss();
+        out.boss = {
+            title: def.title,
+            emoji: animal.emoji.slice(1, -1),
+            ability: abilityOf(animal),
+            hp: boss.hp,
+            max: boss.max,
+            dead: boss.dead,
+            ends,
+            top: Object.entries(boss.damage).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([who, damage]) => ({ name: boss.names[who] || who, damage })),
+        };
         if (username) {
             const userKey = `u:${username.toLowerCase()}`;
             const user = await this.ctx.storage.get(userKey);
@@ -2395,6 +2514,7 @@ export class ChatRoom extends DurableObject {
                 losses: user.zooLosses || 0,
                 streak: user.zooDaily?.streak || 0,
                 dailyDone: user.zooDaily?.last === taskDay(),
+                bossDamage: boss.damage[username.toLowerCase()] || 0,
                 zoo: user.zoo || {},
                 levels: Object.fromEntries(ANIMALS.filter((a) => user.zoo?.[a.id]).map((a) => [a.id, this.petLevel(xp[a.id])])),
                 team: this.zooTeam(user).map((a) => a.id),

@@ -271,3 +271,52 @@
     width: 1.5rem;
     height: 1.5rem;
 }
+
+.page-zoo .zoo-boss {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 0.7rem;
+    background: linear-gradient(90deg, #3a1c24, #2b2d31);
+    border-left: 4px solid #f23f42;
+}
+.page-zoo .zoo-boss.dead {
+    border-left-color: #3ba55d;
+    background: linear-gradient(90deg, #1c3a26, #2b2d31);
+}
+.page-zoo .zoo-boss > img {
+    width: 5.5rem;
+    height: 5.5rem;
+    flex-shrink: 0;
+}
+.page-zoo .zoo-boss-info {
+    flex: 1;
+    min-width: 0;
+}
+.page-zoo .zoo-boss h2 {
+    margin-top: 0;
+}
+.page-zoo .zoo-hp {
+    height: 0.9rem;
+    border-radius: 0.5rem;
+    background: #1e1f22;
+    overflow: hidden;
+}
+.page-zoo .zoo-hp span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #f23f42, #f0b232);
+}
+.page-zoo .zoo-boss p {
+    margin: 0.4rem 0 0;
+}
+.page-zoo .zoo-boss-top {
+    margin: 0.4rem 0 0;
+    padding-left: 1.3rem;
+}
+.page-zoo .zoo-boss-top li span {
+    display: inline-block;
+    min-width: 9rem;
+}

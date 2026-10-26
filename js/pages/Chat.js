@@ -82,7 +82,7 @@ const BOT_MEMBERS = [
     { name: "a101 Casino", icon: "\u{1F3B0}", desc: "Play with your orbs in #casino: /cf, /roulette, /slots, /dice, /blackjack, /duel." },
     { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /daily, /sell, /fuse, /gems, /team, /battle and /zooboard. Full collection on the Zoo page." },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard"];
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss"];
 const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : "");
 const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
@@ -1852,7 +1852,7 @@ export default {
                 return "";
             }
             const cmd = m.replyTo?.text || "";
-            if (m.name === "a101 Zoo") return text.startsWith("\u{1F3F9}") ? "hunt" : text.startsWith("\u2694") ? "battle" : "";
+            if (m.name === "a101 Zoo") return text.startsWith("\u{1F3F9}") ? "hunt" : (text.startsWith("\u2694") || text.startsWith("\u{1F479}")) ? "battle" : "";
             if (/^\/flip/i.test(cmd)) return "coin";
             if (/^\/roll/i.test(cmd)) return "dice";
             if (/^\/8ball/i.test(cmd)) return "ball";
@@ -2688,6 +2688,7 @@ export default {
                     sell: "sell spare animals for coins (in #zoo)",
                     fuse: "fuse spare animals into the next tier (in #zoo)",
                     zooboard: "zoo leaderboards (in #zoo)",
+                    boss: "the shared boss: /boss, /boss attack (in #zoo)",
                     roll: "roll dice, e.g. /roll 2d6",
                     flip: "flip a coin (no bet)",
                     "8ball": "ask the magic 8 ball",
