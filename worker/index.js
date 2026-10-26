@@ -2693,7 +2693,7 @@ export class ChatRoom extends DurableObject {
                 const left = Math.max(0, panel.boss.ends - Date.now());
                 const filled = Math.round((10 * panel.boss.hp) / panel.boss.max);
                 const top = panel.members.filter((m) => m.damage > 0).sort((a, b) => b.damage - a.damage).slice(0, 5);
-                return say(`\u{1F6E1}\uFE0F [${panel.tag}] guild boss: :${panel.boss.emoji}: ${panel.boss.title}\n${panel.boss.dead ? "DEFEATED! The next one arrives in " : `HP ${panel.boss.hp}/${panel.boss.max} ${"\u2588".repeat(filled)}${"\u2591".repeat(10 - filled)} | it leaves in `}${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s${top.length ? "\nTop fighters:\n" + top.map((m, i) => `${i + 1}. ${m.name} - ${m.damage} damage`).join("\n") : ""}\nAttack with /guild attack (every ${ZOO_BOSS_COOLDOWN_MS / 60000} minutes). A new boss arrives every hour; after you beat it, /guild reset pays ${GUILD_RESET_COST} orbs for a fresh one.`);
+                return say(`\u{1F6E1}\uFE0F [${panel.tag}] guild boss: :${panel.boss.emoji}: ${panel.boss.title}\n${panel.boss.dead ? "DEFEATED! The next one arrives in " : `HP ${panel.boss.hp}/${panel.boss.max} ${"\u2588".repeat(filled)}${"\u2591".repeat(10 - filled)} | it leaves in `}${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s${top.length ? "\nTop fighters:\n" + top.map((m, i) => `${i + 1}. ${m.name} - ${m.damage} damage`).join("\n") : ""}\nAttack with /guild attack (every ${ZOO_BOSS_COOLDOWN_MS / 60000} minutes). A new boss arrives every hour; after you beat it, /guild reset pays ${GUILD_RESET_COST} coins for a fresh one.`);
             }
             return say(`\u{1F6E1}\uFE0F [${panel.tag}] ${panel.name} - owner ${panel.owner}, ${panel.members.length}/${panel.max} members, ${panel.kills} boss kills\nMembers: ${panel.members.map((m) => m.name).join(", ")}\n/guild boss shows this hour's guild boss, /guild attack fights it, /guild leave leaves.`);
         }
@@ -3222,17 +3222,17 @@ export class ChatRoom extends DurableObject {
         const resets = boss.resets || 0;
         if (!boss.dead) return { error: `${def.title} is still alive. A guild boss can be reset after it has been defeated.` };
         if (resets >= GUILD_BOSS_MAX_RESETS) return { error: `This guild already reset its boss ${GUILD_BOSS_MAX_RESETS} times this hour. A new boss comes with the next hour.` };
-        if ((user.orbs || 0) < GUILD_RESET_COST) return { error: `Resetting the guild boss costs ${GUILD_RESET_COST} orbs and you have ${user.orbs || 0}.` };
+        if ((user.zooCoins || 0) < GUILD_RESET_COST) return { error: `Resetting the guild boss costs ${GUILD_RESET_COST} coins and you have ${user.zooCoins || 0}.` };
         const roster = this.bossRoster();
         const next = roster.length ? roster[(boss.slot + 3 + resets + 1) % roster.length] : null;
-        this.addOrbs(user, -GUILD_RESET_COST, false);
+        user.zooCoins -= GUILD_RESET_COST;
         const fresh = { slot: boss.slot, petId: next ? next.id : boss.petId, def: boss.def, hp: boss.max, max: boss.max, damage: {}, hits: {}, last: {}, names: {}, dead: false, resets: resets + 1 };
         await this.ctx.storage.put(key, fresh);
         await this.ctx.storage.put(userKey, user);
         const title = next ? next.title : def.title;
         return {
             ok: true,
-            text: `\u{1F504} ${username} paid ${GUILD_RESET_COST} orbs and [${guild.tag}] ${guild.name} faces a new guild boss: ${next ? next.animal.emoji : ""} ${title} with ${fresh.max} HP! (${fresh.resets}/${GUILD_BOSS_MAX_RESETS} resets this hour) Balance: ${user.orbs}`,
+            text: `\u{1F504} ${username} paid ${GUILD_RESET_COST} coins and [${guild.tag}] ${guild.name} faces a new guild boss: ${next ? next.animal.emoji : ""} ${title} with ${fresh.max} HP! (${fresh.resets}/${GUILD_BOSS_MAX_RESETS} resets this hour) Coins left: ${user.zooCoins}`,
         };
     }
 

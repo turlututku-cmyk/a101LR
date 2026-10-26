@@ -173,7 +173,7 @@ export default {
                                     </p>
                                     <div class="zoo-actions">
                                         <button type="button" class="zoo-btn" :disabled="busy || data.guild.boss.dead" @click="attackGuild">Attack the guild boss</button>
-                                        <button v-if="data.guild.boss.dead" type="button" class="zoo-btn" :disabled="busy || me.orbs < data.guild.reset.cost || data.guild.resets >= data.guild.reset.max" @click="resetGuildBoss">Reset the boss ({{ data.guild.reset.cost }} orbs, {{ data.guild.resets }}/{{ data.guild.reset.max }} used)</button>
+                                        <button v-if="data.guild.boss.dead && data.guild.reset" type="button" class="zoo-btn" :disabled="busy || me.coins < data.guild.reset.cost || data.guild.resets >= data.guild.reset.max" @click="resetGuildBoss">Reset the boss ({{ data.guild.reset.cost }} coins, {{ data.guild.resets }}/{{ data.guild.reset.max }} used)</button>
                                         <button type="button" class="zoo-btn alt" :disabled="busy" @click="leaveGuild">Leave guild</button>
                                     </div>
                                     <p class="zoo-muted">Each of your attacks needs a 2 minute rest. Beating the boss pays everyone who fought.</p>
@@ -183,7 +183,7 @@ export default {
                                 <h2>&#127942; Rewards paid for this boss</h2>
                                 <table v-if="data.guild.rewards" class="zoo-table">
                                     <tr><th>Player</th><th>Damage</th><th>Coins</th><th>Pet Food</th><th>Candy</th><th>Boss pet</th></tr>
-                                    <tr v-for="r in data.guild.rewards" :key="r.name"><td>{{ r.name }}</td><td>{{ r.damage }}</td><td>+{{ r.coins }}</td><td>+{{ r.food }}</td><td>{{ r.candy ? '+' + r.candy : '-' }}</td><td>{{ r.pet || '-' }}</td></tr>
+                                    <tr v-for="r in (data.guild.rewards || [])" :key="r.name"><td>{{ r.name }}</td><td>{{ r.damage }}</td><td>+{{ r.coins }}</td><td>+{{ r.food }}</td><td>{{ r.candy ? '+' + r.candy : '-' }}</td><td>{{ r.pet || '-' }}</td></tr>
                                 </table>
                                 <p v-else class="zoo-muted">Everyone who fought was paid coins and Pet Food, and the top damager got a Level-Up Candy. Check your coins and items above.</p>
                             </div>
@@ -231,13 +231,13 @@ export default {
                     </section>
 
                     <section v-else-if="tab === 'ranked'" class="zoo-ranked">
-                        <template v-if="me && data.ranked && data.ranked.rating !== undefined">
+                        <template v-if="me && rk && rk.rating !== undefined">
                             <div class="zoo-rankcard">
-                                <div class="zoo-rankicon">{{ data.ranked.tier.icon }}</div>
+                                <div class="zoo-rankicon">{{ rk.tier.icon }}</div>
                                 <div>
-                                    <h2>{{ data.ranked.tier.name }} &middot; {{ data.ranked.rating }} <small>season {{ data.ranked.season }}</small></h2>
-                                    <p class="zoo-muted">{{ data.ranked.wins }} wins &middot; {{ data.ranked.losses }} losses &middot; best {{ data.ranked.peak }}</p>
-                                    <p v-if="data.ranked.next" class="zoo-muted">{{ data.ranked.next.need }} points to {{ data.ranked.next.icon }} {{ data.ranked.next.name }}</p>
+                                    <h2>{{ rk.tier.name }} &middot; {{ rk.rating }} <small>season {{ rk.season }}</small></h2>
+                                    <p class="zoo-muted">{{ rk.wins }} wins &middot; {{ rk.losses }} losses &middot; best {{ rk.peak }}</p>
+                                    <p v-if="rk.next" class="zoo-muted">{{ rk.next.need }} points to {{ rk.next.icon }} {{ rk.next.name }}</p>
                                     <p v-else class="zoo-muted">You are in the top tier!</p>
                                     <div class="zoo-actions">
                                         <button type="button" class="zoo-btn" :disabled="busy" @click="rankedFight">Find a ranked match</button>
@@ -251,13 +251,13 @@ export default {
                         <h2>Tiers</h2>
                         <table class="zoo-table">
                             <tr><th>Tier</th><th>Rating from</th><th>Season reward</th></tr>
-                            <tr v-for="tr in data.ranked.tiers" :key="tr.name"><td>{{ tr.icon }} {{ tr.name }}</td><td>{{ tr.min }}</td><td>{{ tr.reward }} coins</td></tr>
+                            <tr v-for="tr in rk.tiers" :key="tr.name"><td>{{ tr.icon }} {{ tr.name }}</td><td>{{ tr.min }}</td><td>{{ tr.reward }} coins</td></tr>
                         </table>
                         <h2>Ladder this season</h2>
-                        <p v-if="!data.ranked.top.length" class="zoo-muted">Nobody has played ranked yet. Be the first!</p>
+                        <p v-if="!rk.top.length" class="zoo-muted">Nobody has played ranked yet. Be the first!</p>
                         <table v-else class="zoo-table">
                             <tr><th>#</th><th>Player</th><th>Rating</th><th>W / L</th></tr>
-                            <tr v-for="(p, i) in data.ranked.top" :key="p.name"><td>{{ i + 1 }}</td><td>{{ p.name }}</td><td>{{ p.rating }}</td><td>{{ p.wins }} / {{ p.losses }}</td></tr>
+                            <tr v-for="(p, i) in rk.top" :key="p.name"><td>{{ i + 1 }}</td><td>{{ p.name }}</td><td>{{ p.rating }}</td><td>{{ p.wins }} / {{ p.losses }}</td></tr>
                         </table>
                     </section>
 
@@ -340,6 +340,9 @@ export default {
             const left = Math.max(0, (this.data?.guild?.boss?.ends || 0) - this.now);
             return `${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s`;
         },
+        rk() {
+            return this.data?.ranked || { tiers: [], top: [] };
+        },
         giftTargets() {
             const mine = (this.me?.username || "").toLowerCase();
             return (this.data?.guild?.members || []).filter((m) => m.name.toLowerCase() !== mine);
@@ -402,7 +405,7 @@ export default {
                 const res = await fetch("/api/chat/zoo/action", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
                 const out = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(out.error || "That did not work.");
-                this.data = { ...this.data, me: out.me, guild: out.guild, guilds: out.guilds, ranked: out.ranked || this.data.ranked };
+                this.data = { ...this.data, me: out.me, guild: out.guild, guilds: out.guilds, ranked: out.ranked || this.rk };
                 this.say(typeof okText === "function" ? okText(out.result) : okText, false);
             } catch (e) {
                 this.say(e.message || "That did not work.", true);
@@ -437,7 +440,7 @@ export default {
             });
         },
         resetGuildBoss() {
-            if (!window.confirm(`Pay ${this.data.guild.reset.cost} orbs for a new guild boss?`)) return null;
+            if (!window.confirm(`Pay ${this.data.guild.reset.cost} coins for a new guild boss?`)) return null;
             return this.act({ action: "guildReset" }, "A new guild boss is here! Attack it from the Guild tab.");
         },
         createGuild() {
