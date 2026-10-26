@@ -83,7 +83,7 @@ const BOT_MEMBERS = [
     { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /daily, /sell, /fuse, /gems, /team, /battle and /zooboard. Full collection on the Zoo page." },
     { name: "a101 Giveaways", icon: "\u{1F389}", desc: "Give orbs away with /giveaway 100 10m. Everyone can enter with a button." },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt"];
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss"];
 const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : name === "a101 Giveaways" ? "gw" : "");
 const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
@@ -519,7 +519,7 @@ export default {
                                                 <small>{{ animLabel(anims[m.id].type) }}</small>
                                             </template>
                                         </div>
-                                        <div v-if="m.text && editingId !== m.id && !anims[m.id]" class="dc-msg-text" :class="{ 'dc-reveal': revealed[m.id] }"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
+                                        <div v-if="m.text && editingId !== m.id && !anims[m.id]" class="dc-msg-text" :class="{ 'dc-reveal': revealed[m.id] }"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo, pet: p.pet }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
                                         <div v-if="m.duel" class="dc-duel" :class="m.duel.status">
                                             <div class="dc-duel-vs"><b>{{ m.duel.from }}</b> <span>&#9876;&#65039;</span> <b>{{ m.duel.to }}</b></div>
                                             <div class="dc-duel-bet">&#128302; {{ m.duel.amount }} orbs on the line</div>
@@ -1253,6 +1253,7 @@ export default {
             searchBusy: false,
             levels: {},
             botCommands: { builtin: [], custom: [] },
+            bossPetEmoji: [],
             modOpen: false,
             modTab: "reports",
             modTabs: [
@@ -1459,6 +1460,8 @@ export default {
                 console.warn("Local chat backend could not start", e);
             }
         }
+        // the Boss pets burn in messages, so the chat needs to know which custom emoji they are
+        fetch(`${API}/bosspets`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.emojis)) this.bossPetEmoji = d.emojis; }).catch(() => {});
         const manifest = (file) =>
             fetch(`/data/${file}.json`)
                 .then((r) => (r.ok ? r.json() : []))
@@ -1665,7 +1668,7 @@ export default {
                 } else {
                     const src = this.emojiMap[token.slice(1, -1).toLowerCase()];
                     if (!src) continue;
-                    part = { text: token, emoji: src };
+                    part = { text: token, emoji: src, pet: this.bossPetEmoji.includes(token.slice(1, -1).toLowerCase()) };
                 }
                 if (match.index > last) out.push({ text: m.text.slice(last, match.index) });
                 out.push(part);
@@ -2732,7 +2735,7 @@ export default {
                     hunt: "hunt an animal for 1 orb (in #zoo)",
                     inventory: "see the animals you have caught (in #zoo)",
                     gems: "gem shop: hunting, heart and power gems (in #zoo)",
-                    team: "see or set your battle team (in #zoo)",
+                    team: "your team: /team, /team add X, /team remove X, /team swap A | B (in #zoo)",
                     battle: "fight a wild team, or /battle @user (in #zoo)",
                     daily: "free daily hunt with a streak (in #zoo)",
                     sell: "sell spare animals for coins (in #zoo)",
@@ -2740,6 +2743,12 @@ export default {
                     zooboard: "zoo leaderboards (in #zoo)",
                     boss: "the shared boss: /boss, /boss attack (in #zoo)",
                     autohunt: "hunt automatically while away: /autohunt start 20 (in #zoo)",
+                    items: "Pet Food and Level-Up Candy shop (in #zoo)",
+                    guild: "guilds: /guild create Name | TAG, join, leave, attack (in #zoo)",
+                    gboss: "your guild boss: /gboss, /guild attack (resets every hour)",
+                    feed: "feed an animal: /feed Fox 3 (+150 xp each)",
+                    candy: "give Level-Up Candy: /candy Gem Lion (+1 level)",
+                    use: "use an item: /use candy Fox",
                     giveaway: "give orbs away: /giveaway 100 10m [winners]",
                     roll: "roll dice, e.g. /roll 2d6",
                     flip: "flip a coin (no bet)",

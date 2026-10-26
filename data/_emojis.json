@@ -526,5 +526,17 @@
     {
         "name":  "pumpkin_cat",
         "src":  "/assets/emojis/pumpkin_cat.png"
+    },
+    {
+        "name":  "item_food",
+        "src":  "/assets/emojis/item_food.svg"
+    },
+    {
+        "name":  "item_candy",
+        "src":  "/assets/emojis/item_candy.svg"
+    },
+    {
+        "name":  "rarity_b",
+        "src":  "/assets/emojis/rarity_b.svg"
     }
 ]

@@ -338,3 +338,242 @@
     width: 3.6rem;
     height: 3.6rem;
 }
+
+/* team editor, selected animal, items */
+.page-zoo .zoo-notice {
+    margin: 0 0 0.8rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 0.4rem;
+    background: #1c3a26;
+    color: #b8f5c9;
+}
+.page-zoo .zoo-notice.bad {
+    background: #3a1c24;
+    color: #ffb3b8;
+}
+.page-zoo .zoo-teamcard {
+    cursor: pointer;
+}
+.page-zoo .zoo-animal.clickable {
+    cursor: pointer;
+}
+.page-zoo .zoo-animal.clickable:hover,
+.page-zoo .zoo-animal.selected {
+    border-color: #5865f2;
+}
+.page-zoo .zoo-mini {
+    margin-top: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    border: 0;
+    border-radius: 0.3rem;
+    background: #4e5058;
+    color: #fff;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.page-zoo .zoo-mini.ghost {
+    margin-left: 0.6rem;
+    background: transparent;
+    border: 1px solid #4e5058;
+}
+.page-zoo .zoo-mini:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.page-zoo .zoo-detail {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 0.7rem;
+    background: #2b2d31;
+    border-left: 4px solid #5865f2;
+}
+.page-zoo .zoo-detail > img,
+.page-zoo .zoo-detail > .zoo-glyph {
+    width: 5.5rem;
+    height: 5.5rem;
+    flex-shrink: 0;
+}
+.page-zoo .zoo-detail-info {
+    flex: 1;
+    min-width: 0;
+}
+.page-zoo .zoo-detail h2 {
+    margin-top: 0;
+}
+.page-zoo .zoo-detail p {
+    margin: 0.3rem 0;
+}
+.page-zoo .zoo-xp {
+    height: 0.6rem;
+    margin-top: 0.4rem;
+    overflow: hidden;
+    border-radius: 0.4rem;
+    background: #1e1f22;
+}
+.page-zoo .zoo-xp span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #5865f2, #57f287);
+}
+.page-zoo .zoo-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+}
+.page-zoo .zoo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.8rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: #5865f2;
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.page-zoo .zoo-btn.alt {
+    background: #4e5058;
+}
+.page-zoo .zoo-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.page-zoo .zoo-btn img {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+.page-zoo .zoo-items {
+    margin-bottom: 1rem;
+}
+.page-zoo .zoo-item-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 0.8rem;
+}
+.page-zoo .zoo-item {
+    display: flex;
+    gap: 0.8rem;
+    padding: 0.8rem;
+    border-radius: 0.6rem;
+    background: #2b2d31;
+}
+.page-zoo .zoo-item > img {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+}
+.page-zoo .zoo-item p {
+    margin: 0.2rem 0;
+}
+
+/* guilds */
+.page-zoo .zoo-guild .zoo-boss {
+    margin-bottom: 1rem;
+}
+.page-zoo .zoo-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.page-zoo .zoo-form input {
+    padding: 0.5rem 0.7rem;
+    border: 1px solid #4e5058;
+    border-radius: 0.4rem;
+    background: #1e1f22;
+    color: #dbdee1;
+    font: inherit;
+}
+.page-zoo .zoo-form input[placeholder="TAG"] {
+    width: 5rem;
+    text-transform: uppercase;
+}
+
+.page-zoo .zoo-animal.tier-boss:not(.missing) {
+    box-shadow: inset 0 0 0 1px #ff4d4d, 0 0 12px rgba(255, 77, 77, 0.45);
+    background: linear-gradient(160deg, #3a1414, #2b2d31);
+}
+
+/* Boss pets burn: a fire glow that flickers, with flames rising from them (normal pets do not) */
+.page-zoo .zoo-animal.tier-boss:not(.missing),
+.page-zoo .zoo-teamcard.tier-boss,
+.page-zoo .zoo-detail.tier-boss {
+    position: relative;
+    box-shadow: 0 0 14px rgba(255, 90, 0, 0.45), inset 0 0 18px rgba(255, 70, 0, 0.18);
+}
+.page-zoo .zoo-animal.tier-boss:not(.missing) > img,
+.page-zoo .zoo-teamcard.tier-boss > img,
+.page-zoo .zoo-detail.tier-boss > img,
+.page-zoo .zoo-animal.tier-boss:not(.missing) > .zoo-glyph,
+.page-zoo .zoo-teamcard.tier-boss > .zoo-glyph,
+.page-zoo .zoo-detail.tier-boss > .zoo-glyph {
+    filter: drop-shadow(0 0 5px #ffb300) drop-shadow(0 0 12px #ff3d00) drop-shadow(0 -4px 16px #ff2d00);
+    animation: zoo-fire 0.9s ease-in-out infinite alternate;
+}
+.page-zoo .tier-boss .flame {
+    position: absolute;
+    left: 28%;
+    bottom: 38%;
+    font-size: 1.1rem;
+    font-style: normal;
+    opacity: 0;
+    pointer-events: none;
+    animation: zoo-flame 1.3s ease-out infinite;
+}
+.page-zoo .tier-boss .flame.two {
+    left: 58%;
+    font-size: 0.85rem;
+    animation-delay: 0.65s;
+}
+.page-zoo .zoo-detail.tier-boss .flame {
+    left: 2.2rem;
+    bottom: 55%;
+}
+.page-zoo .zoo-detail.tier-boss .flame.two {
+    left: 4rem;
+}
+@keyframes zoo-fire {
+    0% {
+        filter: drop-shadow(0 0 4px #ff9100) drop-shadow(0 0 9px #ff3d00);
+    }
+    35% {
+        filter: drop-shadow(0 0 7px #ffb300) drop-shadow(0 -2px 15px #ff4d00);
+    }
+    70% {
+        filter: drop-shadow(0 0 5px #ff8000) drop-shadow(0 0 12px #ff2d00);
+    }
+    100% {
+        filter: drop-shadow(0 0 8px #ffc400) drop-shadow(0 -3px 18px #ff3d00);
+    }
+}
+@keyframes zoo-flame {
+    0% {
+        opacity: 0;
+        transform: translateY(6px) scale(0.6);
+    }
+    25% {
+        opacity: 0.95;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-1.8rem) scale(1.15);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .page-zoo .tier-boss .flame {
+        display: none;
+    }
+    .page-zoo .zoo-animal.tier-boss > img,
+    .page-zoo .zoo-teamcard.tier-boss > img,
+    .page-zoo .zoo-detail.tier-boss > img {
+        animation: none;
+    }
+}

@@ -3131,3 +3131,8 @@
 .page-chat .dc-gw small {
     color: #b5bac1;
 }
+
+/* Boss pets burn in chat messages too (normal pets do not) */
+.page-chat .dc-emoji.pet {
+    filter: drop-shadow(0 0 2px rgba(255, 170, 0, 0.95)) drop-shadow(0 0 7px rgba(255, 60, 0, 0.7));
+}

@@ -58,16 +58,59 @@ export default {
                     </section>
                     <p v-else class="zoo-muted">Log in on the Chat page to see your own collection here. The leaderboards below are public.</p>
 
+                    <p v-if="notice" class="zoo-notice" :class="{ bad: noticeBad }">{{ notice }}</p>
+
                     <section v-if="me && teamAnimals.length" class="zoo-team">
-                        <h2>Your team</h2>
+                        <h2>Your team <small class="zoo-muted">click an animal in the collection to add it, feed it or give it candy</small></h2>
                         <div class="zoo-team-row">
-                            <div v-for="a in teamAnimals" :key="a.id" class="zoo-teamcard" :class="'tier-' + a.rarity">
-                                <img v-if="img(a)" :src="img(a)" :alt="a.name"><span v-else class="zoo-glyph">{{ a.glyph }}</span>
+                            <div v-for="a in teamAnimals" :key="a.id" class="zoo-teamcard" :class="'tier-' + a.rarity" @click="selected = a.id">
+                                <img v-if="img(a)" :src="img(a)" :alt="a.name"><span v-else class="zoo-glyph">{{ a.glyph }}</span><i v-if="a.rarity === 'boss'" class="flame">&#128293;</i><i v-if="a.rarity === 'boss'" class="flame two">&#128293;</i>
                                 <b>{{ a.name }}</b>
                                 <small>Level {{ me.levels[a.id] || 1 }}</small>
                                 <small v-if="a.ability" class="zoo-ab" :title="data.abilities[a.ability].desc">{{ data.abilities[a.ability].name }}</small>
+                                <button v-if="teamAnimals.length > 1" type="button" class="zoo-mini" :disabled="busy" @click.stop="removeFromTeam(a)">Remove</button>
                             </div>
                         </div>
+                    </section>
+
+                    <section v-if="me && sel" class="zoo-detail" :class="'tier-' + sel.rarity">
+                        <img v-if="img(sel)" :src="img(sel)" :alt="sel.name"><span v-else class="zoo-glyph">{{ sel.glyph }}</span><i v-if="sel.rarity === 'boss'" class="flame">&#128293;</i><i v-if="sel.rarity === 'boss'" class="flame two">&#128293;</i>
+                        <div class="zoo-detail-info">
+                            <h2>{{ sel.name }} <small>{{ tierLabel(sel) }} &middot; Level {{ me.levels[sel.id] || 1 }}</small>
+                                <button type="button" class="zoo-mini ghost" @click="selected = ''">Close</button></h2>
+                            <p class="zoo-muted">HP {{ statsAt(sel).hp }} &middot; ATK {{ statsAt(sel).atk }} &middot; DEF {{ statsAt(sel).def }}<span v-if="sel.ability"> &middot; <b>{{ data.abilities[sel.ability].name }}</b>: {{ data.abilities[sel.ability].desc }}</span></p>
+                            <div class="zoo-xp"><span :style="{ width: xpPct(sel) + '%' }"></span></div>
+                            <p class="zoo-muted">{{ (me.levels[sel.id] || 1) >= 50 ? 'Max level' : xpText(sel) }}</p>
+                            <div class="zoo-actions">
+                                <button v-if="!isTeam(sel) && me.team.length < 3" type="button" class="zoo-btn" :disabled="busy" @click="addToTeam(sel)">Add to team</button>
+                                <template v-if="!isTeam(sel) && me.team.length >= 3">
+                                    <button v-for="m in teamAnimals" :key="m.id" type="button" class="zoo-btn alt" :disabled="busy" @click="swapIn(m, sel)">Swap with {{ m.name }}</button>
+                                </template>
+                                <button v-if="isTeam(sel) && me.team.length > 1" type="button" class="zoo-btn alt" :disabled="busy" @click="removeFromTeam(sel)">Remove from team</button>
+                                <button type="button" class="zoo-btn" :disabled="busy || !me.items.food" @click="useItem('feed', sel, 1)"><img src="/assets/emojis/item_food.svg" alt=""> Feed +{{ data.items.food.xp }} xp ({{ me.items.food }})</button>
+                                <button type="button" class="zoo-btn" :disabled="busy || !me.items.food" @click="useItem('feed', sel, Math.min(5, me.items.food))">Feed x5</button>
+                                <button type="button" class="zoo-btn" :disabled="busy || !me.items.candy || (me.levels[sel.id] || 1) >= 50" @click="useItem('candy', sel, 1)"><img src="/assets/emojis/item_candy.svg" alt=""> Level-Up Candy ({{ me.items.candy }})</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section v-if="me" class="zoo-items">
+                        <h2>Items</h2>
+                        <div class="zoo-item-row">
+                            <div v-for="(it, key) in data.items" :key="key" class="zoo-item">
+                                <img :src="'/assets/emojis/item_' + key + '.svg'" alt="">
+                                <div>
+                                    <b>{{ it.name }}</b> <small class="zoo-muted">you have {{ me.items[key] }}</small>
+                                    <p class="zoo-muted">{{ it.desc }}</p>
+                                    <div class="zoo-actions">
+                                        <button type="button" class="zoo-btn" :disabled="busy || me.orbs < it.price" @click="buy(key, 1, 'orbs')">Buy 1 &middot; {{ it.price }} orbs</button>
+                                        <button type="button" class="zoo-btn" :disabled="busy || me.orbs < it.price * 5" @click="buy(key, 5, 'orbs')">Buy 5 &middot; {{ it.price * 5 }} orbs</button>
+                                        <button type="button" class="zoo-btn alt" :disabled="busy || me.coins < it.price * 3" @click="buy(key, 1, 'coins')">Buy 1 &middot; {{ it.price * 3 }} coins</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="zoo-muted">Items are also found while hunting and given as boss rewards.</p>
                     </section>
 
                     <div class="zoo-tabs">
@@ -87,10 +130,11 @@ export default {
                                     v-for="a in tierAnimals(t)"
                                     :key="a.id"
                                     class="zoo-animal"
-                                    :class="['tier-' + a.rarity, { missing: !count(a), team: isTeam(a) }]"
+                                    :class="['tier-' + a.rarity, { missing: !count(a), team: isTeam(a), selected: selected === a.id, clickable: !!me && !!count(a) }]"
                                     :title="tip(a)"
+                                    @click="pick(a)"
                                 >
-                                    <img v-if="img(a)" :src="img(a)" :alt="a.name" loading="lazy"><span v-else class="zoo-glyph">{{ a.glyph }}</span>
+                                    <img v-if="img(a)" :src="img(a)" :alt="a.name" loading="lazy"><span v-else class="zoo-glyph">{{ a.glyph }}</span><i v-if="a.rarity === 'boss' && count(a)" class="flame">&#128293;</i><i v-if="a.rarity === 'boss' && count(a)" class="flame two">&#128293;</i>
                                     <span v-if="count(a)" class="zoo-count">{{ count(a) }}</span>
                                     <span v-if="count(a) && me.levels[a.id]" class="zoo-lvl">L{{ me.levels[a.id] }}</span>
                                     <small>{{ count(a) || !me ? a.name : '???' }}</small>
@@ -110,6 +154,53 @@ export default {
                             </ol>
                             <p v-else class="zoo-muted">Nobody yet.</p>
                         </div>
+                    </section>
+
+                    <section v-else-if="tab === 'guild'" class="zoo-guild">
+                        <p v-if="!me" class="zoo-muted">Log in on the Chat page to join or start a guild.</p>
+                        <template v-else-if="data.guild">
+                            <h2>&#128737;&#65039; [{{ data.guild.tag }}] {{ data.guild.name }} <small>{{ data.guild.members.length }}/{{ data.guild.max }} members &middot; {{ data.guild.kills }} boss kills &middot; owner {{ data.guild.owner }}</small></h2>
+                            <div class="zoo-boss" :class="{ dead: data.guild.boss.dead }">
+                                <img :src="'/assets/emojis/' + data.guild.boss.emoji + '.svg'" :alt="data.guild.boss.title">
+                                <div class="zoo-boss-info">
+                                    <h2>Guild boss: {{ data.guild.boss.title }}<small v-if="data.guild.boss.ability">{{ data.abilities[data.guild.boss.ability].name }}</small></h2>
+                                    <div class="zoo-hp"><span :style="{ width: (100 * data.guild.boss.hp / data.guild.boss.max) + '%' }"></span></div>
+                                    <p>
+                                        <b>{{ data.guild.boss.hp }}/{{ data.guild.boss.max }} HP</b>
+                                        <span v-if="data.guild.boss.dead"> - defeated! A new guild boss arrives in {{ guildLeft }}.</span>
+                                        <span v-else> - it leaves in {{ guildLeft }}, a new one comes every hour.</span>
+                                    </p>
+                                    <div class="zoo-actions">
+                                        <button type="button" class="zoo-btn" :disabled="busy || data.guild.boss.dead" @click="attackGuild">Attack the guild boss</button>
+                                        <button type="button" class="zoo-btn alt" :disabled="busy" @click="leaveGuild">Leave guild</button>
+                                    </div>
+                                    <p class="zoo-muted">Each of your attacks needs a 2 minute rest. Beating the boss pays everyone who fought.</p>
+                                </div>
+                            </div>
+                            <h2>Members this hour</h2>
+                            <table class="zoo-table">
+                                <tr><th>Member</th><th>Damage</th><th>Attacks</th></tr>
+                                <tr v-for="m in guildMembers" :key="m.name"><td>{{ m.name }}<span v-if="m.name === data.guild.owner"> &#128081;</span></td><td>{{ m.damage }}</td><td>{{ m.hits }}</td></tr>
+                            </table>
+                        </template>
+                        <template v-else>
+                            <h2>Start a guild</h2>
+                            <p class="zoo-muted">Costs {{ data.guildRules.cost }} orbs. Up to {{ data.guildRules.max }} players fight a guild boss together, and it resets every hour.</p>
+                            <div class="zoo-form">
+                                <input type="text" v-model="guildName" maxlength="20" placeholder="Guild name">
+                                <input type="text" v-model="guildTag" maxlength="4" placeholder="TAG">
+                                <button type="button" class="zoo-btn" :disabled="busy || me.orbs < data.guildRules.cost || guildName.trim().length < 3" @click="createGuild">Create ({{ data.guildRules.cost }} orbs)</button>
+                            </div>
+                        </template>
+                        <h2>Top guilds</h2>
+                        <p v-if="!data.guilds.length" class="zoo-muted">No guilds yet. Be the first!</p>
+                        <table v-else class="zoo-table">
+                            <tr><th>#</th><th>Guild</th><th>Boss kills</th><th>Members</th><th v-if="me && !data.guild"></th></tr>
+                            <tr v-for="(g, i) in data.guilds" :key="g.id">
+                                <td>{{ i + 1 }}</td><td>[{{ g.tag }}] {{ g.name }}</td><td>{{ g.kills }}</td><td>{{ g.members }}/{{ data.guildRules.max }}</td>
+                                <td v-if="me && !data.guild"><button type="button" class="zoo-mini" :disabled="busy || g.members >= data.guildRules.max" @click="joinGuild(g)">Join</button></td>
+                            </tr>
+                        </table>
                     </section>
 
                     <section v-else class="zoo-guide">
@@ -154,6 +245,7 @@ export default {
             tabs: [
                 { id: "collection", label: "Collection" },
                 { id: "board", label: "Leaderboards" },
+                { id: "guild", label: "Guild" },
                 { id: "guide", label: "Guide" },
             ],
             boards: [
@@ -163,6 +255,12 @@ export default {
             ],
             timer: null,
             now: Date.now(),
+            selected: "",
+            guildName: "",
+            guildTag: "",
+            busy: false,
+            notice: "",
+            noticeBad: false,
         };
     },
     computed: {
@@ -171,6 +269,16 @@ export default {
         },
         eventTier() {
             return this.data?.tiers.find((t) => t.id === this.data.event) || null;
+        },
+        sel() {
+            return this.me && this.selected ? this.data.animals.find((a) => a.id === this.selected && this.me.zoo[a.id]) || null : null;
+        },
+        guildLeft() {
+            const left = Math.max(0, (this.data?.guild?.boss?.ends || 0) - this.now);
+            return `${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s`;
+        },
+        guildMembers() {
+            return this.data?.guild ? this.data.guild.members.slice().sort((a, b) => b.damage - a.damage) : [];
         },
         bossLeft() {
             const left = Math.max(0, (this.data?.boss?.ends || 0) - this.now);
@@ -194,6 +302,79 @@ export default {
             } catch (e) {
                 this.error = e.message || "Could not load the zoo.";
             }
+        },
+        pick(a) {
+            if (this.me && this.count(a)) this.selected = a.id;
+        },
+        tierLabel(a) {
+            return this.data.tiers.find((t) => t.id === a.rarity)?.label || a.rarity;
+        },
+        statsAt(a) {
+            const k = 1 + 0.1 * ((this.me.levels[a.id] || 1) - 1);
+            return { hp: Math.round(a.stats[0] * k), atk: Math.round(a.stats[1] * k), def: Math.round(a.stats[2] * k) };
+        },
+        xpPct(a) {
+            const level = this.me.levels[a.id] || 1;
+            if (level >= 50) return 100;
+            const base = 20 * (level - 1) ** 2;
+            const next = 20 * level ** 2;
+            return Math.max(0, Math.min(100, (100 * ((this.me.xp[a.id] || 0) - base)) / (next - base)));
+        },
+        xpText(a) {
+            const level = this.me.levels[a.id] || 1;
+            return `${this.me.xp[a.id] || 0} / ${20 * level ** 2} xp for level ${level + 1}`;
+        },
+        async act(body, okText) {
+            const token = readToken();
+            if (!token) {
+                this.say("Log in on the Chat page first.", true);
+                return;
+            }
+            this.busy = true;
+            try {
+                const res = await fetch("/api/chat/zoo/action", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+                const out = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(out.error || "That did not work.");
+                this.data = { ...this.data, me: out.me, guild: out.guild, guilds: out.guilds };
+                this.say(typeof okText === "function" ? okText(out.result) : okText, false);
+            } catch (e) {
+                this.say(e.message || "That did not work.", true);
+            }
+            this.busy = false;
+        },
+        say(text, bad) {
+            this.notice = text;
+            this.noticeBad = bad;
+            clearTimeout(this.noticeTimer);
+            this.noticeTimer = setTimeout(() => (this.notice = ""), 5000);
+        },
+        addToTeam(a) {
+            return this.act({ action: "team", team: [...this.me.team, a.id] }, `${a.name} joined your team.`);
+        },
+        removeFromTeam(a) {
+            return this.act({ action: "team", team: this.me.team.filter((id) => id !== a.id) }, `${a.name} left your team.`);
+        },
+        swapIn(out, incoming) {
+            return this.act({ action: "team", team: this.me.team.map((id) => (id === out.id ? incoming.id : id)) }, `${incoming.name} replaced ${out.name}.`);
+        },
+        useItem(kind, a, count) {
+            return this.act({ action: kind, id: a.id, count }, (r) => `${a.name}: level ${r.before} to ${r.after} (used ${r.used}).`);
+        },
+        createGuild() {
+            return this.act({ action: "guildCreate", name: this.guildName, tag: this.guildTag }, "Guild created!").then(() => (this.guildName = ""));
+        },
+        joinGuild(g) {
+            return this.act({ action: "guildJoin", name: g.name }, `You joined ${g.name}!`);
+        },
+        leaveGuild() {
+            if (!window.confirm("Leave your guild?")) return null;
+            return this.act({ action: "guildLeave" }, "You left the guild.");
+        },
+        attackGuild() {
+            return this.act({ action: "guildAttack" }, (r) => `You dealt ${r.dealt} damage!${r.defeated ? " The guild boss is defeated!" : ""}`);
+        },
+        buy(key, count, pay) {
+            return this.act({ action: "buy", item: key, count, pay }, (r) => `Bought ${r.amount} ${this.data.items[key].name} for ${r.price} ${pay}.`);
         },
         img: (a) => a.src || (a.emoji ? `/assets/emojis/${a.emoji}.svg` : ""),
         badge: (code) => `/assets/emojis/rarity_${code.toLowerCase()}.svg`,
@@ -234,8 +415,11 @@ export default {
         this.load();
         this.timer = setInterval(() => {
             this.now = Date.now();
-            this.load();
-        }, 60000);
+            if (this.now - (this.lastLoad || 0) >= 60000) {
+                this.lastLoad = this.now;
+                this.load();
+            }
+        }, 1000);
     },
     beforeUnmount() {
         clearInterval(this.timer);
