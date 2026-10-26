@@ -191,8 +191,9 @@ const ZOO_NAME = "a101 Zoo";
 const GUILD_COST = 200;
 const GUILD_MAX_MEMBERS = 20;
 const GUILD_BOSS_MS = 60 * 60 * 1000;
-const GUILD_BOSS_BASE_HP = 15000;
-const GUILD_BOSS_HP_PER_MEMBER = 10000;
+const GUILD_BOSS_BASE_HP = 500000;
+const GUILD_BOSS_HP_PER_MEMBER = 0;
+const WORLD_BOSS_HP = 60000;
 // Auto delete: in these channels slash commands and the bot answers to them disappear after this many minutes (staff change it with /autodelete)
 const AUTO_DELETE_DEFAULTS = { zoo: 10, casino: 10 };
 // a101 Giveaways: /giveaway <orbs> <time> [winners]. Hosts put the orbs in up front (staff giveaways are free); winners are drawn when the time is up.
@@ -235,6 +236,21 @@ const ANIMALS = [
 const specialPets = () => ANIMALS.filter((a) => a.rarity === "special");
 const customPets = () => ANIMALS.filter((a) => a.rarity === "special" || a.rarity === "boss");
 // the first Special pets, always there (staff add more with /pet add)
+// The bosses ARE the Boss pets: the built-in ones below plus every Boss pet staff add. A boss that is beaten can drop its own pet (5% / 3% / 1% for the top three damagers).
+const DEFAULT_BOSS_PETS = [
+    ["elder_dragon", "Elder Dragon", "burn", 90, 35],
+    ["crystal_titan", "Crystal Titan", "stun", 85, 38],
+    ["emerald_lion_king", "Emerald Lion King", "stun", 95, 32],
+    ["ancient_trex", "Ancient T-Rex", "crit", 100, 30],
+    ["abyss_shark", "Abyss Shark", "lifesteal", 90, 34],
+    ["storm_eagle", "Storm Eagle", "dodge", 80, 40],
+    ["kraken", "Kraken", "lifesteal", 92, 33],
+    ["void_bat", "Void Bat", "dodge", 88, 36],
+    ["magma_golem", "Magma Golem", "shield", 96, 31],
+    ["frost_wolf", "Frost Wolf", "crit", 84, 39],
+    ["venom_scorpion", "Venom Scorpion", "thorns", 98, 30],
+    ["hydra_serpent", "Hydra Serpent", "burn", 86, 37],
+].map(([slug, name, ability, atk, def]) => ({ id: `bp_${slug}`, name, emoji: `:boss_${slug}:`, ability, rarity: "boss", by: "a101", bossAtk: atk, bossDef: def }));
 const DEFAULT_SPECIALS = [
     { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
     { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
@@ -2101,7 +2117,7 @@ export class ChatRoom extends DurableObject {
                 this.specialsAt = 0;
             };
             if (sub === "list") {
-                const all = [...DEFAULT_SPECIALS, ...list];
+                const all = [...DEFAULT_SPECIALS, ...DEFAULT_BOSS_PETS, ...list];
                 return say(`\u{1F49D} Special and Boss pets (${all.length}):\n${all.map((p) => `${p.emoji} ${p.name}${p.ability ? ` [${ABILITIES[p.ability].name}]` : ""}${p.rarity === "boss" ? " (Boss)" : ""} - added by ${p.by}`).join("\n")}`);
             }
             if (sub === "add") {
@@ -2131,7 +2147,7 @@ export class ChatRoom extends DurableObject {
                     : `\u{1F49D} New Special pet: ${art} ${petName}${ability ? ` [${ABILITIES[ability].name}]` : ""}. Boss winners, 14 day streaks and /fuse crystal can now give it out.`);
             }
             if (sub === "remove") {
-                if (DEFAULT_SPECIALS.some((p) => p.name.toLowerCase() === rest.toLowerCase())) return say(`${rest} is a built-in Special pet and can't be removed.`);
+                if ([...DEFAULT_SPECIALS, ...DEFAULT_BOSS_PETS].some((p) => p.name.toLowerCase() === rest.toLowerCase())) return say(`${rest} is a built-in pet and can't be removed.`);
                 const index = list.findIndex((p) => p.name.toLowerCase() === rest.toLowerCase());
                 if (index < 0) return say(`There is no Special pet called "${rest.slice(0, 30)}".`);
                 const [gone] = list.splice(index, 1);
@@ -2442,9 +2458,9 @@ export class ChatRoom extends DurableObject {
     /** Loads the staff-made Special pets into ANIMALS (they are saved under "zpets"). */
     async loadSpecials() {
         if (this.specialsAt && Date.now() - this.specialsAt < 5000) return;
-        const list = [...DEFAULT_SPECIALS, ...((await this.ctx.storage.get("zpets")) || [])];
+        const list = [...DEFAULT_SPECIALS, ...DEFAULT_BOSS_PETS, ...((await this.ctx.storage.get("zpets")) || [])];
         for (let i = ANIMALS.length - 1; i >= 0; i--) if (ANIMALS[i].rarity === "special" || ANIMALS[i].rarity === "boss") ANIMALS.splice(i, 1);
-        for (const p of list) ANIMALS.push({ id: p.id, emoji: p.emoji, plain: p.emoji, name: p.name, rarity: p.rarity === "boss" ? "boss" : "special", ability: p.ability || null, custom: true, by: p.by });
+        for (const p of list) ANIMALS.push({ id: p.id, emoji: p.emoji, plain: p.emoji, name: p.name, rarity: p.rarity === "boss" ? "boss" : "special", ability: p.ability || null, custom: true, by: p.by, bossAtk: p.bossAtk, bossDef: p.bossDef });
         this.specialsAt = Date.now();
     }
 
@@ -2958,7 +2974,7 @@ export class ChatRoom extends DurableObject {
                     const food = i === 0 ? 10 : i < 3 ? 5 : 2;
                     receiver.items.candy = (receiver.items.candy || 0) + candy;
                     receiver.items.food = (receiver.items.food || 0) + food;
-                    const bossPet = this.bossPetDrop(receiver, i);
+                    const bossPet = this.bossPetDrop(receiver, i, animal);
                     if (i === 0) {
                         receiver.gems.luck_epic = (receiver.gems.luck_epic || 0) + GEMS.luck.uses[3];
                         const pets = specialPets();
@@ -2996,13 +3012,26 @@ export class ChatRoom extends DurableObject {
         const key = `zb:${slot}`;
         let boss = await this.ctx.storage.get(key);
         if (!boss) {
-            const index = slot % ZOO_BOSSES.length;
-            boss = { slot, def: index, hp: ZOO_BOSSES[index].hp, max: ZOO_BOSSES[index].hp, damage: {}, hits: {}, last: {}, names: {}, dead: false };
+            const roster = this.bossRoster();
+            const pick = roster.length ? roster[slot % roster.length] : null;
+            boss = { slot, petId: pick ? pick.id : null, def: slot % ZOO_BOSSES.length, hp: WORLD_BOSS_HP, max: WORLD_BOSS_HP, damage: {}, hits: {}, last: {}, names: {}, dead: false };
             await this.ctx.storage.put(key, boss);
             await this.ctx.storage.delete(`zb:${slot - 2}`);
         }
-        const def = ZOO_BOSSES[boss.def];
-        return { key, boss, def, animal: ANIMALS.find((a) => a.id === def.animal), ends: (slot + 1) * ZOO_BOSS_MS };
+        return { key, boss, ...this.resolveBoss(boss), ends: (slot + 1) * ZOO_BOSS_MS };
+    }
+
+    /** Every Boss pet (the built-in ones and the ones staff added) can be the boss of an hour. */
+    bossRoster() {
+        return ANIMALS.filter((a) => a.rarity === "boss").map((a) => ({ id: a.id, animal: a, title: a.name, atk: a.bossAtk || 90, def: a.bossDef || 35 }));
+    }
+
+    /** Which boss a saved boss is: a Boss pet, or one of the old fixed bosses from before Boss pets existed. */
+    resolveBoss(boss) {
+        const pet = boss.petId ? this.bossRoster().find((b) => b.id === boss.petId) : null;
+        if (pet) return { def: { title: pet.title, atk: pet.atk, def: pet.def }, animal: pet.animal };
+        const old = ZOO_BOSSES[boss.def] || ZOO_BOSSES[0];
+        return { def: old, animal: ANIMALS.find((a) => a.id === old.animal) };
     }
 
     /** Leaderboards, cached for 30 seconds. */
@@ -3124,20 +3153,20 @@ export class ChatRoom extends DurableObject {
         return { ok: true, text: `[${guild.tag}] ${guild.name} was disbanded.` };
     }
 
-    /** The guild boss of the current hour (a new one every hour, with HP that grows with the guild). */
+    /** The guild boss of the current hour: a Boss pet with 500,000 HP, and a new one every hour. */
     async guildBossFor(guild) {
         const slot = Math.floor(Date.now() / GUILD_BOSS_MS);
         const key = `gb:${slot}:${guild.id}`;
         let boss = await this.ctx.storage.get(key);
         if (!boss) {
-            const index = (slot + 3) % ZOO_BOSSES.length;
+            const roster = this.bossRoster();
+            const pick = roster.length ? roster[(slot + 3) % roster.length] : null;
             const max = GUILD_BOSS_BASE_HP + GUILD_BOSS_HP_PER_MEMBER * guild.members.length;
-            boss = { slot, def: index, hp: max, max, damage: {}, hits: {}, last: {}, names: {}, dead: false };
+            boss = { slot, petId: pick ? pick.id : null, def: (slot + 3) % ZOO_BOSSES.length, hp: max, max, damage: {}, hits: {}, last: {}, names: {}, dead: false };
             await this.ctx.storage.put(key, boss);
             await this.ctx.storage.delete(`gb:${slot - 2}:${guild.id}`);
         }
-        const def = ZOO_BOSSES[boss.def];
-        return { key, boss, def, animal: ANIMALS.find((a) => a.id === def.animal), ends: (slot + 1) * GUILD_BOSS_MS };
+        return { key, boss, ...this.resolveBoss(boss), ends: (slot + 1) * GUILD_BOSS_MS };
     }
 
     /** One fight of your team against a boss that has `hp` of `max` left. */
@@ -3200,7 +3229,7 @@ export class ChatRoom extends DurableObject {
                 receiver.items = receiver.items || {};
                 receiver.items.food = (receiver.items.food || 0) + 5;
                 if (i === 0) receiver.items.candy = (receiver.items.candy || 0) + 1;
-                const bossPet = this.bossPetDrop(receiver, i);
+                const bossPet = this.bossPetDrop(receiver, i, animal);
                 if (who !== lower) await this.ctx.storage.put(`u:${who}`, receiver);
                 lines.push(`${i + 1}. ${boss.names[who] || who} - ${dmg} damage: +${coins} coins + 5 × ${ZOO_ITEMS.food.icon}${i === 0 ? ` + 1 × ${ZOO_ITEMS.candy.icon}` : ""}${bossPet}`);
             }
@@ -3255,11 +3284,12 @@ export class ChatRoom extends DurableObject {
     }
 
     /** Boss-tier pets only drop from boss kills: 5% for the top damager, 3% for the second, 1% for the third. */
-    bossPetDrop(receiver, rank) {
+    bossPetDrop(receiver, rank, bossPet) {
         const chance = BOSS_PET_CHANCES[rank];
         const pets = ANIMALS.filter((a) => a.rarity === "boss");
         if (!chance || !pets.length || Math.random() >= chance) return "";
-        const prize = this.catchAnimal(receiver, pets[Math.floor(Math.random() * pets.length)]);
+        // the boss you beat drops itself
+        const prize = this.catchAnimal(receiver, bossPet && bossPet.rarity === "boss" ? bossPet : pets[Math.floor(Math.random() * pets.length)]);
         return ` + ${prize.text}!${prize.notes}`;
     }
 
