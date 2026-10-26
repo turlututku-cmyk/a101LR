@@ -2131,7 +2131,7 @@ export class ChatRoom extends DurableObject {
             // staff only and not in the command list: /pet add Name | emoji | ability, /pet remove Name, /pet give @user | Name | count, /pet list
             if (!MODERATORS.includes(roleOf(username))) return;
             await this.loadSpecials();
-            const usage = `Special pets (custom pets made by staff):\n/pet add Name | :custom_emoji: or a normal emoji | ability (${Object.keys(ABILITIES).join(", ")}) | boss (add "boss" to make it a Boss pet)\n/pet remove Name\n/pet give @user | Name | count\n/pet list`;
+            const usage = `Special pets (custom pets made by staff):\n/pet add Name | :custom_emoji: or a normal emoji | ability (${Object.keys(ABILITIES).join(", ")}) | boss (add "boss" to make it a Boss pet)\n/pet remove Name\n/pet give @user | Name | count | level (any pet, level 1 to 50)\n/pet list`;
             const sub = (args.split(/\s+/)[0] || "").toLowerCase();
             const rest = args.slice(sub.length).trim();
             const list = (await this.ctx.storage.get("zpets")) || [];
@@ -2178,18 +2178,27 @@ export class ChatRoom extends DurableObject {
                 return say(`Removed the Special pet ${gone.name}. Players who already caught it keep the count, but it is hidden until it is added again.`);
             }
             if (sub === "give") {
-                const [who, petName, countWord] = rest.split("|").map((x) => x.trim());
+                // /pet give @user | Name | count | level   (count and level are optional; any pet, 1 to 100 of them, level 1 to 50)
+                const [who, petName, countWord, levelWord] = rest.split("|").map((x) => x.trim());
                 const targetKey = `u:${String(who || "").replace(/^@/, "").toLowerCase()}`;
                 const receiver = who ? await this.ctx.storage.get(targetKey) : null;
-                const pet = customPets().find((a) => a.name.toLowerCase() === String(petName || "").toLowerCase());
+                const pet = ANIMALS.find((a) => a.name.toLowerCase() === String(petName || "").toLowerCase());
                 const count = countWord ? Math.round(Number(countWord)) : 1;
-                if (!receiver || !pet || !(count >= 1 && count <= 100)) return say("Use it like /pet give @user | Ghost | 1 (the pet must exist, 1 to 100).");
+                const level = levelWord ? Math.round(Number(levelWord)) : 0;
+                if (!receiver || !pet || !(count >= 1 && count <= 100) || (levelWord && !(level >= 1 && level <= MAX_PET_LEVEL))) {
+                    return say(`Use it like /pet give @user | Name | 1 | 50 (the pet must exist, count 1 to 100, level 1 to ${MAX_PET_LEVEL}, count and level are optional).`);
+                }
                 let got;
                 for (let n = 0; n < count; n++) got = this.catchAnimal(receiver, pet);
+                if (level) {
+                    // the pet is raised to this level (it never lowers a pet that is already higher)
+                    receiver.zooXp = receiver.zooXp || {};
+                    receiver.zooXp[pet.id] = Math.max(receiver.zooXp[pet.id] || 0, xpForLevel(level));
+                }
                 await this.ctx.storage.put(targetKey, receiver);
-                return say(`\u{1F49D} Gave ${count} \u00D7 ${pet.emoji} ${pet.name} to ${receiver.username}.${got.notes}`);
-            }
-            return say(usage);
+                const now = this.petLevel((receiver.zooXp || {})[pet.id]);
+                return say(`\u{1F49D} Gave ${count} \u00D7 ${pet.emoji} ${pet.name} to ${receiver.username}${level ? ` at level ${now}` : ""}.${got.notes}`);
+            }            return say(usage);
         }
         if (name === "give") {
             // staff only and not in the command list: /give gem <user> <hunting|heart|power|luck|xp|shield> [tier] [uses]
