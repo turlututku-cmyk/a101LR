@@ -320,3 +320,21 @@
     display: inline-block;
     min-width: 9rem;
 }
+
+.page-zoo .zoo-animal.tier-special:not(.missing) {
+    box-shadow: inset 0 0 0 1px #ff4de1, 0 0 12px rgba(255, 77, 225, 0.4);
+    background: linear-gradient(160deg, #3a2040, #2b2d31);
+}
+
+.page-zoo .zoo-glyph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    font-size: 2.4rem;
+}
+.page-zoo .zoo-teamcard .zoo-glyph {
+    width: 3.6rem;
+    height: 3.6rem;
+}

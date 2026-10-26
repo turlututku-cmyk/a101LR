@@ -61,7 +61,7 @@ export default {
                         <h2>Your team</h2>
                         <div class="zoo-team-row">
                             <div v-for="a in teamAnimals" :key="a.id" class="zoo-teamcard" :class="'tier-' + a.rarity">
-                                <img :src="img(a)" :alt="a.name">
+                                <img v-if="img(a)" :src="img(a)" :alt="a.name"><span v-else class="zoo-glyph">{{ a.glyph }}</span>
                                 <b>{{ a.name }}</b>
                                 <small>Level {{ me.levels[a.id] || 1 }}</small>
                                 <small v-if="a.ability" class="zoo-ab" :title="data.abilities[a.ability].desc">{{ data.abilities[a.ability].name }}</small>
@@ -89,7 +89,7 @@ export default {
                                     :class="['tier-' + a.rarity, { missing: !count(a), team: isTeam(a) }]"
                                     :title="tip(a)"
                                 >
-                                    <img :src="img(a)" :alt="a.name" loading="lazy">
+                                    <img v-if="img(a)" :src="img(a)" :alt="a.name" loading="lazy"><span v-else class="zoo-glyph">{{ a.glyph }}</span>
                                     <span v-if="count(a)" class="zoo-count">{{ count(a) }}</span>
                                     <span v-if="count(a) && me.levels[a.id]" class="zoo-lvl">L{{ me.levels[a.id] }}</span>
                                     <small>{{ count(a) || !me ? a.name : '???' }}</small>
@@ -194,7 +194,7 @@ export default {
                 this.error = e.message || "Could not load the zoo.";
             }
         },
-        img: (a) => `/assets/emojis/${a.emoji}.svg`,
+        img: (a) => a.src || (a.emoji ? `/assets/emojis/${a.emoji}.svg` : ""),
         badge: (code) => `/assets/emojis/rarity_${code.toLowerCase()}.svg`,
         gemImg: (key) => {
             const [type, tier] = key.split("_");
@@ -218,7 +218,7 @@ export default {
         tip(a) {
             const [hp, atk, def] = a.stats;
             const ab = a.ability ? ` | ${this.data.abilities[a.ability].name}: ${this.data.abilities[a.ability].desc}` : "";
-            return `${a.name} - HP ${hp} ATK ${atk} DEF ${def} at level 1${ab}`;
+            return `${a.name} - HP ${hp} ATK ${atk} DEF ${def} at level 1${ab}${a.by ? ` | added by ${a.by}` : ""}`;
         },
     },
     async mounted() {

@@ -197,6 +197,8 @@ const RARITIES = [
     { id: "legendary", code: "L", label: "Legendary", weight: 10, secret: true },
     { id: "gem", code: "G", label: "Gem", weight: 3, secret: true },
     { id: "crystal", code: "CY", label: "Crystal", weight: 1, secret: true },
+    // Special pets never drop from a normal hunt: boss rewards, a 14 day /daily streak, /fuse crystal, or staff /pet give
+    { id: "special", code: "S", label: "Special", weight: 0, secret: true },
 ];
 const BASE_ANIMALS = [
     ["mouse", "\u{1F42D}", "Mouse", "common"], ["rabbit", "\u{1F430}", "Rabbit", "common"], ["chicken", "\u{1F414}", "Chicken", "common"],
@@ -208,18 +210,20 @@ const BASE_ANIMALS = [
     ["gorilla", "\u{1F98D}", "Gorilla", "epic"], ["crocodile", "\u{1F40A}", "Crocodile", "epic"], ["shark", "\u{1F988}", "Shark", "epic"], ["eagle", "\u{1F985}", "Eagle", "epic"],
     ["dragon", "\u{1F409}", "Dragon", "legendary"], ["unicorn", "\u{1F984}", "Unicorn", "legendary"], ["trex", "\u{1F996}", "T-Rex", "legendary"],
 ].map(([id, emoji, name, rarity]) => ({ id, emoji: `:${rarity === "legendary" ? "legend" : rarity}_${id}:`, plain: emoji, name, rarity }));
+// Special pets are custom pets that staff add with /pet add (see loadSpecials): they live at the end of ANIMALS
 // every animal also exists as a Gem and a Crystal version
 const ANIMALS = [
     ...BASE_ANIMALS,
     ...BASE_ANIMALS.map((a) => ({ id: `gem_${a.id}`, emoji: `:gem_${a.id}:`, plain: `\u{1F48E}${a.plain}`, name: `Gem ${a.name}`, rarity: "gem" })),
     ...BASE_ANIMALS.map((a) => ({ id: `crystal_${a.id}`, emoji: `:crystal_${a.id}:`, plain: `\u{1F52E}${a.plain}`, name: `Crystal ${a.name}`, rarity: "crystal" })),
 ];
+const specialPets = () => ANIMALS.filter((a) => a.rarity === "special");
 const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
-const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400 };
+const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000 };
 const COIN_PRICE_X = 3;
 // fusing: this many spare (duplicate) animals of a tier make one random animal of the next tier
-const FUSE_COST = { common: 5, uncommon: 5, rare: 5, epic: 5, legendary: 8, gem: 10 };
+const FUSE_COST = { common: 5, uncommon: 5, rare: 5, epic: 5, legendary: 8, gem: 10, crystal: 12 };
 // every hour one of these tiers is 3x more likely
 const ZOO_EVENT_TIERS = ["uncommon", "rare", "epic", "legendary", "gem"];
 // a boss appears every 6 hours and everybody fights the same one (/boss attack, once every 2 minutes per player)
@@ -246,6 +250,7 @@ const ABILITIES = {
 };
 const ANIMAL_ABILITY = { bear: "thorns", lion: "stun", tiger: "crit", elephant: "shield", giraffe: "dodge", gorilla: "stun", crocodile: "lifesteal", shark: "crit", eagle: "dodge", dragon: "burn", unicorn: "heal", trex: "crit" };
 const abilityOf = (animal) => {
+    if (animal.rarity === "special") return animal.ability || null;
     const base = animal.id.replace(/^(gem|crystal)_/, "");
     if (animal.rarity === "gem" || animal.rarity === "crystal") return ANIMAL_ABILITY[base] || (animal.rarity === "gem" ? "crit" : "stun");
     return ANIMAL_ABILITY[base] || null;
@@ -276,7 +281,7 @@ const TEAM_SIZE = 3;
 const MAX_PET_LEVEL = 50;
 const MAX_TURNS = 30;
 // [hp, attack, defence] at level 1; every level adds 10%
-const TIER_STATS = { common: [60, 10, 4], uncommon: [80, 14, 6], rare: [110, 20, 9], epic: [150, 28, 13], legendary: [210, 40, 20], gem: [260, 48, 26], crystal: [330, 60, 34] };
+const TIER_STATS = { common: [60, 10, 4], uncommon: [80, 14, 6], rare: [110, 20, 9], epic: [150, 28, 13], legendary: [210, 40, 20], gem: [260, 48, 26], crystal: [330, 60, 34], special: [300, 55, 30] };
 const ENEMY_TIERS = [["common", 40], ["uncommon", 28], ["rare", 16], ["epic", 9], ["legendary", 4], ["gem", 2], ["crystal", 1]];
 const GAME_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
 const GAME_USAGE = { cf: "/cf 10", roulette: "/roulette red 10", slots: "/slots 10", dice: "/dice 10 high", blackjack: "/blackjack 10", duel: "/duel @user 10" };
@@ -1887,6 +1892,65 @@ export class ChatRoom extends DurableObject {
             if (!who) return say("I don't know that user.");
             return say(`${who.username} has ${who.orbs || 0} orbs (${who.earned ?? who.orbs ?? 0} earned in total).`);
         }
+        if (name === "pet") {
+            // staff only and not in the command list: /pet add Name | emoji | ability, /pet remove Name, /pet give @user | Name | count, /pet list
+            if (!MODERATORS.includes(roleOf(username))) return;
+            await this.loadSpecials();
+            const usage = `Special pets (custom pets made by staff):\n/pet add Name | :custom_emoji: or a normal emoji | ability (${Object.keys(ABILITIES).join(", ")})\n/pet remove Name\n/pet give @user | Name | count\n/pet list`;
+            const sub = (args.split(/\s+/)[0] || "").toLowerCase();
+            const rest = args.slice(sub.length).trim();
+            const list = (await this.ctx.storage.get("zpets")) || [];
+            const save = async () => {
+                await this.ctx.storage.put("zpets", list);
+                this.specialsAt = 0;
+            };
+            if (sub === "list") {
+                return say(list.length ? `\u{1F49D} Special pets (${list.length}):\n${list.map((p) => `${p.emoji} ${p.name}${p.ability ? ` [${ABILITIES[p.ability].name}]` : ""} - added by ${p.by}`).join("\n")}` : "No Special pets yet. " + usage);
+            }
+            if (sub === "add") {
+                const [petName, art, abilityWord] = rest.split("|").map((x) => x.trim());
+                if (!/^[A-Za-z0-9][A-Za-z0-9 '-]{1,19}$/.test(petName || "")) return say("A pet name is 2 to 20 letters, numbers or spaces.\n" + usage);
+                if (ANIMALS.some((a) => a.name.toLowerCase() === petName.toLowerCase())) return say(`There is already an animal called ${petName}.`);
+                if (list.length >= 40) return say("There can be at most 40 Special pets.");
+                if (!art) return say("Give the pet an emoji.\n" + usage);
+                if (art.startsWith(":")) {
+                    if (!/^:[a-z0-9_]{2,24}:$/.test(art)) return say("A custom emoji looks like :my_emoji:");
+                    const emojiName = art.slice(1, -1);
+                    const manifest = (await this.fetchAsset("/data/_emojis.json")) || [];
+                    const shared = ((await this.ctx.storage.get("community")) || []).filter((c) => c.kind === "emoji");
+                    if (![...manifest, ...shared].some((e) => e.name === emojiName)) return say(`There is no custom emoji called ${art}. Add it to the emoji library first.`);
+                } else if (art.length > 8 || /[:\s]/.test(art)) {
+                    return say("Use one emoji, or a custom emoji like :my_emoji:");
+                }
+                const ability = (abilityWord || "").toLowerCase();
+                if (ability && !ABILITIES[ability]) return say(`Unknown ability. Choose from: ${Object.keys(ABILITIES).join(", ")}`);
+                let id = `sp_${petName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+                while (list.some((p) => p.id === id)) id += "x";
+                list.push({ id, name: petName, emoji: art, ability: ability || null, by: username, time: Date.now() });
+                await save();
+                return say(`\u{1F49D} New Special pet: ${art} ${petName}${ability ? ` [${ABILITIES[ability].name}]` : ""}. Boss winners, 14 day streaks and /fuse crystal can now give it out.`);
+            }
+            if (sub === "remove") {
+                const index = list.findIndex((p) => p.name.toLowerCase() === rest.toLowerCase());
+                if (index < 0) return say(`There is no Special pet called "${rest.slice(0, 30)}".`);
+                const [gone] = list.splice(index, 1);
+                await save();
+                return say(`Removed the Special pet ${gone.name}. Players who already caught it keep the count, but it is hidden until it is added again.`);
+            }
+            if (sub === "give") {
+                const [who, petName, countWord] = rest.split("|").map((x) => x.trim());
+                const targetKey = `u:${String(who || "").replace(/^@/, "").toLowerCase()}`;
+                const receiver = who ? await this.ctx.storage.get(targetKey) : null;
+                const pet = specialPets().find((a) => a.name.toLowerCase() === String(petName || "").toLowerCase());
+                const count = countWord ? Math.round(Number(countWord)) : 1;
+                if (!receiver || !pet || !(count >= 1 && count <= 100)) return say("Use it like /pet give @user | Ghost | 1 (the pet must exist, 1 to 100).");
+                let got;
+                for (let n = 0; n < count; n++) got = this.catchAnimal(receiver, pet);
+                await this.ctx.storage.put(targetKey, receiver);
+                return say(`\u{1F49D} Gave ${count} \u00D7 ${pet.emoji} ${pet.name} to ${receiver.username}.${got.notes}`);
+            }
+            return say(usage);
+        }
         if (name === "give") {
             // staff only and not in the command list: /give gem <user> <hunting|heart|power|luck|xp|shield> [tier] [uses]
             if (!MODERATORS.includes(roleOf(username))) return;
@@ -2114,6 +2178,15 @@ export class ChatRoom extends DurableObject {
         await this.ctx.storage.put(userKey, user);
     }
 
+    /** Loads the staff-made Special pets into ANIMALS (they are saved under "zpets"). */
+    async loadSpecials() {
+        if (this.specialsAt && Date.now() - this.specialsAt < 5000) return;
+        const list = (await this.ctx.storage.get("zpets")) || [];
+        for (let i = ANIMALS.length - 1; i >= 0; i--) if (ANIMALS[i].rarity === "special") ANIMALS.splice(i, 1);
+        for (const p of list) ANIMALS.push({ id: p.id, emoji: p.emoji, plain: p.emoji, name: p.name, rarity: "special", ability: p.ability || null, custom: true, by: p.by });
+        this.specialsAt = Date.now();
+    }
+
     petLevel(xp) {
         return Math.min(MAX_PET_LEVEL, 1 + Math.floor(Math.sqrt((xp || 0) / 20)));
     }
@@ -2188,6 +2261,7 @@ export class ChatRoom extends DurableObject {
     }
 
     async runZoo(username, target, name, args, say) {
+        await this.loadSpecials();
         if (name === "hunt") return this.runHunt(username, target, say);
         if (name === "inventory" || name === "inv") return this.runInventory(username, target, say);
         if (target.key !== "zoo") return say("The zoo commands only work in #zoo. Head over there!");
@@ -2247,6 +2321,16 @@ export class ChatRoom extends DurableObject {
             if (streak % 7 === 0) {
                 user.gems.hunting_rare = (user.gems.hunting_rare || 0) + 20;
                 bonus = `\n:item_hunting_r: 7 day streak! You got a Rare Hunting Gem (20 uses).`;
+            }
+            if (streak % 14 === 0) {
+                const pets = specialPets();
+                if (pets.length) {
+                    const prize = this.catchAnimal(user, pets[Math.floor(Math.random() * pets.length)]);
+                    bonus += `\n14 day streak! You got a Special pet: ${prize.text}!${prize.notes}`;
+                } else {
+                    user.zooCoins += 300;
+                    bonus += "\n14 day streak! +300 bonus coins";
+                }
             }
             const hunt = this.rollHunt(username, user, true);
             await this.ctx.storage.put(userKey, user);
@@ -2311,6 +2395,7 @@ export class ChatRoom extends DurableObject {
             }
             const next = RARITIES[idx + 1];
             const pool = ANIMALS.filter((a) => a.rarity === next.id);
+            if (!pool.length) return say("There are no Special pets yet, so there is nothing to fuse into. Your animals were not used.");
             const got = this.catchAnimal(user, pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length]);
             await this.ctx.storage.put(userKey, user);
             return say(`\u{1F52E} ${username} fuses ${need} spare ${tier.label} animals... and gets a ${got.text}!${got.notes}\nTiers: ${this.zooTiersLine(user)}`);
@@ -2469,7 +2554,15 @@ export class ChatRoom extends DurableObject {
                     let extra = "";
                     if (i === 0) {
                         receiver.gems.luck_epic = (receiver.gems.luck_epic || 0) + GEMS.luck.uses[3];
+                        const pets = specialPets();
                         extra = ` + ${gemIcon("luck", 3)} Epic Luck Gem`;
+                        if (pets.length) {
+                            const prize = this.catchAnimal(receiver, pets[Math.floor(Math.random() * pets.length)]);
+                            extra += ` + ${prize.text}!${prize.notes}`;
+                        } else {
+                            receiver.zooCoins += 500;
+                            extra += " + 500 bonus coins";
+                        }
                     } else if (i < 3) {
                         receiver.gems.hunting_rare = (receiver.gems.hunting_rare || 0) + GEMS.hunting.uses[2];
                         extra = ` + ${gemIcon("hunting", 2)} Rare Hunting Gem`;
@@ -2522,10 +2615,24 @@ export class ChatRoom extends DurableObject {
 
     /** Everything the zoo page on the site shows. */
     async zooPage(request) {
+        await this.loadSpecials();
         const username = await this.sessionUser(request);
+        const emojiManifest = (await this.fetchAsset("/data/_emojis.json")) || [];
+        const communityEmoji = ((await this.ctx.storage.get("community")) || []).filter((c) => c.kind === "emoji");
+        const resolveArt = (token) => {
+            const emojiName = token.slice(1, -1);
+            const known = emojiManifest.find((e) => e.name === emojiName);
+            if (known) return known.src;
+            const shared = communityEmoji.find((e) => e.name === emojiName);
+            return shared ? `/api/chat/asset/${shared.id}` : "";
+        };
         const out = {
             tiers: RARITIES.map((r) => ({ id: r.id, code: r.code, label: r.label, secret: !!r.secret, coins: COIN_VALUE[r.id], fuse: FUSE_COST[r.id] || 0 })),
-            animals: ANIMALS.map((a) => ({ id: a.id, name: a.name, rarity: a.rarity, emoji: a.emoji.slice(1, -1), ability: abilityOf(a), stats: TIER_STATS[a.rarity] })),
+            animals: ANIMALS.map((a) => {
+                const token = a.emoji.startsWith(":");
+                const art = a.custom ? { emoji: "", glyph: token ? "" : a.emoji, src: token ? resolveArt(a.emoji) : "" } : { emoji: a.emoji.slice(1, -1), glyph: "", src: "" };
+                return { id: a.id, name: a.name, rarity: a.rarity, ...art, by: a.by || "", ability: abilityOf(a), stats: TIER_STATS[a.rarity] };
+            }),
             abilities: ABILITIES,
             event: this.zooEventTier(),
             board: await this.zooBoard(),

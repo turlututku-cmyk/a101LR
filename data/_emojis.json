@@ -514,5 +514,13 @@
     {
         "name":  "item_shield_l",
         "src":  "/assets/emojis/item_shield_l.svg"
+    },
+    {
+        "name":  "rarity_s",
+        "src":  "/assets/emojis/rarity_s.svg"
+    },
+    {
+        "name":  "dancing_gorilla",
+        "src":  "/assets/emojis/dancing_gorilla.png"
     }
 ]
