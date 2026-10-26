@@ -80,9 +80,9 @@ const CHANNELS = CATEGORIES.flatMap((c) => c.channels);
 const BOT_MEMBERS = [
     { name: "a101 Bot", icon: "\u{1F916}", desc: "Level info, polls, dice and fun commands. Type / to see them." },
     { name: "a101 Casino", icon: "\u{1F3B0}", desc: "Play with your orbs in #casino: /cf, /roulette, /slots, /dice, /blackjack, /duel." },
-    { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /gems, /team and /battle." },
+    { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /daily, /sell, /fuse, /gems, /team, /battle and /zooboard. Full collection on the Zoo page." },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle"];
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard"];
 const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : "");
 const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
@@ -2683,7 +2683,11 @@ export default {
                     inventory: "see the animals you have caught (in #zoo)",
                     gems: "gem shop: hunting, heart and power gems (in #zoo)",
                     team: "see or set your battle team (in #zoo)",
-                    battle: "fight a wild team with your animals (in #zoo)",
+                    battle: "fight a wild team, or /battle @user (in #zoo)",
+                    daily: "free daily hunt with a streak (in #zoo)",
+                    sell: "sell spare animals for coins (in #zoo)",
+                    fuse: "fuse spare animals into the next tier (in #zoo)",
+                    zooboard: "zoo leaderboards (in #zoo)",
                     roll: "roll dice, e.g. /roll 2d6",
                     flip: "flip a coin (no bet)",
                     "8ball": "ask the magic 8 ball",

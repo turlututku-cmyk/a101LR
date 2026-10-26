@@ -7,6 +7,7 @@ import Packs from './pages/Packs.js';
 import TimeMachine from './pages/TimeMachine.js';
 import Minigame from './pages/Minigame.js';
 import Chat from './pages/Chat.js';
+import Zoo from './pages/Zoo.js';
 
 export default [
     { path: '/', component: List },
@@ -20,6 +21,7 @@ export default [
     { path: '/minigames/creator', component: Minigame, props: { game: 'creator' } },
     { path: '/minigames/rank', component: Minigame, props: { game: 'rank' } },
     { path: '/minigames/chat', component: Chat },
+    { path: '/minigames/zoo', component: Zoo },
     { path: '/packs', component: Packs },
     { path: '/time-machine', component: TimeMachine },
 ];

@@ -1,0 +1,273 @@
+.page-zoo {
+    display: block;
+    overflow-y: auto;
+    padding: 1.5rem 1rem 3rem;
+    font-family: "Lexend Deca", "gg sans", "Segoe UI", sans-serif;
+    background-color: #313338;
+    color: #dbdee1;
+}
+.page-zoo .zoo-wrap {
+    width: min(64rem, 100%);
+    margin: 0 auto;
+}
+.page-zoo .zoo-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.page-zoo h1 {
+    margin: 0 0 0.3rem;
+    font-size: 2rem;
+    color: #fff;
+}
+.page-zoo h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.2rem 0 0.6rem;
+    font-size: 1.15rem;
+    color: #fff;
+}
+.page-zoo h2 img {
+    width: 1.8rem;
+    height: 1.8rem;
+}
+.page-zoo h2 small {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #949ba4;
+}
+.page-zoo .zoo-coin {
+    margin-left: auto;
+}
+.page-zoo .zoo-sub,
+.page-zoo .zoo-muted {
+    color: #b5bac1;
+}
+.page-zoo code {
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
+    background: #1e1f22;
+    color: #c9cdfb;
+}
+.page-zoo .zoo-chat-link {
+    flex-shrink: 0;
+    padding: 0.55rem 1rem;
+    border-radius: 0.4rem;
+    background: #5865f2;
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+}
+.page-zoo .zoo-error {
+    color: #f23f42;
+}
+.page-zoo .zoo-event {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, #3b3a1c, #2b2d31);
+    border-left: 4px solid #f0b232;
+}
+.page-zoo .zoo-event img {
+    width: 1.8rem;
+    height: 1.8rem;
+}
+.page-zoo .zoo-me {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+.page-zoo .zoo-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.7rem;
+    border-radius: 0.5rem;
+    background: #2b2d31;
+}
+.page-zoo .zoo-stat b {
+    font-size: 1.4rem;
+    color: #fff;
+}
+.page-zoo .zoo-stat span {
+    font-size: 0.75rem;
+    color: #949ba4;
+    text-transform: uppercase;
+}
+.page-zoo .zoo-team-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+}
+.page-zoo .zoo-teamcard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 7.5rem;
+    padding: 0.7rem 0.5rem;
+    border-radius: 0.6rem;
+    background: #2b2d31;
+    border: 2px solid #f0b232;
+    text-align: center;
+}
+.page-zoo .zoo-teamcard img {
+    width: 3.6rem;
+    height: 3.6rem;
+}
+.page-zoo .zoo-ab {
+    margin-top: 0.2rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 0.8rem;
+    background: #5865f2;
+    color: #fff;
+}
+.page-zoo .zoo-tabs {
+    display: flex;
+    gap: 0.4rem;
+    margin: 1.2rem 0 0.6rem;
+    border-bottom: 1px solid #3f4147;
+}
+.page-zoo .zoo-tabs button {
+    padding: 0.6rem 1rem;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: #b5bac1;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.page-zoo .zoo-tabs button.active {
+    border-bottom-color: #5865f2;
+    color: #fff;
+}
+.page-zoo .zoo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr));
+    gap: 0.6rem;
+}
+.page-zoo .zoo-animal {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.6rem 0.3rem 0.4rem;
+    border-radius: 0.6rem;
+    background: #2b2d31;
+    border: 2px solid transparent;
+    text-align: center;
+}
+.page-zoo .zoo-animal img {
+    width: 3.4rem;
+    height: 3.4rem;
+}
+.page-zoo .zoo-animal small {
+    font-size: 0.72rem;
+    color: #b5bac1;
+}
+.page-zoo .zoo-animal.missing img {
+    filter: grayscale(1) brightness(0.45);
+    opacity: 0.7;
+}
+.page-zoo .zoo-animal.team {
+    border-color: #f0b232;
+}
+.page-zoo .zoo-animal.tier-uncommon:not(.missing) { box-shadow: inset 0 0 0 1px #3ba55d; }
+.page-zoo .zoo-animal.tier-rare:not(.missing) { box-shadow: inset 0 0 0 1px #4d8dff; }
+.page-zoo .zoo-animal.tier-epic:not(.missing) { box-shadow: inset 0 0 0 1px #b04dff; }
+.page-zoo .zoo-animal.tier-legendary:not(.missing) { box-shadow: inset 0 0 0 1px #ffb300, 0 0 10px rgba(255, 179, 0, 0.35); }
+.page-zoo .zoo-animal.tier-gem:not(.missing) { box-shadow: inset 0 0 0 1px #3dffb0, 0 0 10px rgba(61, 255, 176, 0.3); }
+.page-zoo .zoo-animal.tier-crystal:not(.missing) { box-shadow: inset 0 0 0 1px #b388ff, 0 0 10px rgba(179, 136, 255, 0.35); }
+.page-zoo .zoo-count {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.35rem;
+    padding: 0 0.35rem;
+    border-radius: 0.8rem;
+    background: #5865f2;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.page-zoo .zoo-lvl {
+    position: absolute;
+    top: 0.25rem;
+    left: 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #f0b232;
+}
+.page-zoo .zoo-q {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.4rem;
+    height: 3.4rem;
+    font-size: 1.8rem;
+    color: #5c5f66;
+}
+.page-zoo .zoo-boards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1rem;
+}
+.page-zoo .zoo-board {
+    padding: 0.2rem 1rem 1rem;
+    border-radius: 0.6rem;
+    background: #2b2d31;
+}
+.page-zoo .zoo-board ol {
+    margin: 0;
+    padding-left: 1.4rem;
+}
+.page-zoo .zoo-board li {
+    padding: 0.25rem 0;
+}
+.page-zoo .zoo-board li span {
+    display: inline-block;
+    min-width: 8rem;
+}
+.page-zoo .zoo-guide ul {
+    padding-left: 1.2rem;
+    line-height: 1.7;
+}
+.page-zoo .zoo-table {
+    border-collapse: collapse;
+    width: min(28rem, 100%);
+}
+.page-zoo .zoo-table th,
+.page-zoo .zoo-table td {
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid #3f4147;
+    text-align: left;
+}
+.page-zoo .zoo-table td img {
+    width: 1.4rem;
+    height: 1.4rem;
+    vertical-align: middle;
+}
+.page-zoo .zoo-gems {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+.page-zoo .zoo-gems span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.5rem;
+    background: #2b2d31;
+}
+.page-zoo .zoo-gems img {
+    width: 1.5rem;
+    height: 1.5rem;
+}
