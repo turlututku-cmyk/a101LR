@@ -2669,6 +2669,12 @@ export class ChatRoom extends DurableObject {
                 if (result.error) return say(result.error);
                 return say(result.text);
             };
+            if (sub === "resetall") {
+                // staff only: every guild gets a fresh boss with full HP (free)
+                if (!MODERATORS.includes(roleOf(username))) return;
+                const count = await this.guildResetAll();
+                return say(`\u{1F504} ${username} reset every guild boss: ${count} guild${count === 1 ? "" : "s"} now face${count === 1 ? "s" : ""} a fresh boss with full HP.`);
+            }
             if (sub === "create") {
                 const [guildName, tag] = rest.split("|").map((x) => x.trim());
                 return done(await this.guildCreate(username, user, userKey, guildName, tag));
@@ -3234,6 +3240,22 @@ export class ChatRoom extends DurableObject {
             ok: true,
             text: `\u{1F504} ${username} paid ${GUILD_RESET_COST} coins and [${guild.tag}] ${guild.name} faces a new guild boss: ${next ? next.animal.emoji : ""} ${title} with ${fresh.max} HP! (${fresh.resets}/${GUILD_BOSS_MAX_RESETS} resets this hour) Coins left: ${user.zooCoins}`,
         };
+    }
+
+    /** Staff: gives every guild a fresh boss with full HP (the next Boss pet in line), whatever state the old one was in. */
+    async guildResetAll() {
+        const slot = Math.floor(Date.now() / GUILD_BOSS_MS);
+        const roster = this.bossRoster();
+        let count = 0;
+        for (const [, guild] of await this.ctx.storage.list({ prefix: "gd:" })) {
+            const key = `gb:${slot}:${guild.id}`;
+            const old = await this.ctx.storage.get(key);
+            if (!old) continue; // nobody looked at this guild's boss yet, so it is fresh already
+            const next = roster.length ? roster[(slot + 3 + (old.resets || 0) + 1) % roster.length] : null;
+            await this.ctx.storage.put(key, { slot, petId: next ? next.id : old.petId, def: old.def, hp: old.max, max: old.max, damage: {}, hits: {}, last: {}, names: {}, dead: false, resets: old.resets || 0 });
+            count += 1;
+        }
+        return count;
     }
 
     /** One fight of your team against a boss that has `hp` of `max` left. */
