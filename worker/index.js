@@ -1891,6 +1891,26 @@ export class ChatRoom extends DurableObject {
             // staff only and not in the command list: /give gem <user> <hunting|heart|power|luck|xp|shield> [tier] [uses]
             if (!MODERATORS.includes(roleOf(username))) return;
             const [kind, who, type, tierWord, usesWord] = args.split(/\s+/);
+            if (String(kind).toLowerCase() === "gem" && String(type).toLowerCase() === "all") {
+                // /give gem @user all [tier]: every gem type (at one tier, or at every tier) with its full uses
+                const targetKey = `u:${String(who || "").replace(/^@/, "").toLowerCase()}`;
+                const receiver = who ? await this.ctx.storage.get(targetKey) : null;
+                const only = tierWord ? GEM_TIERS.findIndex((t) => t === tierWord.toLowerCase() || t[0] === tierWord.toLowerCase()) : -1;
+                if (!receiver || (tierWord && only < 0)) return say("Use it like /give gem @user all [tier]. Tiers: " + GEM_TIERS.join(", "));
+                await this.upgradeGems(targetKey, receiver);
+                receiver.gems = receiver.gems || {};
+                let count = 0;
+                for (const [gemType, g] of Object.entries(GEMS)) {
+                    for (let t = 0; t < GEM_TIERS.length; t++) {
+                        if (only >= 0 && t !== only) continue;
+                        const key = `${gemType}_${GEM_TIERS[t]}`;
+                        receiver.gems[key] = (receiver.gems[key] || 0) + g.uses[t];
+                        count += 1;
+                    }
+                }
+                await this.ctx.storage.put(targetKey, receiver);
+                return say(`\u{1F48E} Gave ${receiver.username} every gem${only >= 0 ? ` (${GEM_TIERS[only]})` : " in every tier"} with full uses: ${count} stacks.`);
+            }
             const gem = GEMS[String(type || "").toLowerCase()];
             const tier = GEM_TIERS.findIndex((t) => t === String(tierWord || "common").toLowerCase() || t[0] === String(tierWord || "").toLowerCase());
             const targetKey = `u:${String(who || "").replace(/^@/, "").toLowerCase()}`;
