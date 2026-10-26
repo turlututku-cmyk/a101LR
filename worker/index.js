@@ -182,7 +182,7 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "feed", "candy", "guild", "gboss", "ranked", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "feed", "candy", "guild", "gboss", "ranked", "best", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
 // a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
 const CASINO_NAME = "a101 Casino";
 // a101 Zoo: /hunt costs 1 orb and catches a random animal. Only in #zoo.
@@ -272,7 +272,7 @@ const DEFAULT_SPECIALS = [
     { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
     { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked"];
+const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked", "best"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
 const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000, boss: 1500 };
 const COIN_PRICE_X = 3;
@@ -2623,6 +2623,34 @@ export class ChatRoom extends DurableObject {
                 ...GEM_TIERS.map((t, i) => `${gemIcon(type, i)} ${RARITIES[i].label} - ${g.price[i]} orbs or ${g.price[i] * COIN_PRICE_X} coins, ${g.uses[i]} uses - ${g.desc(g.power[i])}${user.gems[`${type}_${t}`] ? ` (you have ${user.gems[`${type}_${t}`]} left)` : ""}`),
             ]);
             return say(`\u{1F48E} Gem shop (you have ${user.orbs || 0} orbs and ${user.zooCoins || 0} coins)\n${lines.join("\n")}\nBuy with /gems buy <${Object.keys(GEMS).join("|")}> <common|uncommon|rare|epic|legendary> [coins]. The best gem you own is used first.`);
+        }
+
+        if (name === "best") {
+            // /best shows your strongest pets (name, level, how many you own); /best server shows the strongest pets of everybody
+            const power = (animal, level) => {
+                const st = this.petStats(animal, level);
+                return Math.round(st.hp * 0.5 + st.atk * 4 + st.def * 3);
+            };
+            const line = (animal, level, extra) => {
+                const st = this.petStats(animal, level);
+                const ab = abilityOf(animal);
+                return `${animal.emoji} ${animal.name} | level ${level}${extra} | HP ${st.hp} ATK ${st.atk} DEF ${st.def}${ab ? ` [${ABILITIES[ab].name}]` : ""} | power ${power(animal, level)}`;
+            };
+            if (args.trim().toLowerCase() === "server") {
+                const rows = [];
+                for (const [, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+                    if (!u.zoo) continue;
+                    for (const a of ANIMALS) if (u.zoo[a.id]) rows.push({ owner: u.username, a, level: this.petLevel((u.zooXp || {})[a.id]), power: power(a, this.petLevel((u.zooXp || {})[a.id])) });
+                }
+                rows.sort((x, y) => y.power - x.power);
+                if (!rows.length) return say("Nobody owns a pet yet.");
+                return say(`\u{1F3C6} Strongest pets on the server\n${rows.slice(0, 5).map((r, i) => `${i + 1}. ${line(r.a, r.level, "")} | owner ${r.owner}`).join("\n")}`);
+            }
+            const mine = ANIMALS.filter((a) => user.zoo[a.id])
+                .map((a) => ({ a, level: this.petLevel((user.zooXp || {})[a.id]), amount: user.zoo[a.id] }))
+                .sort((x, y) => power(y.a, y.level) - power(x.a, x.level));
+            if (!mine.length) return say("You don't own any pets yet. Use /hunt first!");
+            return say(`\u2B50 ${username}'s best pets (strongest first)\n${mine.slice(0, 5).map((r, i) => `${i + 1}. ${line(r.a, r.level, ` | owned \u00D7${r.amount}`)}`).join("\n")}\nThe strongest in the whole zoo: /best server. Power = HP/2 + 4 \u00D7 ATK + 3 \u00D7 DEF at its level.`);
         }
 
         if (name === "items") {
