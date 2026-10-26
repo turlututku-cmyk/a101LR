@@ -1887,6 +1887,26 @@ export class ChatRoom extends DurableObject {
             if (!who) return say("I don't know that user.");
             return say(`${who.username} has ${who.orbs || 0} orbs (${who.earned ?? who.orbs ?? 0} earned in total).`);
         }
+        if (name === "give") {
+            // staff only and not in the command list: /give gem <user> <hunting|heart|power|luck|xp|shield> [tier] [uses]
+            if (!MODERATORS.includes(roleOf(username))) return;
+            const [kind, who, type, tierWord, usesWord] = args.split(/\s+/);
+            const gem = GEMS[String(type || "").toLowerCase()];
+            const tier = GEM_TIERS.findIndex((t) => t === String(tierWord || "common").toLowerCase() || t[0] === String(tierWord || "").toLowerCase());
+            const targetKey = `u:${String(who || "").replace(/^@/, "").toLowerCase()}`;
+            const receiver = who ? await this.ctx.storage.get(targetKey) : null;
+            if (String(kind).toLowerCase() !== "gem" || !receiver || !gem || tier < 0) {
+                return say(`Use it like /give gem @user hunting rare [uses]. Gems: ${Object.keys(GEMS).join(", ")}. Tiers: ${GEM_TIERS.join(", ")}.`);
+            }
+            const uses = usesWord === undefined ? gem.uses[tier] : Math.round(Number(usesWord));
+            if (!(uses >= 1 && uses <= 100000)) return say("Uses must be between 1 and 100000.");
+            await this.upgradeGems(targetKey, receiver);
+            const key = `${String(type).toLowerCase()}_${GEM_TIERS[tier]}`;
+            receiver.gems = receiver.gems || {};
+            receiver.gems[key] = (receiver.gems[key] || 0) + uses;
+            await this.ctx.storage.put(targetKey, receiver);
+            return say(`${gemIcon(String(type).toLowerCase(), tier)} Gave ${uses} uses of a ${RARITIES[tier].label} ${gem.name} to ${receiver.username}. They now have ${receiver.gems[key]}.`);
+        }
         if (name === "grant") {
             // owner only and deliberately not in the command list: /grant <user> <orbs>
             if (roleOf(username) !== "a101") return;
