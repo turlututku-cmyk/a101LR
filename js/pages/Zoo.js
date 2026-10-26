@@ -173,6 +173,7 @@ export default {
                                     </p>
                                     <div class="zoo-actions">
                                         <button type="button" class="zoo-btn" :disabled="busy || data.guild.boss.dead" @click="attackGuild">Attack the guild boss</button>
+                                        <button v-if="data.guild.boss.dead" type="button" class="zoo-btn" :disabled="busy || me.orbs < data.guild.reset.cost || data.guild.resets >= data.guild.reset.max" @click="resetGuildBoss">Reset the boss ({{ data.guild.reset.cost }} orbs, {{ data.guild.resets }}/{{ data.guild.reset.max }} used)</button>
                                         <button type="button" class="zoo-btn alt" :disabled="busy" @click="leaveGuild">Leave guild</button>
                                     </div>
                                     <p class="zoo-muted">Each of your attacks needs a 2 minute rest. Beating the boss pays everyone who fought.</p>
@@ -434,6 +435,10 @@ export default {
                 this.lastFight = r.text;
                 return r.line;
             });
+        },
+        resetGuildBoss() {
+            if (!window.confirm(`Pay ${this.data.guild.reset.cost} orbs for a new guild boss?`)) return null;
+            return this.act({ action: "guildReset" }, "A new guild boss is here! Attack it from the Guild tab.");
         },
         createGuild() {
             return this.act({ action: "guildCreate", name: this.guildName, tag: this.guildTag }, "Guild created!").then(() => (this.guildName = ""));

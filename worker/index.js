@@ -194,6 +194,9 @@ const GUILD_BOSS_MS = 60 * 60 * 1000;
 const GUILD_BOSS_BASE_HP = 500000;
 const GUILD_BOSS_HP_PER_MEMBER = 0;
 const WORLD_BOSS_HP = 60000;
+// /guild reset: once the guild boss is defeated a member can pay for a fresh one (at most a few times an hour)
+const GUILD_RESET_COST = 1000;
+const GUILD_BOSS_MAX_RESETS = 3;
 // guild gifting: what a member can give to guild mates per day
 const GUILD_GIFT_LIMITS = { coins: 300, food: 30, candy: 3 };
 // ranked PvP: a rating per month (Elo), fought against players near your rating. Gems do not count in ranked.
@@ -348,6 +351,8 @@ const MAX_PET_LEVEL = 50; // no animal goes past level 50
 const MAX_TURNS = 30;
 // burn takes 6% of the target's max HP each turn, but never more than this (otherwise it would melt 500,000 HP bosses)
 const BURN_CAP = 250;
+// no single attack can take more than this share of a boss's max HP, so bosses always need a team effort
+const BOSS_ATTACK_CAP = 0.1;
 // [hp, attack, defence] at level 1; every level adds 10%
 const TIER_STATS = { common: [60, 10, 4], uncommon: [80, 14, 6], rare: [110, 20, 9], epic: [150, 28, 13], legendary: [210, 40, 20], gem: [260, 48, 26], crystal: [330, 60, 34], special: [300, 55, 30], boss: [340, 62, 36] };
 const ENEMY_TIERS = [["common", 40], ["uncommon", 28], ["rare", 16], ["epic", 9], ["legendary", 4], ["gem", 2], ["crystal", 1]];
@@ -2671,6 +2676,7 @@ export class ChatRoom extends DurableObject {
             if (sub === "join") return done(await this.guildJoin(username, user, userKey, rest));
             if (sub === "leave") return done(await this.guildLeave(username, user, userKey));
             if (sub === "kick") return done(await this.guildKick(username, user, rest));
+            if (sub === "reset") return done(await this.guildReset(username, user, userKey));
             if (sub === "gift") {
                 const [who, kind, amount] = rest.split(/\s+/);
                 return done(await this.guildGift(username, user, userKey, who, kind, amount));
@@ -2687,7 +2693,7 @@ export class ChatRoom extends DurableObject {
                 const left = Math.max(0, panel.boss.ends - Date.now());
                 const filled = Math.round((10 * panel.boss.hp) / panel.boss.max);
                 const top = panel.members.filter((m) => m.damage > 0).sort((a, b) => b.damage - a.damage).slice(0, 5);
-                return say(`\u{1F6E1}\uFE0F [${panel.tag}] guild boss: :${panel.boss.emoji}: ${panel.boss.title}\n${panel.boss.dead ? "DEFEATED! The next one arrives in " : `HP ${panel.boss.hp}/${panel.boss.max} ${"\u2588".repeat(filled)}${"\u2591".repeat(10 - filled)} | it leaves in `}${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s${top.length ? "\nTop fighters:\n" + top.map((m, i) => `${i + 1}. ${m.name} - ${m.damage} damage`).join("\n") : ""}\nAttack with /guild attack (every ${ZOO_BOSS_COOLDOWN_MS / 60000} minutes). A new boss arrives every hour.`);
+                return say(`\u{1F6E1}\uFE0F [${panel.tag}] guild boss: :${panel.boss.emoji}: ${panel.boss.title}\n${panel.boss.dead ? "DEFEATED! The next one arrives in " : `HP ${panel.boss.hp}/${panel.boss.max} ${"\u2588".repeat(filled)}${"\u2591".repeat(10 - filled)} | it leaves in `}${Math.floor(left / 60000)}m ${Math.floor((left % 60000) / 1000)}s${top.length ? "\nTop fighters:\n" + top.map((m, i) => `${i + 1}. ${m.name} - ${m.damage} damage`).join("\n") : ""}\nAttack with /guild attack (every ${ZOO_BOSS_COOLDOWN_MS / 60000} minutes). A new boss arrives every hour; after you beat it, /guild reset pays ${GUILD_RESET_COST} orbs for a fresh one.`);
             }
             return say(`\u{1F6E1}\uFE0F [${panel.tag}] ${panel.name} - owner ${panel.owner}, ${panel.members.length}/${panel.max} members, ${panel.kills} boss kills\nMembers: ${panel.members.map((m) => m.name).join(", ")}\n/guild boss shows this hour's guild boss, /guild attack fights it, /guild leave leaves.`);
         }
@@ -2976,8 +2982,8 @@ export class ChatRoom extends DurableObject {
             const mine = team.map((a) => this.makeUnit(a, this.petLevel(xp[a.id]), 0, pg ? 1 + pg.value / 100 : 1, sg ? 1 + sg.value / 100 : 1));
             const bossUnit = { a: animal, lvl: MAX_PET_LEVEL, side: 1, ab, hp: boss.hp, max: boss.max, atk: def.atk, def: def.def, stunned: false, burn: 0 };
             this.simulate(mine, [bossUnit]);
-            const dealt = Math.max(0, boss.hp - Math.max(0, bossUnit.hp));
-            boss.hp = Math.max(0, bossUnit.hp);
+            const dealt = Math.min(Math.max(0, boss.hp - Math.max(0, bossUnit.hp)), Math.floor(boss.max * BOSS_ATTACK_CAP));
+            boss.hp = boss.hp - dealt;
             boss.damage[lower] = (boss.damage[lower] || 0) + dealt;
             boss.hits[lower] = (boss.hits[lower] || 0) + 1;
             boss.last[lower] = Date.now();
@@ -3208,6 +3214,28 @@ export class ChatRoom extends DurableObject {
         return { key, boss, ...this.resolveBoss(boss), ends: (slot + 1) * GUILD_BOSS_MS };
     }
 
+    /** Pays orbs to bring back the guild boss after it was defeated: a new boss with full HP, even though the hour is not over. */
+    async guildReset(username, user, userKey) {
+        const guild = await this.guildOfUser(user);
+        if (!guild) return { error: "You are not in a guild." };
+        const { key, boss, def } = await this.guildBossFor(guild);
+        const resets = boss.resets || 0;
+        if (!boss.dead) return { error: `${def.title} is still alive. A guild boss can be reset after it has been defeated.` };
+        if (resets >= GUILD_BOSS_MAX_RESETS) return { error: `This guild already reset its boss ${GUILD_BOSS_MAX_RESETS} times this hour. A new boss comes with the next hour.` };
+        if ((user.orbs || 0) < GUILD_RESET_COST) return { error: `Resetting the guild boss costs ${GUILD_RESET_COST} orbs and you have ${user.orbs || 0}.` };
+        const roster = this.bossRoster();
+        const next = roster.length ? roster[(boss.slot + 3 + resets + 1) % roster.length] : null;
+        this.addOrbs(user, -GUILD_RESET_COST, false);
+        const fresh = { slot: boss.slot, petId: next ? next.id : boss.petId, def: boss.def, hp: boss.max, max: boss.max, damage: {}, hits: {}, last: {}, names: {}, dead: false, resets: resets + 1 };
+        await this.ctx.storage.put(key, fresh);
+        await this.ctx.storage.put(userKey, user);
+        const title = next ? next.title : def.title;
+        return {
+            ok: true,
+            text: `\u{1F504} ${username} paid ${GUILD_RESET_COST} orbs and [${guild.tag}] ${guild.name} faces a new guild boss: ${next ? next.animal.emoji : ""} ${title} with ${fresh.max} HP! (${fresh.resets}/${GUILD_BOSS_MAX_RESETS} resets this hour) Balance: ${user.orbs}`,
+        };
+    }
+
     /** One fight of your team against a boss that has `hp` of `max` left. */
     fightBoss(user, animal, def, hp, max) {
         const xp = (user.zooXp = user.zooXp || {});
@@ -3228,7 +3256,8 @@ export class ChatRoom extends DurableObject {
         }
         const used = [pg, sg, xg].filter(Boolean);
         for (const g of used) user.gems[g.key] -= 1;
-        return { mine, dealt: Math.max(0, hp - Math.max(0, unit.hp)), hpAfter: Math.max(0, unit.hp), gain, ups, used };
+        const dealt = Math.min(Math.max(0, hp - Math.max(0, unit.hp)), Math.floor(max * BOSS_ATTACK_CAP));
+        return { mine, dealt, hpAfter: hp - dealt, gain, ups, used };
     }
 
     /** A guild member attacks the boss of their guild. Returns { error } or { text, dealt, hpAfter, defeated }. */
@@ -3318,6 +3347,8 @@ export class ChatRoom extends DurableObject {
             max: GUILD_MAX_MEMBERS,
             boss: { title: def.title, emoji: animal.emoji.slice(1, -1), ability: abilityOf(animal), hp: boss.hp, max: boss.max, dead: boss.dead, ends },
             rewards: boss.dead ? boss.rewards || null : null,
+            resets: boss.resets || 0,
+            reset: { cost: GUILD_RESET_COST, max: GUILD_BOSS_MAX_RESETS },
         };
     }
 
@@ -3622,6 +3653,8 @@ export class ChatRoom extends DurableObject {
             result = await this.guildJoin(username, user, userKey, String(body.name || ""));
         } else if (action === "guildLeave") {
             result = await this.guildLeave(username, user, userKey);
+        } else if (action === "guildReset") {
+            result = await this.guildReset(username, user, userKey);
         } else if (action === "guildGift") {
             result = await this.guildGift(username, user, userKey, String(body.to || ""), String(body.kind || ""), Number(body.amount));
         } else if (action === "rankedFight") {
