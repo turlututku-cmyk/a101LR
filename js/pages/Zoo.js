@@ -78,7 +78,7 @@ export default {
                         <div class="zoo-detail-info">
                             <h2>{{ sel.name }} <small>{{ tierLabel(sel) }} &middot; Level {{ me.levels[sel.id] || 1 }}</small>
                                 <button type="button" class="zoo-mini ghost" @click="selected = ''">Close</button></h2>
-                            <p class="zoo-muted">HP {{ statsAt(sel).hp }} &middot; ATK {{ statsAt(sel).atk }} &middot; DEF {{ statsAt(sel).def }}<span v-if="sel.ability"> &middot; <b>{{ data.abilities[sel.ability].name }}</b>: {{ data.abilities[sel.ability].desc }}</span></p>
+                            <p class="zoo-muted">HP {{ statsAt(sel).hp }} &middot; ATK {{ statsAt(sel).atk }} &middot; DEF {{ statsAt(sel).def }}<span v-if="sel.bonus"> &middot; <b>+{{ sel.bonus.amount }} {{ sel.bonus.stat.toUpperCase() }} maxed</b></span><span v-if="sel.ability"> &middot; <b>{{ data.abilities[sel.ability].name }}</b>: {{ data.abilities[sel.ability].desc }}</span></p>
                             <div class="zoo-xp"><span :style="{ width: xpPct(sel) + '%' }"></span></div>
                             <p class="zoo-muted">{{ (me.levels[sel.id] || 1) >= 50 ? 'Max level' : xpText(sel) }}</p>
                             <div class="zoo-actions">
@@ -381,7 +381,9 @@ export default {
         },
         statsAt(a) {
             const k = 1 + 0.1 * ((this.me.levels[a.id] || 1) - 1);
-            return { hp: Math.round(a.stats[0] * k), atk: Math.round(a.stats[1] * k), def: Math.round(a.stats[2] * k) };
+            const s = { hp: Math.round(a.stats[0] * k), atk: Math.round(a.stats[1] * k), def: Math.round(a.stats[2] * k) };
+            if (a.bonus) s[a.bonus.stat] += a.bonus.amount;
+            return s;
         },
         xpPct(a) {
             const level = this.me.levels[a.id] || 1;
@@ -486,7 +488,8 @@ export default {
         tip(a) {
             const [hp, atk, def] = a.stats;
             const ab = a.ability ? ` | ${this.data.abilities[a.ability].name}: ${this.data.abilities[a.ability].desc}` : "";
-            return `${a.name} - HP ${hp} ATK ${atk} DEF ${def} at level 1${ab}${a.by ? ` | added by ${a.by}` : ""}`;
+            const bonus = a.bonus ? ` | maxed: +${a.bonus.amount} ${a.bonus.stat.toUpperCase()}` : "";
+            return `${a.name} - HP ${hp} ATK ${atk} DEF ${def} at level 1${bonus}${ab}${a.by ? ` | added by ${a.by}` : ""}`;
         },
     },
     async mounted() {

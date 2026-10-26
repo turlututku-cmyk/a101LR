@@ -586,5 +586,241 @@
     {
         "name":  "boss_hydra_serpent",
         "src":  "/assets/emojis/boss_hydra_serpent.svg"
+    },
+    {
+        "name":  "huge_gem_mouse",
+        "src":  "/assets/emojis/huge_gem_mouse.svg"
+    },
+    {
+        "name":  "huge_gem_rabbit",
+        "src":  "/assets/emojis/huge_gem_rabbit.svg"
+    },
+    {
+        "name":  "huge_gem_chicken",
+        "src":  "/assets/emojis/huge_gem_chicken.svg"
+    },
+    {
+        "name":  "huge_gem_frog",
+        "src":  "/assets/emojis/huge_gem_frog.svg"
+    },
+    {
+        "name":  "huge_gem_squirrel",
+        "src":  "/assets/emojis/huge_gem_squirrel.svg"
+    },
+    {
+        "name":  "huge_gem_duck",
+        "src":  "/assets/emojis/huge_gem_duck.svg"
+    },
+    {
+        "name":  "huge_gem_fox",
+        "src":  "/assets/emojis/huge_gem_fox.svg"
+    },
+    {
+        "name":  "huge_gem_wolf",
+        "src":  "/assets/emojis/huge_gem_wolf.svg"
+    },
+    {
+        "name":  "huge_gem_deer",
+        "src":  "/assets/emojis/huge_gem_deer.svg"
+    },
+    {
+        "name":  "huge_gem_boar",
+        "src":  "/assets/emojis/huge_gem_boar.svg"
+    },
+    {
+        "name":  "huge_gem_owl",
+        "src":  "/assets/emojis/huge_gem_owl.svg"
+    },
+    {
+        "name":  "huge_gem_bear",
+        "src":  "/assets/emojis/huge_gem_bear.svg"
+    },
+    {
+        "name":  "huge_gem_lion",
+        "src":  "/assets/emojis/huge_gem_lion.svg"
+    },
+    {
+        "name":  "huge_gem_tiger",
+        "src":  "/assets/emojis/huge_gem_tiger.svg"
+    },
+    {
+        "name":  "huge_gem_elephant",
+        "src":  "/assets/emojis/huge_gem_elephant.svg"
+    },
+    {
+        "name":  "huge_gem_giraffe",
+        "src":  "/assets/emojis/huge_gem_giraffe.svg"
+    },
+    {
+        "name":  "huge_gem_gorilla",
+        "src":  "/assets/emojis/huge_gem_gorilla.svg"
+    },
+    {
+        "name":  "huge_gem_crocodile",
+        "src":  "/assets/emojis/huge_gem_crocodile.svg"
+    },
+    {
+        "name":  "huge_gem_shark",
+        "src":  "/assets/emojis/huge_gem_shark.svg"
+    },
+    {
+        "name":  "huge_gem_eagle",
+        "src":  "/assets/emojis/huge_gem_eagle.svg"
+    },
+    {
+        "name":  "huge_gem_dragon",
+        "src":  "/assets/emojis/huge_gem_dragon.svg"
+    },
+    {
+        "name":  "huge_gem_unicorn",
+        "src":  "/assets/emojis/huge_gem_unicorn.svg"
+    },
+    {
+        "name":  "huge_gem_trex",
+        "src":  "/assets/emojis/huge_gem_trex.svg"
+    },
+    {
+        "name":  "huge_crystal_mouse",
+        "src":  "/assets/emojis/huge_crystal_mouse.svg"
+    },
+    {
+        "name":  "huge_crystal_rabbit",
+        "src":  "/assets/emojis/huge_crystal_rabbit.svg"
+    },
+    {
+        "name":  "huge_crystal_chicken",
+        "src":  "/assets/emojis/huge_crystal_chicken.svg"
+    },
+    {
+        "name":  "huge_crystal_frog",
+        "src":  "/assets/emojis/huge_crystal_frog.svg"
+    },
+    {
+        "name":  "huge_crystal_squirrel",
+        "src":  "/assets/emojis/huge_crystal_squirrel.svg"
+    },
+    {
+        "name":  "huge_crystal_duck",
+        "src":  "/assets/emojis/huge_crystal_duck.svg"
+    },
+    {
+        "name":  "huge_crystal_fox",
+        "src":  "/assets/emojis/huge_crystal_fox.svg"
+    },
+    {
+        "name":  "huge_crystal_wolf",
+        "src":  "/assets/emojis/huge_crystal_wolf.svg"
+    },
+    {
+        "name":  "huge_crystal_deer",
+        "src":  "/assets/emojis/huge_crystal_deer.svg"
+    },
+    {
+        "name":  "huge_crystal_boar",
+        "src":  "/assets/emojis/huge_crystal_boar.svg"
+    },
+    {
+        "name":  "huge_crystal_owl",
+        "src":  "/assets/emojis/huge_crystal_owl.svg"
+    },
+    {
+        "name":  "huge_crystal_bear",
+        "src":  "/assets/emojis/huge_crystal_bear.svg"
+    },
+    {
+        "name":  "huge_crystal_lion",
+        "src":  "/assets/emojis/huge_crystal_lion.svg"
+    },
+    {
+        "name":  "huge_crystal_tiger",
+        "src":  "/assets/emojis/huge_crystal_tiger.svg"
+    },
+    {
+        "name":  "huge_crystal_elephant",
+        "src":  "/assets/emojis/huge_crystal_elephant.svg"
+    },
+    {
+        "name":  "huge_crystal_giraffe",
+        "src":  "/assets/emojis/huge_crystal_giraffe.svg"
+    },
+    {
+        "name":  "huge_crystal_gorilla",
+        "src":  "/assets/emojis/huge_crystal_gorilla.svg"
+    },
+    {
+        "name":  "huge_crystal_crocodile",
+        "src":  "/assets/emojis/huge_crystal_crocodile.svg"
+    },
+    {
+        "name":  "huge_crystal_shark",
+        "src":  "/assets/emojis/huge_crystal_shark.svg"
+    },
+    {
+        "name":  "huge_crystal_eagle",
+        "src":  "/assets/emojis/huge_crystal_eagle.svg"
+    },
+    {
+        "name":  "huge_crystal_dragon",
+        "src":  "/assets/emojis/huge_crystal_dragon.svg"
+    },
+    {
+        "name":  "huge_crystal_unicorn",
+        "src":  "/assets/emojis/huge_crystal_unicorn.svg"
+    },
+    {
+        "name":  "huge_crystal_trex",
+        "src":  "/assets/emojis/huge_crystal_trex.svg"
+    },
+    {
+        "name":  "huge_boss_elder_dragon",
+        "src":  "/assets/emojis/huge_boss_elder_dragon.svg"
+    },
+    {
+        "name":  "huge_boss_crystal_titan",
+        "src":  "/assets/emojis/huge_boss_crystal_titan.svg"
+    },
+    {
+        "name":  "huge_boss_emerald_lion_king",
+        "src":  "/assets/emojis/huge_boss_emerald_lion_king.svg"
+    },
+    {
+        "name":  "huge_boss_ancient_trex",
+        "src":  "/assets/emojis/huge_boss_ancient_trex.svg"
+    },
+    {
+        "name":  "huge_boss_abyss_shark",
+        "src":  "/assets/emojis/huge_boss_abyss_shark.svg"
+    },
+    {
+        "name":  "huge_boss_storm_eagle",
+        "src":  "/assets/emojis/huge_boss_storm_eagle.svg"
+    },
+    {
+        "name":  "huge_boss_kraken",
+        "src":  "/assets/emojis/huge_boss_kraken.svg"
+    },
+    {
+        "name":  "huge_boss_void_bat",
+        "src":  "/assets/emojis/huge_boss_void_bat.svg"
+    },
+    {
+        "name":  "huge_boss_magma_golem",
+        "src":  "/assets/emojis/huge_boss_magma_golem.svg"
+    },
+    {
+        "name":  "huge_boss_frost_wolf",
+        "src":  "/assets/emojis/huge_boss_frost_wolf.svg"
+    },
+    {
+        "name":  "huge_boss_venom_scorpion",
+        "src":  "/assets/emojis/huge_boss_venom_scorpion.svg"
+    },
+    {
+        "name":  "huge_boss_hydra_serpent",
+        "src":  "/assets/emojis/huge_boss_hydra_serpent.svg"
+    },
+    {
+        "name":  "rarity_h",
+        "src":  "/assets/emojis/rarity_h.svg"
     }
 ]

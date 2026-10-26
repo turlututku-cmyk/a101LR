@@ -230,6 +230,8 @@ const RARITIES = [
     { id: "special", code: "S", label: "Special", weight: 0, secret: true },
     // Boss pets only drop from boss kills (5% top damager, 3% second, 1% third) and are made by staff with /pet add ... | boss
     { id: "boss", code: "B", label: "Boss", weight: 0, secret: true },
+    // Huge pets are made by fusing three different Gem, Crystal or Boss pets: a bigger version of one of them with better stats
+    { id: "huge", code: "H", label: "Huge", weight: 0, secret: true },
 ];
 const BOSS_PET_CHANCES = [0.05, 0.03, 0.01];
 const WILD_MAX_TIER = 6; // wild teams go up to Crystal
@@ -255,26 +257,34 @@ const customPets = () => ANIMALS.filter((a) => a.rarity === "special" || a.rarit
 // the first Special pets, always there (staff add more with /pet add)
 // The bosses ARE the Boss pets: the built-in ones below plus every Boss pet staff add. A boss that is beaten can drop its own pet (5% / 3% / 1% for the top three damagers).
 const DEFAULT_BOSS_PETS = [
-    ["elder_dragon", "Elder Dragon", "burn", 90, 35],
-    ["crystal_titan", "Crystal Titan", "stun", 85, 38],
-    ["emerald_lion_king", "Emerald Lion King", "stun", 95, 32],
-    ["ancient_trex", "Ancient T-Rex", "crit", 100, 30],
-    ["abyss_shark", "Abyss Shark", "lifesteal", 90, 34],
-    ["storm_eagle", "Storm Eagle", "dodge", 80, 40],
-    ["kraken", "Kraken", "lifesteal", 92, 33],
-    ["void_bat", "Void Bat", "dodge", 88, 36],
-    ["magma_golem", "Magma Golem", "shield", 96, 31],
-    ["frost_wolf", "Frost Wolf", "crit", 84, 39],
-    ["venom_scorpion", "Venom Scorpion", "thorns", 98, 30],
-    ["hydra_serpent", "Hydra Serpent", "burn", 86, 37],
-].map(([slug, name, ability, atk, def]) => ({ id: `bp_${slug}`, name, emoji: `:boss_${slug}:`, ability, rarity: "boss", by: "a101", bossAtk: atk, bossDef: def }));
+    ["elder_dragon", "Elder Dragon", "burn", 90, 35, "atk"],
+    ["crystal_titan", "Crystal Titan", "stun", 85, 38, "hp"],
+    ["emerald_lion_king", "Emerald Lion King", "stun", 95, 32, "atk"],
+    ["ancient_trex", "Ancient T-Rex", "crit", 100, 30, "atk"],
+    ["abyss_shark", "Abyss Shark", "lifesteal", 90, 34, "atk"],
+    ["storm_eagle", "Storm Eagle", "dodge", 80, 40, "def"],
+    ["kraken", "Kraken", "lifesteal", 92, 33, "hp"],
+    ["void_bat", "Void Bat", "dodge", 88, 36, "def"],
+    ["magma_golem", "Magma Golem", "shield", 96, 31, "hp"],
+    ["frost_wolf", "Frost Wolf", "crit", 84, 39, "def"],
+    ["venom_scorpion", "Venom Scorpion", "thorns", 98, 30, "def"],
+    ["hydra_serpent", "Hydra Serpent", "burn", 86, 37, "hp"],
+].map(([slug, name, ability, atk, def, stat]) => ({ id: `bp_${slug}`, name, emoji: `:boss_${slug}:`, ability, rarity: "boss", by: "a101", bossAtk: atk, bossDef: def, bonusStat: stat }));
+// Boss pets are the only ones with a maxed stat: a flat bonus on top of the level scaling, different for every boss
+const BOSS_BONUS = { hp: 300, atk: 50, def: 50 };
+// staff-made Boss pets get the stat that fits their ability unless the staff pick one
+const BOSS_STAT_BY_ABILITY = { burn: "atk", crit: "atk", dodge: "def", thorns: "def", stun: "hp", lifesteal: "hp", shield: "hp", heal: "hp" };
+const HUGE_MULT = 1.6;
+const HUGE_SOURCES = ["gem", "crystal", "boss"];
+const bossStatOf = (animal) => (animal.rarity === "boss" || (animal.rarity === "huge" && animal.baseRarity === "boss") ? animal.bonusStat || BOSS_STAT_BY_ABILITY[animal.ability] || "hp" : null);
+const BOSS_STAT_LABEL = { hp: "HP", atk: "ATK", def: "DEF" };
 const DEFAULT_SPECIALS = [
     { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
     { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
 ];
 const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked", "best"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
-const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000, boss: 1500 };
+const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000, boss: 1500, huge: 4000 };
 const COIN_PRICE_X = 3;
 // fusing: this many spare (duplicate) animals of a tier make one random animal of the next tier
 const FUSE_COST = { common: 5, uncommon: 5, rare: 5, epic: 5, legendary: 8, gem: 10, crystal: 12 };
@@ -319,7 +329,7 @@ const ABILITIES = {
 };
 const ANIMAL_ABILITY = { bear: "thorns", lion: "stun", tiger: "crit", elephant: "shield", giraffe: "dodge", gorilla: "stun", crocodile: "lifesteal", shark: "crit", eagle: "dodge", dragon: "burn", unicorn: "heal", trex: "crit" };
 const abilityOf = (animal) => {
-    if (animal.rarity === "special" || animal.rarity === "boss") return animal.ability || null;
+    if (animal.rarity === "special" || animal.rarity === "boss" || animal.rarity === "huge") return animal.ability || null;
     const base = animal.id.replace(/^(gem|crystal)_/, "");
     if (animal.rarity === "gem" || animal.rarity === "crystal") return ANIMAL_ABILITY[base] || (animal.rarity === "gem" ? "crit" : "stun");
     return ANIMAL_ABILITY[base] || null;
@@ -2131,7 +2141,7 @@ export class ChatRoom extends DurableObject {
             // staff only and not in the command list: /pet add Name | emoji | ability, /pet remove Name, /pet give @user | Name | count, /pet list
             if (!MODERATORS.includes(roleOf(username))) return;
             await this.loadSpecials();
-            const usage = `Special pets (custom pets made by staff):\n/pet add Name | :custom_emoji: or a normal emoji | ability (${Object.keys(ABILITIES).join(", ")}) | boss (add "boss" to make it a Boss pet)\n/pet remove Name\n/pet give @user | Name | count | level (any pet, level 1 to 50)\n/pet list`;
+            const usage = `Special pets (custom pets made by staff):\n/pet add Name | :custom_emoji: or a normal emoji | ability (${Object.keys(ABILITIES).join(", ")}) | boss (add "boss" to make it a Boss pet) | hp, atk or def (the stat a Boss pet has maxed)\n/pet remove Name\n/pet give @user | Name | count | level (any pet, level 1 to 50)\n/pet list`;
             const sub = (args.split(/\s+/)[0] || "").toLowerCase();
             const rest = args.slice(sub.length).trim();
             const list = (await this.ctx.storage.get("zpets")) || [];
@@ -2144,7 +2154,9 @@ export class ChatRoom extends DurableObject {
                 return say(`\u{1F49D} Special and Boss pets (${all.length}):\n${all.map((p) => `${p.emoji} ${p.name}${p.ability ? ` [${ABILITIES[p.ability].name}]` : ""}${p.rarity === "boss" ? " (Boss)" : ""} - added by ${p.by}`).join("\n")}`);
             }
             if (sub === "add") {
-                const [petName, art, abilityWord, kindWord] = rest.split("|").map((x) => x.trim());
+                const [petName, art, abilityWord, kindWord, statWord] = rest.split("|").map((x) => x.trim());
+                const bonusStat = ["hp", "atk", "def"].includes(String(statWord || "").toLowerCase()) ? String(statWord).toLowerCase() : null;
+                if (statWord && !bonusStat) return say("The maxed stat is hp, atk or def, like: /pet add Name | :emoji: | dodge | boss | def");
                 const tierId = String(kindWord || "").toLowerCase() === "boss" ? "boss" : "special";
                 if (!/^[A-Za-z0-9][A-Za-z0-9 '-]{1,19}$/.test(petName || "")) return say("A pet name is 2 to 20 letters, numbers or spaces.\n" + usage);
                 if (ANIMALS.some((a) => a.name.toLowerCase() === petName.toLowerCase())) return say(`There is already an animal called ${petName}.`);
@@ -2163,10 +2175,10 @@ export class ChatRoom extends DurableObject {
                 if (ability && !ABILITIES[ability]) return say(`Unknown ability. Choose from: ${Object.keys(ABILITIES).join(", ")}`);
                 let id = `sp_${petName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
                 while (list.some((p) => p.id === id)) id += "x";
-                list.push({ id, name: petName, emoji: art, ability: ability || null, rarity: tierId, by: username, time: Date.now() });
+                list.push({ id, name: petName, emoji: art, ability: ability || null, rarity: tierId, bonusStat: tierId === "boss" ? bonusStat || BOSS_STAT_BY_ABILITY[ability] || "hp" : null, by: username, time: Date.now() });
                 await save();
                 return say(tierId === "boss"
-                    ? `\u{1F479} New Boss pet: ${art} ${petName}${ability ? ` [${ABILITIES[ability].name}]` : ""}. It can only drop from boss kills: 5% for the top damager, 3% for second, 1% for third.`
+                    ? `\u{1F479} New Boss pet: ${art} ${petName}${ability ? ` [${ABILITIES[ability].name}]` : ""}. It can only drop from boss kills: 5% for the top damager, 3% for second, 1% for third. Its maxed stat: +${BOSS_BONUS[bonusStat || BOSS_STAT_BY_ABILITY[ability] || "hp"]} ${BOSS_STAT_LABEL[bonusStat || BOSS_STAT_BY_ABILITY[ability] || "hp"]}.`
                     : `\u{1F49D} New Special pet: ${art} ${petName}${ability ? ` [${ABILITIES[ability].name}]` : ""}. Boss winners, 14 day streaks and /fuse crystal can now give it out.`);
             }
             if (sub === "remove") {
@@ -2492,7 +2504,27 @@ export class ChatRoom extends DurableObject {
         if (this.specialsAt && Date.now() - this.specialsAt < 5000) return;
         const list = [...DEFAULT_SPECIALS, ...DEFAULT_BOSS_PETS, ...((await this.ctx.storage.get("zpets")) || [])];
         for (let i = ANIMALS.length - 1; i >= 0; i--) if (ANIMALS[i].rarity === "special" || ANIMALS[i].rarity === "boss") ANIMALS.splice(i, 1);
-        for (const p of list) ANIMALS.push({ id: p.id, emoji: p.emoji, plain: p.emoji, name: p.name, rarity: p.rarity === "boss" ? "boss" : "special", ability: p.ability || null, custom: true, by: p.by, bossAtk: p.bossAtk, bossDef: p.bossDef });
+        for (const p of list) ANIMALS.push({ id: p.id, emoji: p.emoji, plain: p.emoji, name: p.name, rarity: p.rarity === "boss" ? "boss" : "special", ability: p.ability || null, custom: true, by: p.by, bossAtk: p.bossAtk, bossDef: p.bossDef, bonusStat: p.bonusStat });
+        // a Huge version of every Gem, Crystal and Boss pet (the built-in ones have their own art, staff-made ones reuse theirs)
+        for (let i = ANIMALS.length - 1; i >= 0; i--) if (ANIMALS[i].rarity === "huge") ANIMALS.splice(i, 1);
+        const builtInArt = new Set(DEFAULT_BOSS_PETS.map((p) => p.id));
+        for (const a of ANIMALS.slice()) {
+            if (!HUGE_SOURCES.includes(a.rarity)) continue;
+            const token = a.emoji.startsWith(":");
+            const hasArt = token && (!a.custom || builtInArt.has(a.id));
+            ANIMALS.push({
+                id: `huge_${a.id}`,
+                emoji: hasArt ? `:huge_${a.emoji.slice(1, -1)}:` : a.emoji,
+                plain: a.emoji,
+                name: `Huge ${a.name}`,
+                rarity: "huge",
+                baseRarity: a.rarity,
+                ability: abilityOf(a),
+                bonusStat: bossStatOf(a),
+                custom: true,
+                by: a.by,
+            });
+        }
         this.specialsAt = Date.now();
     }
 
@@ -2501,9 +2533,13 @@ export class ChatRoom extends DurableObject {
     }
 
     petStats(animal, level) {
-        const [hp, atk, def] = TIER_STATS[animal.rarity];
+        const huge = animal.rarity === "huge";
+        const [hp, atk, def] = TIER_STATS[huge ? animal.baseRarity : animal.rarity].map((v) => (huge ? v * HUGE_MULT : v));
         const k = 1 + 0.1 * (level - 1);
-        return { hp: Math.round(hp * k), atk: Math.round(atk * k), def: Math.round(def * k) };
+        const stats = { hp: Math.round(hp * k), atk: Math.round(atk * k), def: Math.round(def * k) };
+        const bonus = bossStatOf(animal);
+        if (bonus) stats[bonus] += BOSS_BONUS[bonus] * (huge ? 2 : 1);
+        return stats;
     }
 
     /** The saved team (or the best three animals you own when none is set). */
@@ -2870,10 +2906,30 @@ export class ChatRoom extends DurableObject {
             return say(`\u{1F4B0} ${username} sold ${what} for ${coins} coins. Coins: ${user.zooCoins}`);
         }
 
+        if (name === "fuse" && /^huge\b/i.test(args.trim())) {
+            // /fuse huge Gem Fox | Gem Wolf | Gem Deer: three different Gem, Crystal or Boss pets of the same rarity become a Huge version of the first one
+            const names = args.trim().slice(4).split(/[|,]/).map((x) => x.trim()).filter(Boolean);
+            const usage = `Fuse three different Gem, Crystal or Boss pets of the same rarity into a Huge version of the first one (the other two are used up, and Huge pets are 1.6x stronger):\n/fuse huge Gem Fox | Gem Wolf | Gem Deer`;
+            if (names.length !== 3) return say(usage);
+            const picks = names.map((n) => ANIMALS.find((a) => a.name.toLowerCase() === n.toLowerCase()));
+            if (picks.some((p) => !p)) return say(`I don't know "${names[picks.findIndex((p) => !p)].slice(0, 30)}".\n${usage}`);
+            if (new Set(picks.map((p) => p.id)).size !== 3) return say("The three pets must all be different.");
+            if (!picks.every((p) => HUGE_SOURCES.includes(p.rarity) && p.rarity === picks[0].rarity)) return say("All three must be Gem pets, or all Crystal pets, or all Boss pets.");
+            const missing = picks.find((p) => !(user.zoo[p.id] > 0));
+            if (missing) return say(`You don't own ${missing.name}.`);
+            const result = ANIMALS.find((a) => a.id === `huge_${picks[0].id}`);
+            if (!result) return say("That pet cannot become Huge.");
+            for (const p of picks) user.zoo[p.id] -= 1;
+            const got = this.catchAnimal(user, result);
+            await this.ctx.storage.put(userKey, user);
+            const st = this.petStats(result, this.petLevel((user.zooXp || {})[result.id]));
+            return say(`\u{1F52E} ${username} fuses ${picks.map((p) => p.emoji).join(" ")} into a ${got.text}!${got.notes}\nIt has HP ${st.hp} ATK ${st.atk} DEF ${st.def} at its level${abilityOf(result) ? ` [${ABILITIES[abilityOf(result)].name}]` : ""}. The other two pets were used up.`);
+        }
+
         if (name === "fuse") {
             const word = args.toLowerCase().trim();
             const idx = RARITIES.findIndex((r) => r.id === word || r.code.toLowerCase() === word);
-            const usage = `Fuse spare animals of one tier into a random animal of the next tier: /fuse <tier>\n${RARITIES.map((r, i) => (FUSE_COST[r.id] ? `:rarity_${r.code.toLowerCase()}: ${FUSE_COST[r.id]} spare ${r.label} → :rarity_${RARITIES[i + 1].code.toLowerCase()}:` : "")).filter(Boolean).join("\n")}`;
+            const usage = `Fuse spare animals of one tier into a random animal of the next tier: /fuse <tier>\nOr make a HUGE pet from three different Gem, Crystal or Boss pets: /fuse huge Gem Fox | Gem Wolf | Gem Deer\n${RARITIES.map((r, i) => (FUSE_COST[r.id] ? `:rarity_${r.code.toLowerCase()}: ${FUSE_COST[r.id]} spare ${r.label} → :rarity_${RARITIES[i + 1].code.toLowerCase()}:` : "")).filter(Boolean).join("\n")}`;
             if (idx < 0 || !FUSE_COST[RARITIES[idx].id]) return say(usage);
             const tier = RARITIES[idx];
             const need = FUSE_COST[tier.id];
@@ -2897,7 +2953,8 @@ export class ChatRoom extends DurableObject {
             const lvl = this.petLevel(xp[a.id]);
             const st = this.petStats(a, lvl);
             const ab = abilityOf(a);
-            return `L. ${lvl} ${a.emoji} ${a.name} - HP ${st.hp} ATK ${st.atk} DEF ${st.def}${ab ? ` [${ABILITIES[ab].name}]` : ""}`;
+            const maxed = bossStatOf(a);
+            return `L. ${lvl} ${a.emoji} ${a.name} - HP ${st.hp} ATK ${st.atk} DEF ${st.def}${ab ? ` [${ABILITIES[ab].name}]` : ""}${maxed ? ` (+${BOSS_BONUS[maxed] * (a.rarity === "huge" ? 2 : 1)} ${BOSS_STAT_LABEL[maxed]})` : ""}`;
         };
 
         if (name === "team") {
@@ -3746,7 +3803,7 @@ export class ChatRoom extends DurableObject {
             animals: ANIMALS.map((a) => {
                 const token = a.emoji.startsWith(":");
                 const art = a.custom ? { emoji: "", glyph: token ? "" : a.emoji, src: token ? resolveArt(a.emoji) : "" } : { emoji: a.emoji.slice(1, -1), glyph: "", src: "" };
-                return { id: a.id, name: a.name, rarity: a.rarity, ...art, by: a.by || "", ability: abilityOf(a), stats: TIER_STATS[a.rarity] };
+                return { id: a.id, name: a.name, rarity: a.rarity, ...art, by: a.by || "", ability: abilityOf(a), stats: (a.rarity === "huge" ? TIER_STATS[a.baseRarity].map((v) => Math.round(v * HUGE_MULT)) : TIER_STATS[a.rarity]), bonus: bossStatOf(a) ? { stat: bossStatOf(a), amount: BOSS_BONUS[bossStatOf(a)] * (a.rarity === "huge" ? 2 : 1) } : null };
             }),
             abilities: ABILITIES,
             items: ZOO_ITEMS,

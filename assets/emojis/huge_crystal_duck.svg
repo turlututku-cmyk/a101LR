@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="huge-aura"><stop offset="0.45" stop-color="#fff3b0" stop-opacity="0.95"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+    <linearGradient id="huge-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6ec7"/><stop offset="0.5" stop-color="#ffd54a"/><stop offset="1" stop-color="#4de1ff"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31.5" fill="url(#huge-aura)"/>
+  <circle cx="32" cy="32" r="29.5" fill="none" stroke="url(#huge-ring)" stroke-width="2.4"/>
+  <g transform="translate(-5.76 -4.5) scale(1.18)">
+  <defs>
+    <filter id="gem" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feColorMatrix in="SourceGraphic" type="saturate" values="0" result="gray"/>
+      <feComponentTransfer in="gray" result="tint">
+        <feFuncR type="table" tableValues="0.45 0.85 1"/>
+        <feFuncG type="table" tableValues="0.35 0.7 0.95"/>
+        <feFuncB type="table" tableValues="0.9 1 1"/>
+      </feComponentTransfer>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.3" result="blur"/>
+      <feSpecularLighting in="blur" surfaceScale="5" specularConstant="1.2" specularExponent="24" lighting-color="#ffffff" result="spec">
+        <fePointLight x="14" y="6" z="45"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="glowA"/>
+      <feFlood flood-color="#b388ff" flood-opacity="0.85"/>
+      <feComposite in2="glowA" operator="in" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="tint"/><feMergeNode in="specIn"/></feMerge>
+    </filter>
+  </defs>
+  <text x="32" y="50" text-anchor="middle" font-size="46" filter="url(#gem)" font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">🦆</text>
+  <path d="M54 4 l1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 4 -1.5 z" fill="#fff"/>
+</g>
+  <path d="M22 5 l3 5 4 -6 3 6 3 -6 4 6 3 -5 -2 8 h-16 z" fill="#ffd166" stroke="#7a3b00" stroke-width="1"/>
+  <path d="M6 44 l1.4 3.4 3.4 1.4 -3.4 1.4 -1.4 3.4 -1.4 -3.4 -3.4 -1.4 3.4 -1.4 z M56 20 l1 2.4 2.4 1 -2.4 1 -1 2.4 -1 -2.4 -2.4 -1 2.4 -1 z" fill="#ffffff"/>
+</svg>
