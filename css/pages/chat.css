@@ -2951,3 +2951,148 @@
     display: inline-block;
     animation: dc-shake 0.35s ease-in-out infinite;
 }
+
+/* boss fight animation: the boss sways, gets slashed, shakes, the damage floats up and the HP bar drains */
+.page-chat .dc-anim.anim-boss {
+    display: block;
+    padding: 0.7rem 1rem 0.6rem;
+    background-color: #2b2d31;
+    border-left: 4px solid #f23f42;
+}
+.page-chat .dc-boss-anim {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    width: 15rem;
+    max-width: 100%;
+}
+.page-chat .dc-boss-stage {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 8rem;
+    height: 6.5rem;
+    animation: dc-boss-idle 0.5s ease-in-out infinite alternate;
+    transform-origin: bottom center;
+}
+.page-chat .dc-boss-img {
+    width: 5.8rem;
+    height: 5.8rem;
+    object-fit: contain;
+    transform-origin: bottom center;
+    animation: dc-boss-hurt 0.7s 0.75s ease-out 1;
+}
+.page-chat .dc-boss-glyph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+}
+.page-chat .dc-boss-anim.defeated .dc-boss-img {
+    animation: dc-boss-hurt 0.7s 0.75s ease-out 1, dc-boss-die 1.2s 2.1s ease-in forwards;
+}
+.page-chat .dc-boss-slash {
+    position: absolute;
+    left: -8%;
+    top: 45%;
+    width: 116%;
+    height: 0.3rem;
+    border-radius: 0.3rem;
+    background: linear-gradient(90deg, transparent, #fff, #ffd166, transparent);
+    box-shadow: 0 0 10px #fff;
+    opacity: 0;
+    transform: rotate(-35deg) scaleX(0);
+    animation: dc-boss-slash 0.4s 0.5s ease-out forwards;
+}
+.page-chat .dc-boss-hit {
+    position: absolute;
+    left: 50%;
+    top: 30%;
+    font-size: 2.6rem;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+    animation: dc-boss-pop 0.5s 0.7s ease-out forwards;
+}
+.page-chat .dc-boss-dmg {
+    position: absolute;
+    right: -0.3rem;
+    top: 0;
+    color: #ff5a5a;
+    font-size: 1.5rem;
+    font-weight: 900;
+    text-shadow: 0 2px 0 #1e1f22, 0 0 8px rgba(242, 63, 66, 0.8);
+    opacity: 0;
+    animation: dc-boss-dmg 1.4s 0.85s ease-out forwards;
+}
+.page-chat .dc-boss-anim.big .dc-boss-dmg {
+    font-size: 2.1rem;
+    color: #ffb300;
+}
+.page-chat .dc-boss-bar {
+    width: 100%;
+    height: 0.75rem;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background-color: #1e1f22;
+}
+.page-chat .dc-boss-bar span {
+    display: block;
+    width: var(--from, 100%);
+    height: 100%;
+    border-radius: 0.5rem;
+    background: linear-gradient(90deg, #f23f42, #f0b232);
+    animation: dc-boss-drain 1.2s 0.95s ease-in-out forwards;
+}
+.page-chat .dc-boss-confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.page-chat .dc-boss-confetti i {
+    position: absolute;
+    bottom: 40%;
+    font-style: normal;
+    font-size: 1.2rem;
+    opacity: 0;
+    animation: dc-boss-confetti 1.8s ease-out forwards;
+}
+@keyframes dc-boss-idle {
+    from { transform: translateY(0) scaleY(1); }
+    to { transform: translateY(-4px) scaleY(1.04); }
+}
+@keyframes dc-boss-hurt {
+    0%, 100% { transform: translateX(0); filter: none; }
+    15% { transform: translateX(-9px) rotate(-4deg); filter: brightness(2.2) drop-shadow(0 0 8px #f23f42); }
+    35% { transform: translateX(9px) rotate(4deg); filter: brightness(1.8) drop-shadow(0 0 8px #f23f42); }
+    55% { transform: translateX(-6px); filter: brightness(1.4); }
+    75% { transform: translateX(4px); filter: none; }
+}
+@keyframes dc-boss-die {
+    0% { transform: rotate(0) translateY(0); opacity: 1; filter: none; }
+    60% { transform: rotate(-18deg) translateY(10px); opacity: 0.8; filter: grayscale(1); }
+    100% { transform: rotate(-35deg) translateY(30px); opacity: 0; filter: grayscale(1); }
+}
+@keyframes dc-boss-slash {
+    0% { opacity: 1; transform: rotate(-35deg) scaleX(0); }
+    60% { opacity: 1; transform: rotate(-35deg) scaleX(1); }
+    100% { opacity: 0; transform: rotate(-35deg) scaleX(1); }
+}
+@keyframes dc-boss-pop {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.2); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.9); }
+}
+@keyframes dc-boss-dmg {
+    0% { opacity: 0; transform: translateY(14px) scale(0.6); }
+    20% { opacity: 1; transform: translateY(-4px) scale(1.3); }
+    100% { opacity: 0; transform: translateY(-40px) scale(1); }
+}
+@keyframes dc-boss-drain {
+    to { width: var(--to, 0%); }
+}
+@keyframes dc-boss-confetti {
+    0% { opacity: 1; transform: translate(0, 0) scale(0.6); }
+    100% { opacity: 0; transform: translate(var(--dx, 0), -90px) scale(1.3) rotate(240deg); }
+}

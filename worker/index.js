@@ -218,6 +218,11 @@ const ANIMALS = [
     ...BASE_ANIMALS.map((a) => ({ id: `crystal_${a.id}`, emoji: `:crystal_${a.id}:`, plain: `\u{1F52E}${a.plain}`, name: `Crystal ${a.name}`, rarity: "crystal" })),
 ];
 const specialPets = () => ANIMALS.filter((a) => a.rarity === "special");
+// the first Special pets, always there (staff add more with /pet add)
+const DEFAULT_SPECIALS = [
+    { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
+    { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
+];
 const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
 const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000 };
@@ -1905,13 +1910,14 @@ export class ChatRoom extends DurableObject {
                 this.specialsAt = 0;
             };
             if (sub === "list") {
-                return say(list.length ? `\u{1F49D} Special pets (${list.length}):\n${list.map((p) => `${p.emoji} ${p.name}${p.ability ? ` [${ABILITIES[p.ability].name}]` : ""} - added by ${p.by}`).join("\n")}` : "No Special pets yet. " + usage);
+                const all = [...DEFAULT_SPECIALS, ...list];
+                return say(`\u{1F49D} Special pets (${all.length}):\n${all.map((p) => `${p.emoji} ${p.name}${p.ability ? ` [${ABILITIES[p.ability].name}]` : ""} - added by ${p.by}`).join("\n")}`);
             }
             if (sub === "add") {
                 const [petName, art, abilityWord] = rest.split("|").map((x) => x.trim());
                 if (!/^[A-Za-z0-9][A-Za-z0-9 '-]{1,19}$/.test(petName || "")) return say("A pet name is 2 to 20 letters, numbers or spaces.\n" + usage);
                 if (ANIMALS.some((a) => a.name.toLowerCase() === petName.toLowerCase())) return say(`There is already an animal called ${petName}.`);
-                if (list.length >= 40) return say("There can be at most 40 Special pets.");
+                if (list.length >= 39) return say("There can be at most 40 Special pets.");
                 if (!art) return say("Give the pet an emoji.\n" + usage);
                 if (art.startsWith(":")) {
                     if (!/^:[a-z0-9_]{2,24}:$/.test(art)) return say("A custom emoji looks like :my_emoji:");
@@ -1931,6 +1937,7 @@ export class ChatRoom extends DurableObject {
                 return say(`\u{1F49D} New Special pet: ${art} ${petName}${ability ? ` [${ABILITIES[ability].name}]` : ""}. Boss winners, 14 day streaks and /fuse crystal can now give it out.`);
             }
             if (sub === "remove") {
+                if (DEFAULT_SPECIALS.some((p) => p.name.toLowerCase() === rest.toLowerCase())) return say(`${rest} is a built-in Special pet and can't be removed.`);
                 const index = list.findIndex((p) => p.name.toLowerCase() === rest.toLowerCase());
                 if (index < 0) return say(`There is no Special pet called "${rest.slice(0, 30)}".`);
                 const [gone] = list.splice(index, 1);
@@ -2181,7 +2188,7 @@ export class ChatRoom extends DurableObject {
     /** Loads the staff-made Special pets into ANIMALS (they are saved under "zpets"). */
     async loadSpecials() {
         if (this.specialsAt && Date.now() - this.specialsAt < 5000) return;
-        const list = (await this.ctx.storage.get("zpets")) || [];
+        const list = [...DEFAULT_SPECIALS, ...((await this.ctx.storage.get("zpets")) || [])];
         for (let i = ANIMALS.length - 1; i >= 0; i--) if (ANIMALS[i].rarity === "special") ANIMALS.splice(i, 1);
         for (const p of list) ANIMALS.push({ id: p.id, emoji: p.emoji, plain: p.emoji, name: p.name, rarity: "special", ability: p.ability || null, custom: true, by: p.by });
         this.specialsAt = Date.now();

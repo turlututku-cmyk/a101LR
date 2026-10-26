@@ -501,8 +501,22 @@ export default {
                                         <input v-if="editingId === m.id" ref="editInput" class="dc-edit-input" type="text" v-model="editText" :maxlength="maxText" @keydown.enter.prevent="saveEdit(m)" @keydown.esc="editingId = 0">
                                         <small v-if="editingId === m.id" class="dc-edit-hint">escape to cancel &middot; enter to save</small>
                                         <div v-if="anims[m.id]" class="dc-anim" :class="'anim-' + anims[m.id].type">
-                                            <span class="dc-anim-glyph">{{ animGlyph(m) }}</span>
-                                            <small>{{ animLabel(anims[m.id].type) }}</small>
+                                            <div v-if="anims[m.id].type === 'boss'" class="dc-boss-anim" :class="{ defeated: anims[m.id].info.dead, big: anims[m.id].info.dealt >= 3000 }">
+                                                <div class="dc-boss-stage">
+                                                    <img v-if="bossArt(anims[m.id].info)" class="dc-boss-img" :src="bossArt(anims[m.id].info)" alt="">
+                                                    <span v-else class="dc-boss-img dc-boss-glyph">&#128121;</span>
+                                                    <span class="dc-boss-slash"></span>
+                                                    <span class="dc-boss-hit">&#128165;</span>
+                                                    <b class="dc-boss-dmg">-{{ anims[m.id].info.dealt }}</b>
+                                                    <span v-if="anims[m.id].info.dead" class="dc-boss-confetti"><i v-for="n in 14" :key="n" :style="bossConfettiStyle(n)">{{ bossConfetti(n) }}</i></span>
+                                                </div>
+                                                <div class="dc-boss-bar"><span :style="bossBarStyle(anims[m.id].info)"></span></div>
+                                                <small>{{ anims[m.id].info.title }} {{ anims[m.id].info.dead ? 'is defeated!' : 'takes a hit!' }} {{ anims[m.id].info.hp }}/{{ anims[m.id].info.max }} HP</small>
+                                            </div>
+                                            <template v-else>
+                                                <span class="dc-anim-glyph">{{ animGlyph(m) }}</span>
+                                                <small>{{ animLabel(anims[m.id].type) }}</small>
+                                            </template>
                                         </div>
                                         <div v-if="m.text && editingId !== m.id && !anims[m.id]" class="dc-msg-text" :class="{ 'dc-reveal': revealed[m.id] }"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
                                         <div v-if="m.duel" class="dc-duel" :class="m.duel.status">
@@ -1852,7 +1866,7 @@ export default {
                 return "";
             }
             const cmd = m.replyTo?.text || "";
-            if (m.name === "a101 Zoo") return text.startsWith("\u{1F3F9}") ? "hunt" : (text.startsWith("\u2694") || text.startsWith("\u{1F479}")) ? "battle" : "";
+            if (m.name === "a101 Zoo") return text.startsWith("\u{1F3F9}") ? "hunt" : text.startsWith("\u2694") ? "battle" : text.startsWith("\u{1F479}") ? (this.bossInfo(m) ? "boss" : "battle") : "";
             if (/^\/flip/i.test(cmd)) return "coin";
             if (/^\/roll/i.test(cmd)) return "dice";
             if (/^\/8ball/i.test(cmd)) return "ball";
@@ -1862,7 +1876,8 @@ export default {
             if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
             const type = this.animType(m);
             if (!type) return;
-            this.anims = { ...this.anims, [m.id]: { type } };
+            const info = type === "boss" ? this.bossInfo(m) : null;
+            this.anims = { ...this.anims, [m.id]: { type, info } };
             if (!this.animTimer) this.animTimer = setInterval(() => (this.animTick += 1), 90);
             setTimeout(() => {
                 const next = { ...this.anims };
@@ -1879,12 +1894,29 @@ export default {
                     this.revealed = r;
                 }, 900);
                 this.scrollDownIfNeeded();
-            }, 1500);
+            }, type === "boss" ? (info.dead ? 4300 : 2900) : 1500);
         },
+        /** Reads the boss, the damage and the HP out of a boss attack message. */
+        bossInfo(m) {
+            const text = m.text || "";
+            const who = /attacks (:[a-z0-9_]+:|\S+) (.+?)!/.exec(text);
+            const hit = /You dealt (\d+) damage! Boss HP (\d+)\/(\d+)/.exec(text);
+            if (!who || !hit) return null;
+            return { token: who[1], title: who[2], dealt: Number(hit[1]), hp: Number(hit[2]), max: Number(hit[3]), dead: text.includes("DEFEATED") };
+        },
+        bossArt(info) {
+            return info.token.startsWith(":") ? this.emojiMap[info.token.slice(1, -1)] || "" : "";
+        },
+        bossBarStyle(info) {
+            const pct = (hp) => Math.max(0, Math.min(100, Math.round((100 * hp) / info.max)));
+            return { "--from": `${pct(info.hp + info.dealt)}%`, "--to": `${pct(info.hp)}%` };
+        },
+        bossConfetti: (n) => ["\u{1F389}", "\u2728", "\u{1F3C6}"][n % 3],
+        bossConfettiStyle: (n) => ({ left: `${(n * 37) % 100}%`, "--dx": `${((n * 53) % 90) - 45}px`, animationDelay: `${2.2 + (n % 5) * 0.12}s` }),
         scrollDownIfNeeded() {
             if (this.atBottom) this.scrollDown();
         },
-        animLabel: (type) => ({ coin: "Flipping...", roulette: "The ball is rolling...", slots: "Spinning...", dice: "Rolling...", ball: "Shaking...", hunt: "Hunting...", battle: "Fighting..." }[type] || ""),
+        animLabel: (type) => ({ coin: "Flipping...", roulette: "The ball is rolling...", slots: "Spinning...", dice: "Rolling...", ball: "Shaking...", hunt: "Hunting...", battle: "Fighting...", boss: "Attacking the boss..." }[type] || ""),
         animGlyph(m) {
             const type = this.anims[m.id]?.type;
             const pick = (list, offset = 0) => list[Math.abs(this.animTick * 7 + m.id * 3 + offset * 5) % list.length];

@@ -522,5 +522,9 @@
     {
         "name":  "dancing_gorilla",
         "src":  "/assets/emojis/dancing_gorilla.png"
+    },
+    {
+        "name":  "pumpkin_cat",
+        "src":  "/assets/emojis/pumpkin_cat.png"
     }
 ]
