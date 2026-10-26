@@ -81,12 +81,13 @@ const BOT_MEMBERS = [
     { name: "a101 Bot", icon: "\u{1F916}", desc: "Level info, polls, dice and fun commands. Type / to see them." },
     { name: "a101 Casino", icon: "\u{1F3B0}", desc: "Play with your orbs in #casino: /cf, /roulette, /slots, /dice, /blackjack, /duel." },
     { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /daily, /sell, /fuse, /gems, /team, /battle and /zooboard. Full collection on the Zoo page." },
+    { name: "a101 Giveaways", icon: "\u{1F389}", desc: "Give orbs away with /giveaway 100 10m. Everyone can enter with a button." },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss"];
-const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : "");
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt"];
+const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : name === "a101 Giveaways" ? "gw" : "");
 const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
-const botOf = (name) => (CASINO_COMMANDS.includes(name) ? "a101 Casino" : ZOO_COMMANDS.includes(name) ? "a101 Zoo" : "a101 Bot");
+const botOf = (name) => (CASINO_COMMANDS.includes(name) ? "a101 Casino" : ZOO_COMMANDS.includes(name) ? "a101 Zoo" : name === "giveaway" ? "a101 Giveaways" : "a101 Bot");
 
 const UNICODE_EMOJI = {
     smileys: "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😍 🥰 😘 😋 😛 😜 🤪 🤗 🤔 🤨 😐 😑 😶 🙄 😏 😬 😮 😯 😲 🥱 😴 😪 😷 🤒 🤕 🤢 🤮 🥵 🥶 😵 🤯 🥳 😎 🤓 😕 😟 🙁 😢 😭 😤 😠 😡 🤬 😱 😨 😰 😥 😓 🥺 😳 🤐 🤫 🤭 🧐",
@@ -564,6 +565,16 @@ export default {
                                                 <b>{{ m.poll.votes[i].length }} &middot; {{ pollPct(m, i) }}%</b>
                                             </button>
                                             <small>{{ pollTotal(m) }} vote{{ pollTotal(m) === 1 ? '' : 's' }} &middot; {{ pollEnded(m) ? 'Poll ended' : 'Ends ' + stamp(m.poll.ends) }}</small>
+                                        </div>
+                                        <div v-if="m.giveaway" class="dc-gw" :class="m.giveaway.status">
+                                            <div class="dc-gw-title">&#127881; {{ m.giveaway.prize }} orbs<span v-if="m.giveaway.winners > 1"> for {{ m.giveaway.winners }} winners</span></div>
+                                            <small>Hosted by {{ m.giveaway.host }}<span v-if="m.giveaway.staff"> (staff)</span></small>
+                                            <template v-if="m.giveaway.status === 'open'">
+                                                <button type="button" class="dc-btn" :disabled="!username || m.giveaway.host.toLowerCase() === (username || '').toLowerCase()" @click="joinGiveaway(m)">{{ iEntered(m) ? 'Leave giveaway' : 'Enter giveaway' }}</button>
+                                                <small>{{ m.giveaway.entries.length }} entered &middot; ends {{ stamp(m.giveaway.ends) }}</small>
+                                            </template>
+                                            <small v-else-if="m.giveaway.status === 'done'">Ended &middot; {{ m.giveaway.picked.length ? 'won by ' + m.giveaway.picked.join(', ') + ' (' + m.giveaway.each + ' orbs each)' : 'nobody entered' }}</small>
+                                            <small v-else>Cancelled</small>
                                         </div>
                                         <div v-if="embedFor(m)" class="dc-embed">
                                             <div class="dc-embed-body">
@@ -1999,6 +2010,13 @@ export default {
             await this.post(`${API}/vote`, { ...this.target(), id: m.id, option: i });
             await this.poll();
         },
+        iEntered(m) {
+            return !!this.username && m.giveaway.entries.includes(this.username);
+        },
+        async joinGiveaway(m) {
+            await this.post(`${API}/giveaway`, { ...this.target(), id: m.id });
+            await this.poll();
+        },
         canEdit(m) {
             return !!this.username && !m.bot && m.name === this.username && Date.now() - m.time < 60 * 60 * 1000;
         },
@@ -2721,6 +2739,8 @@ export default {
                     fuse: "fuse spare animals into the next tier (in #zoo)",
                     zooboard: "zoo leaderboards (in #zoo)",
                     boss: "the shared boss: /boss, /boss attack (in #zoo)",
+                    autohunt: "hunt automatically while away: /autohunt start 20 (in #zoo)",
+                    giveaway: "give orbs away: /giveaway 100 10m [winners]",
                     roll: "roll dice, e.g. /roll 2d6",
                     flip: "flip a coin (no bet)",
                     "8ball": "ask the magic 8 ball",

@@ -182,11 +182,14 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
 // a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
 const CASINO_NAME = "a101 Casino";
 // a101 Zoo: /hunt costs 1 orb and catches a random animal. Only in #zoo.
 const ZOO_NAME = "a101 Zoo";
+// a101 Giveaways: /giveaway <orbs> <time> [winners]. Hosts put the orbs in up front (staff giveaways are free); winners are drawn when the time is up.
+const GIVEAWAY_NAME = "a101 Giveaways";
+const GIVEAWAY_MAX_WINNERS = 10;
 const HUNT_COST = 1;
 const RARITIES = [
     { id: "common", code: "C", label: "Common", weight: 620 },
@@ -223,7 +226,7 @@ const DEFAULT_SPECIALS = [
     { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
     { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss"];
+const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
 const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000 };
 const COIN_PRICE_X = 3;
@@ -231,6 +234,13 @@ const COIN_PRICE_X = 3;
 const FUSE_COST = { common: 5, uncommon: 5, rare: 5, epic: 5, legendary: 8, gem: 10, crystal: 12 };
 // every hour one of these tiers is 3x more likely
 const ZOO_EVENT_TIERS = ["uncommon", "rare", "epic", "legendary", "gem"];
+// every hunt has a small chance to turn up a gem (a part of its normal uses); Luck Gems raise the chance
+const GEM_DROP_CHANCE = 0.06;
+const GEM_DROP_TIERS = [62, 25, 9, 3.5, 0.5];
+const GEM_DROP_SHARE = 0.2;
+// /autohunt start <n> pays n orbs up front; one hunt then happens every 10 minutes (counted when you next use a zoo command)
+const AUTOHUNT_MS = 10 * 60 * 1000;
+const AUTOHUNT_MAX = 100;
 // a boss appears every 6 hours and everybody fights the same one (/boss attack, once every 2 minutes per player)
 const ZOO_BOSS_MS = 6 * 3600 * 1000;
 const ZOO_BOSS_COOLDOWN_MS = 2 * 60 * 1000;
@@ -605,6 +615,8 @@ export class ChatRoom extends DurableObject {
             return this.blackjackAction(request);
         } else if (post && pathname === "/api/chat/vote") {
             return this.vote(request);
+        } else if (post && pathname === "/api/chat/giveaway") {
+            return this.giveawayJoin(request);
         } else if (post && pathname === "/api/chat/edit") {
             return this.editMessage(request);
         } else if (post && pathname === "/api/chat/block") {
@@ -1412,7 +1424,7 @@ export class ChatRoom extends DurableObject {
         const message = messages.find((m) => m.id === Number(body.id));
         if (!message) return json({ error: "Message not found." }, 404);
         if (message.name.toLowerCase() === lower) return json({ error: "You can't report your own message." }, 400);
-        if (message.name === BOT_NAME || message.name === CASINO_NAME || message.name === ZOO_NAME) return json({ error: "That is a bot." }, 400);
+        if (message.name === BOT_NAME || message.name === CASINO_NAME || message.name === ZOO_NAME || message.name === GIVEAWAY_NAME) return json({ error: "That is a bot." }, 400);
 
         const reports = (await this.ctx.storage.get("reports")) || [];
         if (reports.some((r) => r.reporter === lower && r.key === target.key && r.msgId === message.id)) {
@@ -1579,6 +1591,118 @@ export class ChatRoom extends DurableObject {
         return json({ ok: true });
     }
 
+    // ---------- a101 Giveaways ----------
+
+    /** Draws (or cancels) a giveaway: pays the winners, refunds what is left to the host, and announces it. */
+    async drawGiveaway(key, id, cancel = false) {
+        const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
+        const message = messages.find((m) => m.id === id);
+        const gw = message?.giveaway;
+        if (!gw || gw.status !== "open") return null;
+        const pool = [...gw.entries];
+        const picked = [];
+        const count = cancel ? 0 : Math.min(gw.winners, pool.length);
+        while (picked.length < count) picked.push(pool.splice(crypto.getRandomValues(new Uint32Array(1))[0] % pool.length, 1)[0]);
+        const each = Math.floor(gw.prize / gw.winners);
+        const paid = each * picked.length;
+        gw.status = cancel ? "cancelled" : "done";
+        gw.picked = picked;
+        gw.each = each;
+        await this.ctx.storage.put(`m:${key}`, messages);
+        for (const name of picked) {
+            const winnerKey = `u:${name.toLowerCase()}`;
+            const winner = await this.ctx.storage.get(winnerKey);
+            if (!winner) continue;
+            this.addOrbs(winner, each, false);
+            await this.ctx.storage.put(winnerKey, winner);
+        }
+        // whatever was not paid out goes back to the host (staff giveaways were never paid for)
+        if (!gw.staff && gw.prize - paid > 0) {
+            const hostKey = `u:${gw.host.toLowerCase()}`;
+            const host = await this.ctx.storage.get(hostKey);
+            if (host) {
+                this.addOrbs(host, gw.prize - paid, false);
+                await this.ctx.storage.put(hostKey, host);
+            }
+        }
+        const text = cancel
+            ? `\u{1F6D1} ${gw.host}'s giveaway of ${gw.prize} orbs was cancelled.${gw.staff ? "" : " The orbs went back to the host."}`
+            : picked.length
+              ? `\u{1F389} Giveaway over! ${picked.join(", ")} won ${each} orbs${picked.length > 1 ? " each" : ""} from ${gw.host}. Congratulations!`
+              : `\u{1F389} Giveaway over, but nobody entered.${gw.staff ? "" : ` ${gw.host} got the ${gw.prize} orbs back.`}`;
+        await this.botMessage(key, { text }, { name: GIVEAWAY_NAME, replyTo: { id: message.id, name: gw.host, text: `${gw.prize} orbs giveaway` }, mentions: picked });
+        await this.bumpVersion(key);
+        return gw;
+    }
+
+    async settleGiveaways(key) {
+        const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
+        for (const m of messages) {
+            if (m.giveaway?.status === "open" && m.giveaway.ends <= Date.now()) await this.drawGiveaway(key, m.id);
+        }
+    }
+
+    async runGiveaway(username, target, args, say) {
+        const lower = username.toLowerCase();
+        const staff = MODERATORS.includes(roleOf(username));
+        const words = args.split(/\s+/).filter(Boolean);
+        const sub = (words[0] || "").toLowerCase();
+        const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        const open = messages.filter((m) => m.giveaway?.status === "open");
+        if (sub === "end" || sub === "cancel") {
+            const found = open.filter((m) => staff || m.giveaway.host.toLowerCase() === lower).pop();
+            if (!found) return say("You have no open giveaway here.");
+            await this.drawGiveaway(target.key, found.id, sub === "cancel");
+            return;
+        }
+        const usage = `Start a giveaway: /giveaway <orbs> <time> [winners]. Example: /giveaway 100 10m 2\nTime is like 30s, 10m or 2h (30 seconds to 24 hours). The orbs are taken from you now and ${GIVEAWAY_MAX_WINNERS} winners at most share them. /giveaway end draws early, /giveaway cancel refunds.`;
+        const prize = Math.round(Number(words[0]));
+        const time = /^(\d+)([smh])$/i.exec(words[1] || "");
+        const winners = words[2] ? Math.round(Number(words[2])) : 1;
+        if (!(prize >= 1) || !time) return say(usage);
+        const duration = Number(time[1]) * { s: 1000, m: 60000, h: 3600000 }[time[2].toLowerCase()];
+        if (duration < 30 * 1000 || duration > 24 * 3600 * 1000) return say("A giveaway lasts between 30 seconds and 24 hours.");
+        if (!(winners >= 1 && winners <= GIVEAWAY_MAX_WINNERS)) return say(`Pick 1 to ${GIVEAWAY_MAX_WINNERS} winners.`);
+        if (prize < winners) return say("Every winner needs at least 1 orb.");
+        const min = staff ? 1 : 10;
+        const max = staff ? 100000 : 1000;
+        if (prize < min || prize > max) return say(`A giveaway is ${min} to ${max} orbs.`);
+        if (open.some((m) => m.giveaway.host.toLowerCase() === lower)) return say("You already have an open giveaway here. End it with /giveaway end first.");
+        const userKey = `u:${lower}`;
+        const user = await this.ctx.storage.get(userKey);
+        if (!staff) {
+            if (Date.now() - (user.created || 0) < GIFT_MIN_AGE_MS) return say("New accounts can host giveaways after 10 minutes.");
+            if ((user.orbs || 0) < prize) return say(`You only have ${user.orbs || 0} orbs.`);
+            this.addOrbs(user, -prize, false);
+            await this.ctx.storage.put(userKey, user);
+        }
+        return say({
+            text: `\u{1F389} ${username} is giving away ${prize} orbs!`,
+            giveaway: { prize, host: username, staff, ends: Date.now() + duration, winners, entries: [], status: "open", picked: [] },
+        });
+    }
+
+    async giveawayJoin(request) {
+        const username = await this.sessionUser(request);
+        if (!username) return json({ error: "Log in to enter." }, 401);
+        if (this.hitLimit(this.reactHits, username.toLowerCase(), 10 * 1000, REACT_PER_10S)) return json({ error: "You're going too fast." }, 429);
+        const body = (await this.readBody(request)) || {};
+        const target = await this.resolveTarget(username, body, false);
+        if (target.error) return target.error;
+        await this.settleGiveaways(target.key);
+        const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        const gw = messages.find((m) => m.id === Number(body.id))?.giveaway;
+        if (!gw) return json({ error: "That giveaway doesn't exist." }, 404);
+        if (gw.status !== "open") return json({ error: "This giveaway has ended." }, 400);
+        if (gw.host.toLowerCase() === username.toLowerCase()) return json({ error: "You can't enter your own giveaway." }, 400);
+        const user = await this.ctx.storage.get(`u:${username.toLowerCase()}`);
+        if (Date.now() - (user.created || 0) < GIFT_MIN_AGE_MS) return json({ error: "New accounts can enter giveaways after 10 minutes." }, 403);
+        gw.entries = gw.entries.includes(username) ? gw.entries.filter((n) => n !== username) : [...gw.entries, username];
+        await this.ctx.storage.put(`m:${target.key}`, messages);
+        await this.bumpVersion(target.key);
+        return json({ ok: true, entered: gw.entries.includes(username) });
+    }
+
     async editMessage(request) {
         const username = await this.sessionUser(request);
         if (!username) return json({ error: "Log in first." }, 401);
@@ -1605,7 +1729,7 @@ export class ChatRoom extends DurableObject {
         if (!target.isDm) {
             const mentions = await this.findMentions(text, username);
             const replied = message.replyTo?.name;
-            if (replied && replied !== BOT_NAME && replied !== CASINO_NAME && replied !== ZOO_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
+            if (replied && replied !== BOT_NAME && replied !== CASINO_NAME && replied !== ZOO_NAME && replied !== GIVEAWAY_NAME && replied.toLowerCase() !== lower && !mentions.includes(replied)) mentions.push(replied);
             if (mentions.length) message.mentions = mentions;
             else delete message.mentions;
         }
@@ -1712,7 +1836,7 @@ export class ChatRoom extends DurableObject {
     async botMessage(key, content, extra = {}) {
         const messages = (await this.ctx.storage.get(`m:${key}`)) || [];
         const nextId = ((await this.ctx.storage.get(`n:${key}`)) || 0) + 1;
-        messages.push({ id: nextId, name: BOT_NAME, bot: true, text: content.text || "", time: Date.now(), ...(content.levelCard ? { levelCard: content.levelCard } : {}), ...(content.poll ? { poll: content.poll } : {}), ...extra });
+        messages.push({ id: nextId, name: BOT_NAME, bot: true, text: content.text || "", time: Date.now(), ...(content.levelCard ? { levelCard: content.levelCard } : {}), ...(content.poll ? { poll: content.poll } : {}), ...(content.giveaway ? { giveaway: content.giveaway } : {}), ...extra });
         const kept = messages.slice(-MAX_MESSAGES);
         const dropped = messages.slice(0, messages.length - kept.length);
         const writes = { [`m:${key}`]: kept, [`n:${key}`]: nextId };
@@ -1833,6 +1957,7 @@ export class ChatRoom extends DurableObject {
         const say = (content) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo });
         const casino = (content, extra = {}) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo, name: CASINO_NAME, ...extra });
         if (GAME_COMMANDS.includes(name)) return this.runGame(username, target, name, args, casino);
+        if (name === "giveaway") return this.runGiveaway(username, target, args, (content, extra = {}) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo, name: GIVEAWAY_NAME, ...extra }));
         if (ZOO_COMMANDS.includes(name)) return this.runZoo(username, target, name, args, (content, extra = {}) => this.botMessage(target.key, typeof content === "string" ? { text: content } : content, { replyTo, name: ZOO_NAME, ...extra }));
 
         if (name === "rules") return say(`Chat rules:\n${rulesText()}`);
@@ -2087,15 +2212,15 @@ export class ChatRoom extends DurableObject {
     }
 
     /** Spends the hunt cost (unless free), rolls the animals and returns { text } or { error }. */
-    rollHunt(username, user, free = false) {
+    rollHunt(username, user, free = false, quiet = false) {
         if (!free && (user.orbs || 0) < HUNT_COST) {
             return { error: `A hunt costs ${HUNT_COST} orb and you have ${user.orbs || 0}. Chat in other channels to earn more.` };
         }
         // gems: Hunting = extra animals, Heart = Gem animals more likely, Luck = every tier above Common more likely
         const gems = (user.gems = user.gems || {});
-        const hunt = activeGem(gems, "hunting");
-        const heart = activeGem(gems, "heart");
-        const luck = activeGem(gems, "luck");
+        const hunt = quiet ? null : activeGem(gems, "hunting");
+        const heart = quiet ? null : activeGem(gems, "heart");
+        const luck = quiet ? null : activeGem(gems, "luck");
         const event = this.zooEventTier();
         const weights = RARITIES.map(
             (r) => r.weight * (r.id === event ? 3 : 1) * (r.id === "gem" && heart ? heart.value : 1) * (r.id !== "common" && r.id !== "gem" && r.id !== "crystal" && luck ? 1 + luck.value / 100 : 1),
@@ -2117,6 +2242,25 @@ export class ChatRoom extends DurableObject {
         };
 
         if (!free) this.addOrbs(user, -HUNT_COST, false);
+        // a gem may turn up too
+        let found = "";
+        if (Math.random() < GEM_DROP_CHANCE * (luck ? 1 + luck.value / 100 : 1)) {
+            const types = Object.keys(GEMS);
+            const type = types[Math.floor(Math.random() * types.length)];
+            let roll = Math.random() * GEM_DROP_TIERS.reduce((n, w) => n + w, 0);
+            let tier = 0;
+            for (let t = 0; t < GEM_DROP_TIERS.length; t++) {
+                roll -= GEM_DROP_TIERS[t];
+                if (roll < 0) {
+                    tier = t;
+                    break;
+                }
+            }
+            const uses = Math.max(3, Math.round(GEMS[type].uses[tier] * GEM_DROP_SHARE));
+            const key = `${type}_${GEM_TIERS[tier]}`;
+            gems[key] = (gems[key] || 0) + uses;
+            found = `${gemIcon(type, tier)} ${RARITIES[tier].label} ${GEMS[type].name} (+${uses} uses)`;
+        }
         const results = Array.from({ length: 1 + (hunt ? hunt.value : 0) }, () => this.catchAnimal(user, draw()));
         for (const g of [hunt, heart, luck]) if (g) gems[g.key] -= 1;
 
@@ -2131,7 +2275,9 @@ export class ChatRoom extends DurableObject {
             ? `catches a ${results[0].text}!${results[0].notes}\nYou own ${user.zoo[results[0].id]} of them and `
             : `catches ${results.length} animals!\n${results.map((r) => `› ${r.text}${r.notes}`).join("\n")}\nYou have `;
         return {
-            text: `\u{1F3F9} ${username} goes hunting... ${head}${species}/${ANIMALS.length} species. Tiers: ${this.zooTiersLine(user)}. Balance: ${user.orbs}${gemNote ? ` (${gemNote})` : ""}\n\u{1F389} Event this hour: :rarity_${eventRarity.code.toLowerCase()}: ${eventRarity.label} animals are 3x more likely!`,
+            catches: results,
+            gemFound: found,
+            text: `\u{1F3F9} ${username} goes hunting... ${head}${species}/${ANIMALS.length} species. Tiers: ${this.zooTiersLine(user)}. Balance: ${user.orbs}${gemNote ? ` (${gemNote})` : ""}\n\u{1F389} Event this hour: :rarity_${eventRarity.code.toLowerCase()}: ${eventRarity.label} animals are 3x more likely!${found ? `\n\u{1F48E} You found a ${found}!` : ""}`,
         };
     }
 
@@ -2139,7 +2285,7 @@ export class ChatRoom extends DurableObject {
         if (target.key !== "zoo") return say("Your inventory is in #zoo. Head over there!");
         const userKey = `u:${username.toLowerCase()}`;
         const user = await this.ctx.storage.get(userKey);
-        await this.upgradeGems(userKey, user);
+        await this.syncUser(userKey, user);
         const zoo = user.zoo || {};
         const sup = (n) => String(n).replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d]);
         // one row per tier: the animals with how many you own (0 when none), hidden tiers stay "?" until you catch one
@@ -2166,11 +2312,39 @@ export class ChatRoom extends DurableObject {
 
         const userKey = `u:${lower}`;
         const user = await this.ctx.storage.get(userKey);
-        await this.upgradeGems(userKey, user);
+        await this.syncUser(userKey, user);
         const hunt = this.rollHunt(username, user);
         if (hunt.error) return say(hunt.error);
         await this.ctx.storage.put(userKey, user);
         return say(hunt.text);
+    }
+
+    /** Everything a zoo command must do to a freshly loaded user first. */
+    async syncUser(userKey, user) {
+        await this.upgradeGems(userKey, user);
+        if (this.settleAutohunt(user)) await this.ctx.storage.put(userKey, user);
+    }
+
+    /** Runs the autohunts that came due while the player was away (they were paid for up front). */
+    settleAutohunt(user) {
+        const auto = user.autohunt;
+        if (!auto || !(auto.left > 0)) return false;
+        const due = Math.min(auto.left, Math.floor((Date.now() - auto.last) / AUTOHUNT_MS));
+        if (due < 1) return false;
+        user.zoo = user.zoo || {};
+        const log = (user.autohuntLog = user.autohuntLog || { hunts: 0, caught: {}, notes: [] });
+        for (let n = 0; n < due; n++) {
+            const hunt = this.rollHunt("", user, true, true);
+            for (const c of hunt.catches) {
+                log.caught[c.id] = (log.caught[c.id] || 0) + 1;
+                if (c.notes && log.notes.length < 12) log.notes.push(`${c.text}${c.notes}`);
+            }
+            log.hunts += 1;
+            if (hunt.gemFound && log.notes.length < 12) log.notes.push(`\u{1F48E} Found a ${hunt.gemFound}`);
+        }
+        auto.left -= due;
+        auto.last = auto.left > 0 ? auto.last + due * AUTOHUNT_MS : Date.now();
+        return true;
     }
 
     /** One time per user: gems bought before rarer gems lasted longer are scaled up to the new durations. */
@@ -2218,6 +2392,23 @@ export class ChatRoom extends DurableObject {
         const ab = abilityOf(animal);
         const hp = Math.round(st.hp * hpBoost * (ab === "shield" ? 1.25 : 1));
         return { a: animal, lvl, side, ab, hp, max: hp, atk: Math.round(st.atk * atkBoost), def: st.def, stunned: false, burn: 0 };
+    }
+
+    /** A wild team that matches the strength of yours, so a battle is a real fight and not a free win. */
+    wildTeam(mine) {
+        const tierIndex = (a) => Math.min(RARITIES.findIndex((r) => r.id === a.rarity), RARITIES.length - 2);
+        const avgTier = mine.reduce((n, u) => n + tierIndex(u.a), 0) / mine.length;
+        const avgLevel = Math.round(mine.reduce((n, u) => n + u.lvl, 0) / mine.length);
+        return mine.map(() => {
+            // beginners with only Common animals rarely meet a stronger tier; everyone else sometimes does
+            const odds = avgTier < 1 ? [0.45, 0.95, 1] : [0.3, 0.8, 0.98];
+            const roll = Math.random();
+            const shift = roll < odds[0] ? -1 : roll < odds[1] ? 0 : roll < odds[2] ? 1 : 2;
+            const tier = Math.max(0, Math.min(RARITIES.length - 2, Math.round(avgTier) + shift));
+            const pool = ANIMALS.filter((a) => a.rarity === RARITIES[tier].id);
+            const lvl = Math.min(MAX_PET_LEVEL, Math.max(1, avgLevel + Math.floor(Math.random() * 4) - 2));
+            return this.makeUnit(pool[Math.floor(Math.random() * pool.length)], lvl, 1);
+        });
     }
 
     /** Runs a battle between two teams (units are changed in place). */
@@ -2284,7 +2475,7 @@ export class ChatRoom extends DurableObject {
         }
 
         const user = await this.ctx.storage.get(userKey);
-        await this.upgradeGems(userKey, user);
+        await this.syncUser(userKey, user);
         user.gems = user.gems || {};
         user.zoo = user.zoo || {};
 
@@ -2313,6 +2504,47 @@ export class ChatRoom extends DurableObject {
                 ...GEM_TIERS.map((t, i) => `${gemIcon(type, i)} ${RARITIES[i].label} - ${g.price[i]} orbs or ${g.price[i] * COIN_PRICE_X} coins, ${g.uses[i]} uses - ${g.desc(g.power[i])}${user.gems[`${type}_${t}`] ? ` (you have ${user.gems[`${type}_${t}`]} left)` : ""}`),
             ]);
             return say(`\u{1F48E} Gem shop (you have ${user.orbs || 0} orbs and ${user.zooCoins || 0} coins)\n${lines.join("\n")}\nBuy with /gems buy <${Object.keys(GEMS).join("|")}> <common|uncommon|rare|epic|legendary> [coins]. The best gem you own is used first.`);
+        }
+
+        if (name === "autohunt") {
+            const words = args.toLowerCase().split(/\s+/).filter(Boolean);
+            user.autohunt = user.autohunt || { left: 0, last: Date.now() };
+            const auto = user.autohunt;
+            const eta = () => {
+                const ms = Math.max(0, auto.last + AUTOHUNT_MS - Date.now());
+                return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+            };
+            if (words[0] === "start" || words[0] === "buy") {
+                const count = Math.round(Number(words[1]));
+                if (!(count >= 1)) return say(`Use it like /autohunt start 20. Each autohunt costs ${HUNT_COST} orb, paid now, and one happens every ${AUTOHUNT_MS / 60000} minutes while you are away (max ${AUTOHUNT_MAX} queued).`);
+                if (auto.left + count > AUTOHUNT_MAX) return say(`You can have at most ${AUTOHUNT_MAX} autohunts queued (you have ${auto.left}).`);
+                if ((user.orbs || 0) < count * HUNT_COST) return say(`${count} autohunts cost ${count * HUNT_COST} orbs and you have ${user.orbs || 0}.`);
+                this.addOrbs(user, -count * HUNT_COST, false);
+                if (!(auto.left > 0)) auto.last = Date.now();
+                auto.left += count;
+                await this.ctx.storage.put(userKey, user);
+                return say(`\u{1F916}\u{1F3F9} ${username} started autohunt: ${auto.left} hunts queued, the next in ${eta()}. Balance: ${user.orbs}`);
+            }
+            if (words[0] === "stop") {
+                const refund = auto.left;
+                if (refund > 0) this.addOrbs(user, refund * HUNT_COST, false);
+                auto.left = 0;
+                await this.ctx.storage.put(userKey, user);
+                return say(`Autohunt stopped.${refund > 0 ? ` ${refund} unused hunts were refunded (${refund * HUNT_COST} orbs). Balance: ${user.orbs}` : ""}`);
+            }
+            // status, plus what the autohunt caught since you last looked
+            const log = user.autohuntLog;
+            let report = "";
+            if (log && log.hunts > 0) {
+                const caught = Object.entries(log.caught)
+                    .map(([id, n]) => [ANIMALS.find((a) => a.id === id), n])
+                    .filter(([a]) => a)
+                    .sort((a, b) => RARITIES.findIndex((r) => r.id === b[0].rarity) - RARITIES.findIndex((r) => r.id === a[0].rarity));
+                report = `\nWhile you were away: ${log.hunts} hunt${log.hunts > 1 ? "s" : ""} caught ${caught.reduce((n, [, c]) => n + c, 0)} animals\n${caught.map(([a, c]) => `${a.emoji}\u00D7${c}`).join(" ")}${log.notes.length ? "\n" + log.notes.join("\n") : ""}`;
+                user.autohuntLog = null;
+                await this.ctx.storage.put(userKey, user);
+            }
+            return say(`\u{1F916}\u{1F3F9} ${username}'s autohunt: ${auto.left > 0 ? `${auto.left} hunts queued, the next in ${eta()}` : "nothing queued"}.${report}\n/autohunt start <n> queues hunts (${HUNT_COST} orb each, one every ${AUTOHUNT_MS / 60000} min), /autohunt stop refunds the rest.`);
         }
 
         if (name === "daily") {
@@ -2460,20 +2692,7 @@ export class ChatRoom extends DurableObject {
                 foeLabel = `${opp.username}'s team`;
                 intro = `${username} goes into battle against ${opp.username}!`;
             } else {
-                const avg = Math.round(mine.reduce((n, u) => n + u.lvl, 0) / mine.length);
-                const pickTier = () => {
-                    let roll = Math.random() * ENEMY_TIERS.reduce((n, t) => n + t[1], 0);
-                    for (const [id, weight] of ENEMY_TIERS) {
-                        roll -= weight;
-                        if (roll < 0) return id;
-                    }
-                    return "common";
-                };
-                foes = mine.map(() => {
-                    const pool = ANIMALS.filter((a) => a.rarity === pickTier());
-                    const lvl = Math.min(MAX_PET_LEVEL, Math.max(1, avg + Math.floor(Math.random() * 6) - 2));
-                    return this.makeUnit(pool[Math.floor(Math.random() * pool.length)], lvl, 1);
-                });
+                foes = this.wildTeam(mine);
             }
 
             const { turns, won, draw } = this.simulate(mine, foes);
@@ -2658,7 +2877,7 @@ export class ChatRoom extends DurableObject {
         if (username) {
             const userKey = `u:${username.toLowerCase()}`;
             const user = await this.ctx.storage.get(userKey);
-            await this.upgradeGems(userKey, user);
+            await this.syncUser(userKey, user);
             const xp = user.zooXp || {};
             out.me = {
                 username,
@@ -2669,6 +2888,8 @@ export class ChatRoom extends DurableObject {
                 streak: user.zooDaily?.streak || 0,
                 dailyDone: user.zooDaily?.last === taskDay(),
                 bossDamage: boss.damage[username.toLowerCase()] || 0,
+                autohunt: user.autohunt?.left > 0 ? { left: user.autohunt.left, next: user.autohunt.last + AUTOHUNT_MS } : null,
+                autohuntCaught: user.autohuntLog?.hunts || 0,
                 zoo: user.zoo || {},
                 levels: Object.fromEntries(ANIMALS.filter((a) => user.zoo?.[a.id]).map((a) => [a.id, this.petLevel(xp[a.id])])),
                 team: this.zooTeam(user).map((a) => a.id),
@@ -3310,7 +3531,11 @@ export class ChatRoom extends DurableObject {
         const clientVersion = Number(searchParams.get("v")) || 0;
         const version = (await this.ctx.storage.get(`ver:${target.key}`)) || 0;
         const full = clientVersion !== version;
-        const messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        let messages = (await this.ctx.storage.get(`m:${target.key}`)) || [];
+        if (messages.some((m) => m.giveaway?.status === "open" && m.giveaway.ends <= Date.now())) {
+            await this.settleGiveaways(target.key);
+            return this.getMessages(request, searchParams);
+        }
         const me = username || (await this.sessionUser(request));
         return json({
             messages: full ? messages : messages.filter((m) => m.id > after),
@@ -3592,7 +3817,7 @@ export class ChatRoom extends DurableObject {
         const key = target.key;
         const mentions = target.isDm ? [] : await this.findMentions(text, username);
         const repliedTo = extra.replyTo?.name;
-        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo !== CASINO_NAME && repliedTo !== ZOO_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
+        if (repliedTo && !target.isDm && repliedTo !== BOT_NAME && repliedTo !== CASINO_NAME && repliedTo !== ZOO_NAME && repliedTo !== GIVEAWAY_NAME && repliedTo.toLowerCase() !== lower && !mentions.includes(repliedTo)) {
             mentions.push(repliedTo);
         }
         this.typing.get(key)?.delete(lower);

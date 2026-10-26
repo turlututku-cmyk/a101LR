@@ -54,6 +54,7 @@ export default {
                         <div class="zoo-stat"><b>{{ me.wins }}</b><span>Wins</span></div>
                         <div class="zoo-stat"><b>{{ me.losses }}</b><span>Losses</span></div>
                         <div class="zoo-stat"><b>{{ me.streak }}{{ me.dailyDone ? ' &#10003;' : '' }}</b><span>Daily streak</span></div>
+                        <div class="zoo-stat"><b>{{ me.autohunt ? me.autohunt.left : 0 }}</b><span>Autohunts left</span></div>
                     </section>
                     <p v-else class="zoo-muted">Log in on the Chat page to see your own collection here. The leaderboards below are public.</p>
 

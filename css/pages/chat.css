@@ -3096,3 +3096,38 @@
     0% { opacity: 1; transform: translate(0, 0) scale(0.6); }
     100% { opacity: 0; transform: translate(var(--dx, 0), -90px) scale(1.3) rotate(240deg); }
 }
+
+/* a101 Giveaways */
+.page-chat .dc-bot-avatar.gw {
+    background-image: linear-gradient(135deg, #ff6ec7, #ffd54a);
+}
+.page-chat .dc-bot-name.gw {
+    color: #ffb3e1;
+}
+.page-chat .dc-gw {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    max-width: 24rem;
+    margin-top: 0.3rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #3a2040, #2b2d31);
+    border-left: 4px solid #ff6ec7;
+}
+.page-chat .dc-gw.done {
+    border-left-color: #3ba55d;
+}
+.page-chat .dc-gw.cancelled {
+    border-left-color: #80848e;
+    opacity: 0.8;
+}
+.page-chat .dc-gw-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+}
+.page-chat .dc-gw small {
+    color: #b5bac1;
+}
