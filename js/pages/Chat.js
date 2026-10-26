@@ -83,7 +83,17 @@ const BOT_MEMBERS = [
     { name: "a101 Zoo", icon: "\u{1F981}", desc: "Hunt animals in #zoo: /hunt costs 1 orb. Also /inventory, /daily, /sell, /fuse, /gems, /team, /battle and /zooboard. Full collection on the Zoo page." },
     { name: "a101 Giveaways", icon: "\u{1F389}", desc: "Give orbs away with /giveaway 100 10m. Everyone can enter with a button." },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked", "best"];
+// text formatting: the pieces are split out and shown as styled spans (never as HTML)
+const FORMAT_RE = /(\*\*(?!\s)[^*\n]+?(?<!\s)\*\*|__(?!\s)[^_\n]+?(?<!\s)__|~~(?!\s)[^~\n]+?(?<!\s)~~|\|\|(?!\s)[^|\n]+?(?<!\s)\|\||`[^`\n]+`|\*(?![\s*])[^*\n]+?(?<![\s*])\*|(?<!\w)_(?![\s_])[^_\n]+?(?<![\s_])_(?!\w))/;
+const formatText = (text) =>
+    text
+        .split(FORMAT_RE)
+        .filter((piece) => piece !== "")
+        .map((piece) => {
+            const wrap = (mark, fmt) => (piece.length > mark.length * 2 && piece.startsWith(mark) && piece.endsWith(mark) ? { text: piece.slice(mark.length, -mark.length), fmt } : null);
+            return wrap("**", "b") || wrap("__", "u") || wrap("~~", "s") || wrap("||", "spoiler") || wrap("`", "code") || wrap("*", "i") || wrap("_", "i") || { text: piece };
+        });
+const ZOO_COMMANDS = ["hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked", "best", "quests", "zoohelp"];
 const botKind = (name) => (name === "a101 Casino" ? "owo" : name === "a101 Zoo" ? "zoo" : name === "a101 Giveaways" ? "gw" : "");
 const botIcon = (name) => BOT_MEMBERS.find((b) => b.name === name)?.icon || "\u{1F916}";
 const CASINO_COMMANDS = ["cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal"];
@@ -519,7 +529,7 @@ export default {
                                                 <small>{{ animLabel(anims[m.id].type) }}</small>
                                             </template>
                                         </div>
-                                        <div v-if="m.text && editingId !== m.id && !anims[m.id]" class="dc-msg-text" :class="{ 'dc-reveal': revealed[m.id] }"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo, pet: p.pet }" :src="p.emoji" :alt="p.text" :title="p.text"><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
+                                        <div v-if="m.text && editingId !== m.id && !anims[m.id]" class="dc-msg-text" :class="{ 'dc-reveal': revealed[m.id] }"><template v-for="(p, i) in parts(m)" :key="i"><a v-if="p.link" class="dc-link" :href="p.link" target="_blank" rel="noopener noreferrer">{{ p.text }}</a><span v-else-if="p.mention" class="dc-mention" :class="{ me: p.me }" @click="insertMention(p.text)">{{ p.text }}</span><img v-else-if="p.emoji" class="dc-emoji" :class="{ jumbo: p.jumbo, pet: p.pet }" :src="p.emoji" :alt="p.text" :title="p.text"><span v-else-if="p.fmt" class="dc-fmt" :class="'dc-fmt-' + p.fmt" @click="p.fmt === 'spoiler' && $event.currentTarget.classList.toggle('shown')">{{ p.text }}</span><template v-else>{{ p.text }}</template></template><small v-if="m.edited" class="dc-edited" :title="stamp(m.edited)"> (edited)</small></div>
                                         <div v-if="m.duel" class="dc-duel" :class="m.duel.status">
                                             <div class="dc-duel-vs"><b>{{ m.duel.from }}</b> <span>&#9876;&#65039;</span> <b>{{ m.duel.to }}</b></div>
                                             <div class="dc-duel-bet">&#128302; {{ m.duel.amount }} orbs on the line</div>
@@ -1675,6 +1685,14 @@ export default {
                 last = match.index + token.length;
             }
             if (last < m.text.length) out.push({ text: m.text.slice(last) });
+            // Discord-style formatting inside the plain pieces: **bold**, *italic*, __underline__, ~~strike~~, `code`, ||spoiler||
+            const formatted = [];
+            for (const p of out) {
+                if (p.link || p.mention || p.emoji) formatted.push(p);
+                else formatted.push(...formatText(p.text));
+            }
+            out.length = 0;
+            out.push(...formatted);
             const onlyEmoji = out.length > 0 && out.length <= 20 && out.every((p) => p.emoji || !p.text.trim());
             if (onlyEmoji) out.forEach((p) => (p.jumbo = true));
             return out;
@@ -2748,6 +2766,8 @@ export default {
                     gboss: "your guild boss: /gboss, /guild attack (resets every hour)",
                     ranked: "ranked PvP: /ranked, /ranked fight, /ranked top (in #zoo)",
                     best: "your strongest pets (name, level, amount); /best server for everyone (in #zoo)",
+                    quests: "your three daily quests and their rewards (in #zoo)",
+                    zoohelp: "how the zoo works: /zoohelp pets, fight, guild, items",
                     feed: "feed an animal: /feed Fox 3 (+150 xp each)",
                     candy: "give Level-Up Candy: /candy Gem Lion (+1 level)",
                     use: "use an item: /use candy Fox",

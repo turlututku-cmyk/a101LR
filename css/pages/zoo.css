@@ -627,3 +627,26 @@
     width: 4rem;
     height: 4rem;
 }
+
+/* daily quests */
+.page-zoo .zoo-quests h2 small {
+    margin-left: 0.4rem;
+}
+.page-zoo .zoo-quest-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.7rem;
+}
+.page-zoo .zoo-quest {
+    padding: 0.7rem 0.9rem;
+    border-radius: 0.6rem;
+    background: #2b2d31;
+    border-left: 4px solid #5865f2;
+}
+.page-zoo .zoo-quest.done {
+    border-left-color: #3ba55d;
+    background: #1f3326;
+}
+.page-zoo .zoo-quest small {
+    color: #b5bac1;
+}

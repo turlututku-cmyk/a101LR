@@ -182,7 +182,7 @@ const ACHIEVEMENTS = [
 const BOT_NAME = "a101 Bot";
 const BOT_TOKEN_HASH = "558cd3b0149c96906bbfc9222f1c74a9f58b6fad7273d190b75a74bf45ebb460";
 const MAX_CUSTOM_COMMANDS = 30;
-const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "feed", "candy", "guild", "gboss", "ranked", "best", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
+const BUILTIN_COMMANDS = ["help", "rules", "poll", "cf", "roulette", "slots", "dice", "blackjack", "duel", "accept", "decline", "bal", "hunt", "inventory", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "feed", "candy", "guild", "gboss", "ranked", "best", "quests", "zoohelp", "giveaway", "roll", "flip", "8ball", "choose", "rank", "level", "top", "orbs"];
 // a101 Casino: classic orb games (coinflip, roulette, slots, dice, blackjack) and duels. Only in #casino.
 const CASINO_NAME = "a101 Casino";
 // a101 Zoo: /hunt costs 1 orb and catches a random animal. Only in #zoo.
@@ -282,7 +282,7 @@ const DEFAULT_SPECIALS = [
     { id: "sp_dancing_gorilla", name: "Dancing Gorilla", emoji: ":dancing_gorilla:", ability: "stun", by: "a101" },
     { id: "sp_pumpkin_cat", name: "Pumpkin Cat", emoji: ":pumpkin_cat:", ability: "shield", by: "a101" },
 ];
-const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked", "best"];
+const ZOO_COMMANDS = ["hunt", "inventory", "inv", "gems", "team", "battle", "daily", "sell", "fuse", "zooboard", "boss", "autohunt", "items", "use", "feed", "candy", "guild", "gboss", "ranked", "best", "quests", "zoohelp"];
 // selling an animal gives zoo coins, which buy gems (3x the orb price). Coins never turn back into orbs.
 const COIN_VALUE = { common: 1, uncommon: 3, rare: 8, epic: 20, legendary: 60, gem: 150, crystal: 400, special: 1000, boss: 1500, huge: 4000 };
 const COIN_PRICE_X = 3;
@@ -297,6 +297,23 @@ const ZOO_ITEMS = {
 };
 const xpForLevel = (level) => 20 * (level - 1) ** 2;
 const ITEM_DROP = { food: 0.1, candy: 0.015 };
+// daily quests: every player gets three a day; each pays when it is finished, and all three pay a bonus
+const QUEST_POOL = [
+    { id: "hunt", text: (g) => `Hunt ${g} times`, goals: [5, 8, 12], reward: (g) => ({ coins: g * 8, food: 1 }) },
+    { id: "win", text: (g) => `Win ${g} battle${g > 1 ? "s" : ""}`, goals: [1, 2, 3], reward: (g) => ({ coins: g * 70, food: g * 2 }) },
+    { id: "boss", text: (g) => `Attack a boss ${g} time${g > 1 ? "s" : ""}`, goals: [1, 2, 3], reward: (g) => ({ coins: g * 60, food: g * 2 }) },
+    { id: "ranked", text: (g) => `Play ${g} ranked fight${g > 1 ? "s" : ""}`, goals: [1, 2], reward: (g) => ({ coins: g * 90 }) },
+    { id: "feed", text: (g) => `Feed your pets ${g} time${g > 1 ? "s" : ""}`, goals: [1, 3], reward: (g) => ({ coins: g * 40 }) },
+    { id: "sell", text: (g) => `Sell ${g} animals`, goals: [3, 6], reward: (g) => ({ coins: g * 15, food: 2 }) },
+    { id: "gift", text: () => "Gift something to a guild mate", goals: [1], reward: () => ({ coins: 80, food: 3 }) },
+    { id: "fuse", text: () => "Fuse animals once", goals: [1], reward: () => ({ coins: 100, food: 4 }) },
+];
+const QUEST_BONUS = { coins: 250, food: 8, gem: { key: "luck_uncommon", uses: 20, label: "Uncommon Luck Gem (20 uses)" } };
+// anti-abuse: ranked fights per day, how often you can meet the same opponent, how many fights still give xp and coins
+const RANKED_DAILY_LIMIT = 30;
+const RANKED_SAME_OPPONENT = 3;
+const RANKED_REWARD_FIGHTS = 10;
+const PVP_XP_DAILY = 10;
 const MAX_PET_XP = xpForLevel(50);
 // every hunt has a small chance to turn up a gem (a part of its normal uses); Luck Gems raise the chance
 const GEM_DROP_CHANCE = 0.06;
@@ -318,13 +335,13 @@ const ZOO_BOSSES = [
 ];
 // battle abilities: rare animals and above have one (Gem and Crystal versions share the animal's ability)
 const ABILITIES = {
-    crit: { name: "Crit", desc: "25% chance to hit for 1.8x damage" },
+    crit: { name: "Crit", desc: "30% chance to hit for 2x damage" },
     lifesteal: { name: "Lifesteal", desc: "heals for 25% of the damage it deals" },
     dodge: { name: "Dodge", desc: "25% chance to avoid an attack" },
     thorns: { name: "Thorns", desc: "reflects 20% of the damage it takes" },
     stun: { name: "Stun", desc: "20% chance to make the target skip its next attack" },
-    heal: { name: "Heal", desc: "heals the weakest ally for 8% of its max HP every turn" },
-    burn: { name: "Burn", desc: "sets the target on fire: 6% of its max HP for 2 turns" },
+    heal: { name: "Heal", desc: "heals the weakest ally for 5% of its max HP every turn" },
+    burn: { name: "Burn", desc: "sets the target on fire: 3% of its max HP for 2 turns" },
     shield: { name: "Shield", desc: "starts with 25% extra HP" },
 };
 const ANIMAL_ABILITY = { bear: "thorns", lion: "stun", tiger: "crit", elephant: "shield", giraffe: "dodge", gorilla: "stun", crocodile: "lifesteal", shark: "crit", eagle: "dodge", dragon: "burn", unicorn: "heal", trex: "crit" };
@@ -361,6 +378,11 @@ const MAX_PET_LEVEL = 50; // no animal goes past level 50
 const MAX_TURNS = 30;
 // burn takes 6% of the target's max HP each turn, but never more than this (otherwise it would melt 500,000 HP bosses)
 const BURN_CAP = 250;
+// the share of max HP that Burn takes each turn, and that Heal gives back each turn (tuned so no ability dominates)
+const BURN_PCT = 0.03;
+const CRIT_CHANCE = 0.3;
+const CRIT_MULT = 2;
+const HEAL_PCT = 0.05;
 // no single attack can take more than this share of a boss's max HP, so bosses always need a team effort
 const BOSS_ATTACK_CAP = 0.1;
 // [hp, attack, defence] at level 1; every level adds 10%
@@ -2454,14 +2476,19 @@ export class ChatRoom extends DurableObject {
         await this.syncUser(userKey, user);
         const hunt = this.rollHunt(username, user);
         if (hunt.error) return say(hunt.error);
+        const quests = this.questTick(user, "hunt", 1);
+        const hint = user.zooIntro ? "" : "\n\u{1F4A1} New here? /zoohelp explains the zoo and /quests shows your daily goals.";
+        user.zooIntro = true;
         await this.ctx.storage.put(userKey, user);
-        return say(hunt.text);
+        return say(hunt.text + quests + hint);
     }
 
     /** Everything a zoo command must do to a freshly loaded user first. */
     async syncUser(userKey, user) {
         await this.upgradeGems(userKey, user);
-        if (this.settleAutohunt(user)) await this.ctx.storage.put(userKey, user);
+        const settled = this.settleAutohunt(user);
+        const fresh = this.ensureQuests(user);
+        if (settled || fresh) await this.ctx.storage.put(userKey, user);
     }
 
     /** Runs the autohunts that came due while the player was away (they were paid for up front). */
@@ -2590,7 +2617,7 @@ export class ChatRoom extends DurableObject {
             for (const u of order) {
                 if (u.hp > 0 && u.ab === "heal") {
                     const ally = alive(u.side).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
-                    ally.hp = Math.min(ally.max, ally.hp + Math.round(ally.max * 0.08));
+                    ally.hp = Math.min(ally.max, ally.hp + Math.round(ally.max * HEAL_PCT));
                 }
             }
             for (const u of order) {
@@ -2604,7 +2631,7 @@ export class ChatRoom extends DurableObject {
                 const t = targets[Math.floor(Math.random() * targets.length)];
                 if (t.ab === "dodge" && Math.random() < 0.25) continue;
                 let dmg = Math.max(1, Math.round(u.atk * (0.85 + Math.random() * 0.3) - t.def * 0.5));
-                if (u.ab === "crit" && Math.random() < 0.25) dmg = Math.round(dmg * 1.8);
+                if (u.ab === "crit" && Math.random() < CRIT_CHANCE) dmg = Math.round(dmg * CRIT_MULT);
                 t.hp = Math.max(0, t.hp - dmg);
                 if (u.ab === "lifesteal") u.hp = Math.min(u.max, u.hp + Math.round(dmg * 0.25));
                 if (t.ab === "thorns" && t.hp > 0) u.hp = Math.max(0, u.hp - Math.round(dmg * 0.2));
@@ -2613,7 +2640,7 @@ export class ChatRoom extends DurableObject {
             }
             for (const u of order) {
                 if (u.hp > 0 && u.burn > 0) {
-                    u.hp = Math.max(0, u.hp - Math.min(BURN_CAP, Math.round(u.max * 0.06)));
+                    u.hp = Math.max(0, u.hp - Math.min(BURN_CAP, Math.round(u.max * BURN_PCT)));
                     u.burn -= 1;
                 }
             }
@@ -2624,6 +2651,7 @@ export class ChatRoom extends DurableObject {
 
     async runZoo(username, target, name, args, say) {
         await this.loadSpecials();
+        if (name === "zoohelp") return say(this.zooHelp(args));
         if (name === "hunt") return this.runHunt(username, target, say);
         if (name === "inventory" || name === "inv") return this.runInventory(username, target, say);
         if (target.key !== "zoo") return say("The zoo commands only work in #zoo. Head over there!");
@@ -2670,6 +2698,12 @@ export class ChatRoom extends DurableObject {
             return say(`\u{1F48E} Gem shop (you have ${user.orbs || 0} orbs and ${user.zooCoins || 0} coins)\n${lines.join("\n")}\nBuy with /gems buy <${Object.keys(GEMS).join("|")}> <common|uncommon|rare|epic|legendary> [coins]. The best gem you own is used first.`);
         }
 
+        if (name === "quests") {
+            const q = this.questsOf(user);
+            await this.ctx.storage.put(userKey, user);
+            return say(`\u{1F4DC} ${username}'s daily quests\n${q.list.map((x) => `${x.done ? "\u2705" : "\u2B1C"} ${x.text}: ${x.progress}/${x.goal} - ${x.reward}`).join("\n")}\nAll three: ${q.bonus}${q.bonusPaid ? " (paid)" : ""}. New quests every day.`);
+        }
+
         if (name === "best") {
             // /best shows your strongest pets (name, level, how many you own); /best server shows the strongest pets of everybody
             const power = (animal, level) => {
@@ -2683,7 +2717,7 @@ export class ChatRoom extends DurableObject {
             };
             if (args.trim().toLowerCase() === "server") {
                 const rows = [];
-                for (const [, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+                for (const { u } of await this.userScan()) {
                     if (!u.zoo) continue;
                     for (const a of ANIMALS) if (u.zoo[a.id]) rows.push({ owner: u.username, a, level: this.petLevel((u.zooXp || {})[a.id]), power: power(a, this.petLevel((u.zooXp || {})[a.id])) });
                 }
@@ -2729,9 +2763,10 @@ export class ChatRoom extends DurableObject {
             const count = parsed[2] ? (parsed[2].toLowerCase() === "all" ? have : Number(parsed[2])) : 1;
             const result = this.useItem(user, key, animal, count);
             if (result.error) return say(result.error);
+            const quests = key === "food" ? this.questTick(user, "feed", 1) : "";
             await this.ctx.storage.put(userKey, user);
             const st = this.petStats(animal, result.after);
-            return say(`${ZOO_ITEMS[key].icon} ${username} used ${result.used} \u00D7 ${ZOO_ITEMS[key].name} on ${animal.emoji} ${animal.name}: level ${result.before} \u2192 ${result.after}${result.after >= MAX_PET_LEVEL ? " (max!)" : ""}. Now HP ${st.hp} ATK ${st.atk} DEF ${st.def}. ${ZOO_ITEMS[key].name} left: ${user.items[key]}`);
+            return say(`${ZOO_ITEMS[key].icon} ${username} used ${result.used} \u00D7 ${ZOO_ITEMS[key].name} on ${animal.emoji} ${animal.name}: level ${result.before} \u2192 ${result.after}${result.after >= MAX_PET_LEVEL ? " (max!)" : ""}. Now HP ${st.hp} ATK ${st.atk} DEF ${st.def}. ${ZOO_ITEMS[key].name} left: ${user.items[key]}${quests}`);
         }
 
         if (name === "guild" || name === "gboss") {
@@ -2902,8 +2937,9 @@ export class ChatRoom extends DurableObject {
                 what = `${count} × ${animal.emoji} ${animal.name}`;
             }
             user.zooCoins = (user.zooCoins || 0) + coins;
+            const quests = this.questTick(user, "sell", sold);
             await this.ctx.storage.put(userKey, user);
-            return say(`\u{1F4B0} ${username} sold ${what} for ${coins} coins. Coins: ${user.zooCoins}`);
+            return say(`\u{1F4B0} ${username} sold ${what} for ${coins} coins. Coins: ${user.zooCoins}${quests}`);
         }
 
         if (name === "fuse" && /^huge\b/i.test(args.trim())) {
@@ -2921,9 +2957,10 @@ export class ChatRoom extends DurableObject {
             if (!result) return say("That pet cannot become Huge.");
             for (const p of picks) user.zoo[p.id] -= 1;
             const got = this.catchAnimal(user, result);
+            const quests = this.questTick(user, "fuse", 1);
             await this.ctx.storage.put(userKey, user);
             const st = this.petStats(result, this.petLevel((user.zooXp || {})[result.id]));
-            return say(`\u{1F52E} ${username} fuses ${picks.map((p) => p.emoji).join(" ")} into a ${got.text}!${got.notes}\nIt has HP ${st.hp} ATK ${st.atk} DEF ${st.def} at its level${abilityOf(result) ? ` [${ABILITIES[abilityOf(result)].name}]` : ""}. The other two pets were used up.`);
+            return say(`\u{1F52E} ${username} fuses ${picks.map((p) => p.emoji).join(" ")} into a ${got.text}!${got.notes}\nIt has HP ${st.hp} ATK ${st.atk} DEF ${st.def} at its level${abilityOf(result) ? ` [${ABILITIES[abilityOf(result)].name}]` : ""}. The other two pets were used up.${quests}`);
         }
 
         if (name === "fuse") {
@@ -2944,8 +2981,9 @@ export class ChatRoom extends DurableObject {
             const pool = ANIMALS.filter((a) => a.rarity === next.id);
             if (!pool.length) return say("There are no Special pets yet, so there is nothing to fuse into. Your animals were not used.");
             const got = this.catchAnimal(user, pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length]);
+            const quests = this.questTick(user, "fuse", 1);
             await this.ctx.storage.put(userKey, user);
-            return say(`\u{1F52E} ${username} fuses ${need} spare ${tier.label} animals... and gets a ${got.text}!${got.notes}\nTiers: ${this.zooTiersLine(user)}`);
+            return say(`\u{1F52E} ${username} fuses ${need} spare ${tier.label} animals... and gets a ${got.text}!${got.notes}\nTiers: ${this.zooTiersLine(user)}${quests}`);
         }
 
         const xp = user.zooXp || {};
@@ -3035,6 +3073,18 @@ export class ChatRoom extends DurableObject {
             const foeAvg = Math.round(foes.reduce((n, u) => n + u.lvl, 0) / foes.length);
             let gain = won ? (who ? 60 : 50 + 8 * foeAvg) : 15;
             if (xg) gain = Math.round(gain * (1 + xg.value / 100));
+            // fighting players pays xp only for the first few fights a day (so two accounts cannot farm each other)
+            let pvpNote = "";
+            if (who) {
+                const day = taskDay();
+                const pv = user.pvpDay?.day === day ? user.pvpDay : { day, fights: 0 };
+                pv.fights += 1;
+                user.pvpDay = pv;
+                if (pv.fights > PVP_XP_DAILY) {
+                    gain = 0;
+                    pvpNote = ` (no more xp from player fights today, the limit is ${PVP_XP_DAILY})`;
+                }
+            }
             const ups = [];
             for (const u of mine) {
                 const before = u.lvl;
@@ -3044,13 +3094,14 @@ export class ChatRoom extends DurableObject {
             }
             if (won) user.zooWins = (user.zooWins || 0) + 1;
             else if (!draw) user.zooLosses = (user.zooLosses || 0) + 1;
+            const quests = won ? this.questTick(user, "win", 1) : "";
             const used = [pg, sg, xg].filter(Boolean);
             for (const g of used) user.gems[g.key] -= 1;
             await this.ctx.storage.put(userKey, user);
             const show = (u) => `L. ${u.lvl} ${u.a.emoji} ${u.a.name}${u.ab ? ` [${ABILITIES[u.ab].name}]` : ""} ${u.hp}/${u.max} HP`;
             const result = won ? `You won in ${turns} turns!` : draw ? `Nobody won in ${MAX_TURNS} turns, it's a draw.` : `You lost in ${turns} turns!`;
             const gemNote = used.length ? ` (${used.map((g) => `${RARITIES[g.tier].label} ${GEMS[g.key.split("_")[0]].name}: ${user.gems[g.key]} left`).join(", ")})` : "";
-            return say(`⚔️ ${intro}\n${username}'s team\n${mine.map(show).join("\n")}\n${foeLabel}\n${foes.map(show).join("\n")}\n${result} | +${gain} xp${gemNote}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}`);
+            return say(`⚔️ ${intro}\n${username}'s team\n${mine.map(show).join("\n")}\n${foeLabel}\n${foes.map(show).join("\n")}\n${result} | +${gain} xp${pvpNote}${gemNote}${quests}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}`);
         }
 
         if (name === "boss") {
@@ -3141,12 +3192,13 @@ export class ChatRoom extends DurableObject {
                 }
                 finale = `\n\u{1F3C6} ${def.title} is DEFEATED by ${username}'s final blow (+200 coins)! Everyone who fought got coins:\n${lines.join("\n")}`;
             }
+            const quests = this.questTick(user, "boss", 1);
             await this.ctx.storage.put(bossKey, boss);
             await this.ctx.storage.put(userKey, user);
             const show = (u) => `L. ${u.lvl} ${u.a.emoji} ${u.a.name}${u.ab ? ` [${ABILITIES[u.ab].name}]` : ""} ${u.hp}/${u.max} HP`;
             const gemNote = used.length ? ` (${used.map((g) => `${RARITIES[g.tier].label} ${GEMS[g.key.split("_")[0]].name}: ${user.gems[g.key]} left`).join(", ")})` : "";
             return say(
-                `\u{1F479} ${username} attacks ${animal.emoji} ${def.title}!\n${mine.map(show).join("\n")}\nYou dealt ${dealt} damage! Boss HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)} | +${gain} xp${gemNote}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}${finale}`,
+                `\u{1F479} ${username} attacks ${animal.emoji} ${def.title}!\n${mine.map(show).join("\n")}\nYou dealt ${dealt} damage! Boss HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)} | +${gain} xp${gemNote}${ups.length ? "\n⬆️ " + ups.join(" ") : ""}${finale}${quests}`,
             );
         }
     }
@@ -3183,7 +3235,7 @@ export class ChatRoom extends DurableObject {
     async zooBoard() {
         if (!this.zooBoardCache || Date.now() - this.zooBoardCache.time > 30000) {
             const rows = [];
-            for (const [, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+            for (const { u } of await this.userScan()) {
                 const zoo = u.zoo || {};
                 const owned = ANIMALS.filter((a) => zoo[a.id]);
                 if (!owned.length && !u.zooWins) continue;
@@ -3427,6 +3479,7 @@ export class ChatRoom extends DurableObject {
             finale = `\n\u{1F3C6} [${guild.tag}] ${guild.name} defeated ${def.title}! (guild boss kills: ${guild.kills})\n${lines.slice(0, 8).join("\n")}`;
             await this.ctx.storage.put(`gd:${guild.id}`, guild);
         }
+        const quests = this.questTick(user, "boss", 1);
         await this.ctx.storage.put(key, boss);
         await this.ctx.storage.put(userKey, user);
         // a kill from the Zoo page is announced in #zoo too, so everybody sees the rewards
@@ -3444,7 +3497,7 @@ export class ChatRoom extends DurableObject {
             defeated,
             rewards,
             mine: rewards ? rewards.find((r) => r.name.toLowerCase() === lower) || null : null,
-            text: `\u{1F6E1}️ ${username} attacks the guild boss ${animal.emoji} ${def.title}!\n${fight.mine.map(show).join("\n")}\nYou dealt ${fight.dealt} damage! Boss HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)} | +${fight.gain} xp${gemNote}${fight.ups.length ? "\n⬆️ " + fight.ups.join(" ") : ""}${finale}`,
+            text: `\u{1F6E1}️ ${username} attacks the guild boss ${animal.emoji} ${def.title}!\n${fight.mine.map(show).join("\n")}\nYou dealt ${fight.dealt} damage! Boss HP ${boss.hp}/${boss.max} ${bar(boss.hp, boss.max)} | +${fight.gain} xp${gemNote}${fight.ups.length ? "\n⬆️ " + fight.ups.join(" ") : ""}${finale}${quests}`,
         };
     }
 
@@ -3470,9 +3523,12 @@ export class ChatRoom extends DurableObject {
 
     /** The guilds with the most boss kills. */
     async guildList(limit = 10) {
-        const rows = [];
-        for (const [, g] of await this.ctx.storage.list({ prefix: "gd:" })) rows.push({ id: g.id, name: g.name, tag: g.tag, members: g.members.length, kills: g.kills || 0, owner: g.owner });
-        return rows.sort((a, b) => b.kills - a.kills || b.members - a.members).slice(0, limit);
+        if (!this.guildListCache || Date.now() - this.guildListCache.time > 15 * 1000) {
+            const rows = [];
+            for (const [, g] of await this.ctx.storage.list({ prefix: "gd:" })) rows.push({ id: g.id, name: g.name, tag: g.tag, members: g.members.length, kills: g.kills || 0, owner: g.owner });
+            this.guildListCache = { time: Date.now(), rows: rows.sort((a, b) => b.kills - a.kills || b.members - a.members) };
+        }
+        return this.guildListCache.rows.slice(0, limit);
     }
 
     /** The custom emoji names of the Boss pets, so the chat can make them burn. */
@@ -3517,9 +3573,10 @@ export class ChatRoom extends DurableObject {
         }
         log[key] += count;
         user.giftLog = log;
+        const quests = this.questTick(user, "gift", 1);
         await this.ctx.storage.put({ [userKey]: user, [receiverKey]: receiver });
         const what = key === "coins" ? "\u{1FA99} coins" : `${ZOO_ITEMS[key].icon} ${ZOO_ITEMS[key].name}`;
-        return { ok: true, text: `\u{1F381} ${username} gifted ${count} × ${what} to ${member}!` };
+        return { ok: true, text: `\u{1F381} ${username} gifted ${count} × ${what} to ${member}!${quests}` };
     }
 
     // ---------- ranked PvP ----------
@@ -3553,7 +3610,7 @@ export class ChatRoom extends DurableObject {
     async rankedPool() {
         if (!this.rankedCache || Date.now() - this.rankedCache.time > 60 * 1000) {
             const rows = [];
-            for (const [key, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+            for (const { key, u } of await this.userScan()) {
                 if (!u.username || !u.zoo || !ANIMALS.some((a) => u.zoo[a.id])) continue;
                 rows.push({ key, name: u.username, rating: u.ranked?.season === this.seasonKey() ? u.ranked.rating : RANK_START });
             }
@@ -3565,7 +3622,7 @@ export class ChatRoom extends DurableObject {
     async rankedTop(limit = 10) {
         const season = this.seasonKey();
         const rows = [];
-        for (const [, u] of await this.ctx.storage.list({ prefix: "u:" })) {
+        for (const { u } of await this.userScan()) {
             if (u.ranked?.season === season && u.ranked.wins + u.ranked.losses > 0) {
                 rows.push({ name: u.username, rating: u.ranked.rating, wins: u.ranked.wins, losses: u.ranked.losses, tier: this.rankTier(u.ranked.rating).name });
             }
@@ -3583,8 +3640,13 @@ export class ChatRoom extends DurableObject {
         const team = this.zooTeam(user);
         if (!team.length) return { error: "You need at least one animal on your team. Use /hunt first!" };
         const { r, reward } = this.rankedOf(user);
-        const pool = (await this.rankedPool()).filter((p) => p.key !== userKey);
-        if (!pool.length) return { error: "Nobody else has a zoo yet, so there is nobody to fight." };
+        const today = taskDay();
+        const rd = user.rankedDay?.day === today ? user.rankedDay : { day: today, fights: 0, opp: {} };
+        if (rd.fights >= RANKED_DAILY_LIMIT) return { error: `You already played ${RANKED_DAILY_LIMIT} ranked fights today. Come back tomorrow!` };
+        const everyone = (await this.rankedPool()).filter((p) => p.key !== userKey);
+        if (!everyone.length) return { error: "Nobody else has a zoo yet, so there is nobody to fight." };
+        const pool = everyone.filter((p) => (rd.opp[p.key] || 0) < RANKED_SAME_OPPONENT);
+        if (!pool.length) return { error: `You already fought every player ${RANKED_SAME_OPPONENT} times today. Try again tomorrow, or when new players join.` };
         // one of the five players closest to your rating
         const near = pool.slice().sort((a, b) => Math.abs(a.rating - r.rating) - Math.abs(b.rating - r.rating)).slice(0, 5);
         const pick = near[Math.floor(Math.random() * near.length)];
@@ -3614,8 +3676,13 @@ export class ChatRoom extends DurableObject {
             r.losses += 1;
             oppRank.r.wins += 1;
         }
-        const gain = won ? 60 : 15;
-        const coins = won ? 15 : 3;
+        rd.fights += 1;
+        rd.opp[pick.key] = (rd.opp[pick.key] || 0) + 1;
+        user.rankedDay = rd;
+        // only the first fights of the day give xp and coins (the rating always counts)
+        const rewarded = rd.fights <= RANKED_REWARD_FIGHTS;
+        const gain = rewarded ? (won ? 60 : 15) : 0;
+        const coins = rewarded ? (won ? 15 : 3) : 0;
         const ups = [];
         for (const u of mine) {
             const level = u.lvl;
@@ -3624,13 +3691,15 @@ export class ChatRoom extends DurableObject {
             if (after > level) ups.push(`${u.a.name} is now level ${after}!`);
         }
         user.zooCoins = (user.zooCoins || 0) + coins;
+        let quests = this.questTick(user, "ranked", 1);
+        if (won) quests += this.questTick(user, "win", 1);
         await this.ctx.storage.put({ [userKey]: user, [pick.key]: opponent });
         const tierNow = this.rankTier(r.rating);
         const tierBefore = this.rankTier(before);
         const show = (u) => `L. ${u.lvl} ${u.a.emoji} ${u.a.name}${u.ab ? ` [${ABILITIES[u.ab].name}]` : ""} ${u.hp}/${u.max} HP`;
         const result = won ? `You won in ${turns} turns!` : draw ? "It's a draw." : `You lost in ${turns} turns!`;
         const moved = tierNow.name !== tierBefore.name ? ` ${tierNow.min > tierBefore.min ? "\u{1F4C8} Promoted to" : "\u{1F4C9} Dropped to"} ${tierNow.icon} ${tierNow.name}!` : "";
-        const line = `${result} Rating ${before} → ${r.rating} (${delta >= 0 ? "+" : ""}${delta}) ${tierNow.icon} ${tierNow.name} | +${gain} xp, +${coins} coins`;
+        const line = `${result} Rating ${before} → ${r.rating} (${delta >= 0 ? "+" : ""}${delta}) ${tierNow.icon} ${tierNow.name} | +${gain} xp, +${coins} coins${rewarded ? "" : ` (no more ranked xp or coins today, after ${RANKED_REWARD_FIGHTS} fights)`}${quests}`;
         return {
             ok: true,
             won,
@@ -3669,6 +3738,112 @@ export class ChatRoom extends DurableObject {
         return ` + ${prize.text}!${prize.notes}`;
     }
 
+    // ---------- daily quests ----------
+
+    /** Makes sure today's three quests exist (the same ones all day for a player). Returns true when it created them. */
+    ensureQuests(user) {
+        const day = taskDay();
+        if (user.quests?.day === day) return false;
+        // a seeded shuffle, so the same player always gets the same quests on the same day
+        let seed = 0;
+        for (const ch of `${user.username}|${day}`) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+        const rand = () => {
+            seed = (seed + 0x6d2b79f5) >>> 0;
+            let t = seed;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+        const pool = QUEST_POOL.filter((q) => q.id !== "gift" || user.guild);
+        const list = [];
+        while (list.length < 3 && pool.length) {
+            const q = pool.splice(Math.floor(rand() * pool.length), 1)[0];
+            list.push({ id: q.id, goal: q.goals[Math.floor(rand() * q.goals.length)], progress: 0, done: false });
+        }
+        user.quests = { day, list, bonusPaid: false };
+        return true;
+    }
+
+    /** Counts progress on today's quests and pays the ones that are finished. Returns the chat lines to show (or ""). */
+    questTick(user, kind, amount = 1) {
+        this.ensureQuests(user);
+        const lines = [];
+        for (const quest of user.quests.list) {
+            if (quest.done || quest.id !== kind) continue;
+            quest.progress = Math.min(quest.goal, quest.progress + amount);
+            if (quest.progress < quest.goal) continue;
+            quest.done = true;
+            const def = QUEST_POOL.find((q) => q.id === quest.id);
+            const reward = def.reward(quest.goal);
+            lines.push(`✅ Quest done: ${def.text(quest.goal)}! ${this.payQuest(user, reward)}`);
+        }
+        const q = user.quests;
+        if (lines.length && q.list.every((x) => x.done) && !q.bonusPaid) {
+            q.bonusPaid = true;
+            lines.push(`\u{1F31F} All three daily quests done! ${this.payQuest(user, QUEST_BONUS)}`);
+        }
+        return lines.length ? `\n${lines.join("\n")}` : "";
+    }
+
+    payQuest(user, reward) {
+        const parts = [];
+        if (reward.coins) {
+            user.zooCoins = (user.zooCoins || 0) + reward.coins;
+            parts.push(`+${reward.coins} coins`);
+        }
+        if (reward.food) {
+            user.items = user.items || {};
+            user.items.food = (user.items.food || 0) + reward.food;
+            parts.push(`+${reward.food} ${ZOO_ITEMS.food.icon}`);
+        }
+        if (reward.gem) {
+            user.gems = user.gems || {};
+            user.gems[reward.gem.key] = (user.gems[reward.gem.key] || 0) + reward.gem.uses;
+            parts.push(`+${reward.gem.uses} uses of a ${reward.gem.label}`);
+        }
+        return parts.join(", ");
+    }
+
+    /** The quest list as the Zoo page and /quests show it. */
+    questsOf(user) {
+        this.ensureQuests(user);
+        const describe = (reward) => [reward.coins ? `${reward.coins} coins` : "", reward.food ? `${reward.food} Pet Food` : "", reward.gem ? reward.gem.label : ""].filter(Boolean).join(" + ");
+        return {
+            list: user.quests.list.map((quest) => {
+                const def = QUEST_POOL.find((q) => q.id === quest.id);
+                return { id: quest.id, text: def.text(quest.goal), goal: quest.goal, progress: quest.progress, done: quest.done, reward: describe(def.reward(quest.goal)) };
+            }),
+            bonus: describe(QUEST_BONUS),
+            bonusPaid: !!user.quests.bonusPaid,
+        };
+    }
+
+    // ---------- speed: the player list is read once and reused for a short while ----------
+
+    /** Every player record, cached for 30 seconds (the boards, the ranked pool and /best server all use it). */
+    async userScan() {
+        if (!this.userScanCache || Date.now() - this.userScanCache.time > 30 * 1000) {
+            const rows = [];
+            for (const [key, u] of await this.ctx.storage.list({ prefix: "u:" })) rows.push({ key, u });
+            this.userScanCache = { time: Date.now(), rows };
+        }
+        return this.userScanCache.rows;
+    }
+
+    // ---------- zoo help ----------
+
+    zooHelp(topic) {
+        const t = String(topic || "").toLowerCase().trim();
+        const topics = {
+            pets: "\u{1F43E} Pets\nTiers from weakest: Common, Uncommon, Rare, Epic, Legendary, Gem, Crystal, then Special, Boss and Huge (hidden until you find one).\n/inventory shows what you own, /best your strongest. Duplicates: /sell (coins) or /fuse. /fuse huge A | B | C turns three different Gem, Crystal or Boss pets into a Huge one. Levels go up to 50.",
+            fight: "⚔️ Fighting\n/team picks up to 3 fighters (/team add, remove, swap). /battle fights a wild team, /battle @user fights a player, /ranked has a rating and seasons (no gems there).\nAbilities: Crit, Burn, Dodge, Stun, Heal, Thorns, Shield, Lifesteal on Rare pets and above. Gems (/gems) boost hunts and fights.",
+            guild: "\u{1F6E1}️ Guilds and bosses\n/guild create Name | TAG (200 orbs), /guild join Name. Every hour your guild gets a boss with 500,000 HP: /guild attack (every 2 minutes). /guild reset (1000 coins) brings it back after a win, /guild gift @user coins 50 shares with mates.\n/boss is the shared world boss.",
+            items: "\u{1F36C} Items\n/items shows Pet Food (+150 xp) and Level-Up Candy (+1 level, 100 orbs). /feed Fox 3 and /candy Fox use them. /gems has hunting, heart, power, luck, xp and shield gems, bought with orbs or coins.",
+        };
+        if (topics[t]) return `${topics[t]}\nMore: /zoohelp, /quests`;
+        return "\u{1F981} Welcome to the zoo!\n1. /hunt (1 orb) catches a random animal. /daily gives a free hunt and /autohunt hunts for you while you are away.\n2. /team picks your fighters. /battle fights, /ranked has seasons.\n3. Level up with /feed (Pet Food) and /candy (Level-Up Candy). The maximum is level 50.\n4. Collect: /inventory, /best, /sell, /fuse.\n5. Together: /guild (an hourly boss), /boss and /quests for daily goals.\nTopics: /zoohelp pets, fight, guild, items. The Zoo page on the site shows everything.";
+    }
+
     /** What the Zoo page (and its buttons) need to know about one player. */
     zooMe(username, user, boss) {
         const xp = user.zooXp || {};
@@ -3691,6 +3866,7 @@ export class ChatRoom extends DurableObject {
             gems: Object.fromEntries(Object.entries(user.gems || {}).filter(([, n]) => n > 0)),
             items: { food: user.items?.food || 0, candy: user.items?.candy || 0 },
             guild: user.guild || null,
+            quests: this.questsOf(user),
         };
     }
 
@@ -3756,11 +3932,13 @@ export class ChatRoom extends DurableObject {
         const user = await this.ctx.storage.get(userKey);
         await this.syncUser(userKey, user);
         const action = String(body.action ?? "");
+        if (action.startsWith("guild")) this.guildListCache = null;
         let result;
         if (action === "team") {
             result = this.setTeamIds(user, Array.isArray(body.team) ? body.team.map(String) : []);
         } else if (action === "feed" || action === "candy") {
             result = this.useItem(user, action === "feed" ? "food" : "candy", ANIMALS.find((a) => a.id === body.id), Number(body.count) || 1);
+            if (!result.error && action === "feed") this.questTick(user, "feed", 1);
         } else if (action === "buy") {
             result = this.buyItem(user, String(body.item), Number(body.count) || 1, body.pay === "coins");
         } else if (action === "guildCreate") {

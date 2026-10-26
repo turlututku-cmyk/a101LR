@@ -47,6 +47,18 @@ export default {
                         </div>
                     </section>
 
+                    <section v-if="me && me.quests" class="zoo-quests">
+                        <h2>&#128220; Daily quests <small>new ones every day</small></h2>
+                        <div class="zoo-quest-row">
+                            <div v-for="q in me.quests.list" :key="q.id" class="zoo-quest" :class="{ done: q.done }">
+                                <b>{{ q.done ? '&#9989; ' : '' }}{{ q.text }}</b>
+                                <div class="zoo-xp"><span :style="{ width: (100 * q.progress / q.goal) + '%' }"></span></div>
+                                <small>{{ q.progress }}/{{ q.goal }} &middot; {{ q.reward }}</small>
+                            </div>
+                        </div>
+                        <p class="zoo-muted">All three: {{ me.quests.bonus }}<span v-if="me.quests.bonusPaid"> (paid)</span></p>
+                    </section>
+
                     <section v-if="me" class="zoo-me">
                         <div class="zoo-stat"><b>{{ owned }}/{{ data.animals.length }}</b><span>Species</span></div>
                         <div class="zoo-stat"><b>{{ me.coins }}</b><span>Coins</span></div>
@@ -262,6 +274,14 @@ export default {
                     </section>
 
                     <section v-else class="zoo-guide">
+                        <h2>Getting started</h2>
+                        <ol>
+                            <li><code>/hunt</code> costs 1 orb and catches a random animal. <code>/daily</code> is a free hunt every day and <code>/autohunt start 20</code> hunts for you while you are away.</li>
+                            <li>Open the <b>Collection</b> tab and click an animal to add it to your <b>team</b> (up to 3 fighters).</li>
+                            <li>Fight with <code>/battle</code> (wild teams or <code>/battle @user</code>) or climb the <b>Ranked</b> ladder.</li>
+                            <li>Make your animals stronger with Pet Food and Level-Up Candy from the <b>Items</b> shop (max level 50).</li>
+                            <li>Join a <b>Guild</b> to fight a new boss together every hour, and finish the <b>daily quests</b> above for coins.</li>
+                        </ol>
                         <h2>Commands (in #zoo)</h2>
                         <ul>
                             <li><code>/hunt</code> costs 1 orb and catches a random animal.</li>
