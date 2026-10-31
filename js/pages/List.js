@@ -126,6 +126,9 @@ export default {
                         Your level must 𝗻𝗼𝘁 have any spam parts, but you can use consistency like a101 Wave by ick567.
                     </p>
                     <p>
+                        Your level must 𝗻𝗼𝘁 have any copy paste structures.
+                    </p>
+                    <p>
                         Youre allowed to make level sequels/copies but only up to 2. for example as a extreme demon. Sonic Circles has Sonic Wave Infinity and Sonic Wave Rebirth.
                     </p>
                     <h3>Submission Requirements</h3>
