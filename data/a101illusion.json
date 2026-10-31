@@ -9,5 +9,12 @@
     "device": "pc",
     "difficulty": "insane-low",
     "records": [
+        {
+            "user": "GRACEEE",
+            "link": "https://youtu.be/Z2DBdGg-P7A",
+            "percent": 100,
+            "hz": 144,
+            "device": "pc"
+        }
     ]
 }
