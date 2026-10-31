@@ -15,6 +15,13 @@
             "percent": 100,
             "hz": 240,
             "device": "pc"
+        },
+        {
+            "user": "Zienik",
+            "link": "https://www.youtube.com/watch?v=vqCFqNXWwTA",
+            "percent": 100,
+            "hz": 60,
+            "device": "pc"
         }
     ]
 }
