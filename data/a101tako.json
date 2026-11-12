@@ -15,6 +15,13 @@
             "percent": 100,
             "hz": 120,
             "device": "mobile"
+        },
+        {
+            "user": "Novel",
+            "link": "https://youtu.be/6vLKDuBX73o",
+            "percent": 100,
+            "hz": 360,
+            "device": "pc"
         }
     ]
 }
